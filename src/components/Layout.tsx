@@ -1,112 +1,185 @@
-import { Outlet } from 'react-router-dom';
-import { AppBar, Box, Container, IconButton, Toolbar, Typography, Drawer, List, ListItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
-import { Menu as MenuIcon, Brightness4, Brightness7, Dashboard, Inventory, PieChart, ShoppingCart, Settings, ShoppingBag, Receipt } from '@mui/icons-material';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, Link as RouterLink, useLocation } from 'react-router-dom';
+import { 
+  Box, 
+  AppBar, 
+  Toolbar, 
+  Typography, 
+  Drawer, 
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  IconButton,
+  Divider,
+  Container,
+  useTheme,
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  Dashboard as DashboardIcon,
+  Inventory as InventoryIcon,
+  ShoppingCart as ShoppingCartIcon,
+  PieChart as SalesReportsIcon,
+  ShoppingBag as PurchasesIcon,
+  Brightness4 as DarkModeIcon,
+  Brightness7 as LightModeIcon,
+  Receipt as PurchaseReportsIcon, 
+  Settings as SettingsIcon 
+} from '@mui/icons-material';
+
+const drawerWidth = 240;
 
 interface LayoutProps {
-  toggleTheme: () => void;
-  isDarkMode: boolean;
+  toggleColorMode: () => void;
 }
 
-export default function Layout({ toggleTheme, isDarkMode }: LayoutProps) {
+export default function Layout({ toggleColorMode }: LayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const location = useLocation();
+  const theme = useTheme();
+
+  // Close drawer when route changes
+  useEffect(() => {
+    if (drawerOpen) {
+      setDrawerOpen(false);
+    }
+  }, [location.pathname]);
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
   };
 
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
+
+  const drawer = (
+    <div>
+      <Toolbar sx={{ display: 'flex', justifyContent: 'center' }}>
+        <Typography variant="h6" noWrap component={RouterLink} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
+          BizTracker
+        </Typography>
+      </Toolbar>
+      <Divider />
+      <List>
+        <ListItem disablePadding>
+          <ListItemButton component={RouterLink} to="/" selected={isActive('/')}>
+            <ListItemIcon>
+              <DashboardIcon color={isActive('/') ? 'primary' : 'inherit'} />
+            </ListItemIcon>
+            <ListItemText primary="Dashboard" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton component={RouterLink} to="/inventory" selected={isActive('/inventory')}>
+            <ListItemIcon>
+              <InventoryIcon color={isActive('/inventory') ? 'primary' : 'inherit'} />
+            </ListItemIcon>
+            <ListItemText primary="Inventory" />
+          </ListItemButton>
+        </ListItem>
+        {/* Purchases Menu Items */}
+        <ListItem disablePadding>
+          <ListItemButton component={RouterLink} to="/purchases" selected={isActive('/purchases')}>
+            <ListItemIcon>
+              <PurchasesIcon color={isActive('/purchases') ? 'primary' : 'inherit'} />
+            </ListItemIcon>
+            <ListItemText primary="Purchases" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton component={RouterLink} to="/purchases/reports" selected={isActive('/purchases/reports')}>
+            <ListItemIcon>
+              <PurchaseReportsIcon color={isActive('/purchases/reports') ? 'primary' : 'inherit'} />
+            </ListItemIcon>
+            <ListItemText primary="Purchase Reports" />
+          </ListItemButton>
+        </ListItem>
+        {/* Sales Menu Items */}
+        <ListItem disablePadding>
+          <ListItemButton component={RouterLink} to="/sales" selected={isActive('/sales')}>
+            <ListItemIcon>
+              <ShoppingCartIcon color={isActive('/sales') ? 'primary' : 'inherit'} />
+            </ListItemIcon>
+            <ListItemText primary="Sales" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton component={RouterLink} to="/sales/reports" selected={isActive('/sales/reports')}>
+            <ListItemIcon>
+              <SalesReportsIcon color={isActive('/sales/reports') ? 'primary' : 'inherit'} />
+            </ListItemIcon>
+            <ListItemText primary="Sales Reports" />
+          </ListItemButton>
+        </ListItem>
+      </List>
+      <Divider />
+      <List>
+        <ListItem disablePadding>
+          <ListItemButton component={RouterLink} to="/settings" onClick={toggleDrawer}>
+            <ListItemIcon>
+              <SettingsIcon  color={isActive('/settings') ? 'primary' : 'inherit'} />
+            </ListItemIcon>
+            <ListItemText primary="Settings" />
+          </ListItemButton>
+        </ListItem>
+      </List>
+    </div>
+  );
+
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <AppBar position="fixed">
+    <Box sx={{ display: 'flex' }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          width: '100%',
+          zIndex: (theme) => theme.zIndex.drawer + 1
+        }}
+      >
         <Toolbar>
           <IconButton
             color="inherit"
+            aria-label="open drawer"
             edge="start"
             onClick={toggleDrawer}
             sx={{ mr: 2 }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             BizTracker
           </Typography>
-          <IconButton sx={{ ml: 1 }} onClick={toggleTheme} color="inherit">
-            {isDarkMode ? <Brightness7 /> : <Brightness4 />}
+          <IconButton sx={{ ml: 1 }} onClick={toggleColorMode} color="inherit">
+            {theme.palette.mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>
         </Toolbar>
       </AppBar>
-
-      <Drawer
-        anchor="left"
-        open={drawerOpen}
-        onClose={toggleDrawer}
-        sx={{
-          width: 240,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: 240,
-            boxSizing: 'border-box',
-          },
-        }}
+      <Box
+        component="nav"
+        sx={{ width: drawerWidth, flexShrink: 0 }}
+        aria-label="mailbox folders"
+      >
+        <Drawer
+          variant="temporary"
+          open={drawerOpen}
+          onClose={toggleDrawer}
+          ModalProps={{
+            keepMounted: true, // Better open performance on mobile.
+          }}
+          sx={{
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+          }}
+        >
+          {drawer}
+        </Drawer>
+      </Box>
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, p: 3, width: '100%' }}
       >
         <Toolbar />
-        <Box sx={{ overflow: 'auto' }}>
-          <List>
-            <ListItem button component={Link} to="/dashboard" onClick={toggleDrawer}>
-              <ListItemIcon>
-                <Dashboard />
-              </ListItemIcon>
-              <ListItemText primary="Dashboard" />
-            </ListItem>
-            <ListItem button component={Link} to="/inventory" onClick={toggleDrawer}>
-              <ListItemIcon>
-                <Inventory />
-              </ListItemIcon>
-              <ListItemText primary="Inventory" />
-            </ListItem>
-            
-            {/* Purchases Menu Items */}
-            <ListItem button component={Link} to="/purchases" onClick={toggleDrawer}>
-              <ListItemIcon>
-                <ShoppingBag />
-              </ListItemIcon>
-              <ListItemText primary="Purchases" />
-            </ListItem>
-            <ListItem button component={Link} to="/purchases/reports" onClick={toggleDrawer}>
-              <ListItemIcon>
-                <Receipt />
-              </ListItemIcon>
-              <ListItemText primary="Purchase Reports" />
-            </ListItem>
-            
-            {/* Sales Menu Items */}
-            <ListItem button component={Link} to="/sales" onClick={toggleDrawer}>
-              <ListItemIcon>
-                <ShoppingCart />
-              </ListItemIcon>
-              <ListItemText primary="Sales" />
-            </ListItem>
-            <ListItem button component={Link} to="/sales/reports" onClick={toggleDrawer}>
-              <ListItemIcon>
-                <PieChart />
-              </ListItemIcon>
-              <ListItemText primary="Sales Reports" />
-            </ListItem>
-          </List>
-          <Divider />
-          <List>
-            <ListItem button component={Link} to="/settings" onClick={toggleDrawer}>
-              <ListItemIcon>
-                <Settings />
-              </ListItemIcon>
-              <ListItemText primary="Settings" />
-            </ListItem>
-          </List>
-        </Box>
-      </Drawer>
-
-      <Box component="main" sx={{ flexGrow: 1, p: 3, pt: 10 }}>
         <Container maxWidth="lg">
           <Outlet />
         </Container>

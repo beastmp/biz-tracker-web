@@ -19,11 +19,10 @@ import {
 } from '@mui/material';
 import { 
   Inventory as InventoryIcon, 
-  Warning as WarningIcon,
-  TrendingUp as TrendingUpIcon,
+  TrendingUp as SalesRevenueIcon,
   Add as AddIcon,
-  ShoppingCart as ShoppingCartIcon,
-  ShoppingBag as ShoppingBagIcon
+  ShoppingCart as InventoryValueIcon,
+  TrendingDown as PurchasesIcon
 } from '@mui/icons-material';
 import { itemsApi, Item, salesApi, Sale, purchasesApi, Purchase } from '../services/api';
 
@@ -58,7 +57,7 @@ export default function Dashboard() {
         
         const totalItems = items.length;
         const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const lowStockItems = items.filter(item => item.quantity < 5).sort((a, b) => a.quantity - b.quantity);
+        const lowStockItems = items.filter(item => item.quantity < 2).sort((a, b) => a.quantity - b.quantity);
         
         const categories: Record<string, number> = {};
         items.forEach(item => {
@@ -168,7 +167,7 @@ export default function Dashboard() {
                 <Typography color="text.secondary" gutterBottom>
                   Inventory Items
                 </Typography>
-                <InventoryIcon color="primary" />
+                <InventoryIcon color="warning" />
               </Box>
               <Typography variant="h3" component="div">
                 {inventoryStats.totalItems}
@@ -192,7 +191,7 @@ export default function Dashboard() {
                 <Typography color="text.secondary" gutterBottom>
                   Inventory Value
                 </Typography>
-                <TrendingUpIcon color="success" />
+                <InventoryValueIcon color="primary" />
               </Box>
               <Typography variant="h3" component="div">
                 {formatCurrency(inventoryStats.totalValue)}
@@ -208,7 +207,7 @@ export default function Dashboard() {
                 <Typography color="text.secondary" gutterBottom>
                   Revenue (30 days)
                 </Typography>
-                <ShoppingCartIcon color="info" />
+                <SalesRevenueIcon color="success" />
               </Box>
               <Typography variant="h3" component="div">
                 {formatCurrency(salesStats.totalRevenue)}
@@ -232,7 +231,7 @@ export default function Dashboard() {
                 <Typography color="text.secondary" gutterBottom>
                   Purchase Costs (30 days)
                 </Typography>
-                <ShoppingBagIcon color="secondary" />
+                <PurchasesIcon color="error" />
               </Box>
               <Typography variant="h3" component="div">
                 {formatCurrency(purchasesStats.totalCost)}
