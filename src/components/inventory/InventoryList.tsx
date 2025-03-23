@@ -15,16 +15,17 @@ import {
   TextField,
   InputAdornment,
   CircularProgress,
-  Chip
+  Chip,
+  Avatar
 } from '@mui/material';
-import { Add, Delete, Edit, Search, Visibility } from '@mui/icons-material';
+import { Add, Delete, Edit, Search, Visibility, Image as ImageIcon } from '@mui/icons-material';
 import { itemsApi, Item } from '../../services/api';
 
 export default function InventoryList() {
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -33,7 +34,7 @@ export default function InventoryList() {
         setItems(data);
         setFilteredItems(data);
       } catch (error) {
-        console.error('Failed to fetch inventory items:', error);
+        console.error('Failed to fetch items:', error);
       } finally {
         setLoading(false);
       }
@@ -42,21 +43,26 @@ export default function InventoryList() {
     fetchItems();
   }, []);
 
-  useEffect(() => {
-    if (searchQuery) {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-      const filtered = items.filter(item => 
-        item.name.toLowerCase().includes(lowerCaseQuery) || 
-        item.sku.toLowerCase().includes(lowerCaseQuery) ||
-        item.category.toLowerCase().includes(lowerCaseQuery)
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value.toLowerCase();
+    setSearchQuery(query);
+    
+    if (query) {
+      const filtered = items.filter(
+        item => 
+          item.name.toLowerCase().includes(query) || 
+          item.sku.toLowerCase().includes(query) || 
+          item.category.toLowerCase().includes(query) ||
+          // Also search in tags
+          (item.tags && item.tags.some(tag => tag.toLowerCase().includes(query)))
       );
       setFilteredItems(filtered);
     } else {
       setFilteredItems(items);
     }
-  }, [searchQuery, items]);
+  };
 
-  const handleDeleteItem = async (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         await itemsApi.delete(id);
@@ -67,34 +73,6 @@ export default function InventoryList() {
       }
     }
   };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  const getStockStatus = (item: Item) => {
-    if (item.trackingType === 'quantity') {
-      if (item.quantity === 0) return { label: 'Out of Stock', color: 'error' };
-      if (item.quantity < 5) return { label: 'Low Stock', color: 'warning' };
-      return { label: 'In Stock', color: 'success' };
-    } else {
-      // Weight-based tracking
-      if (item.weight === 0) return { label: 'Out of Stock', color: 'error' };
-      if (item.weight < 5) return { label: 'Low Stock', color: 'warning' };
-      return { label: 'In Stock', color: 'success' };
-    }
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <Box>
@@ -117,9 +95,9 @@ export default function InventoryList() {
         fullWidth
         margin="normal"
         variant="outlined"
-        placeholder="Search by name, SKU, or category..."
+        placeholder="Search by name, SKU, category, or tag..."
         value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
+        onChange={handleSearch}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
@@ -127,89 +105,120 @@ export default function InventoryList() {
             </InputAdornment>
           ),
         }}
-        sx={{ mb: 3 }}
       />
 
-      {filteredItems.length === 0 ? (
-        <Paper sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="body1">
-            No inventory items found. Click "Add Item" to create your first inventory item.
-          </Typography>
-        </Paper>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <CircularProgress />
+        </Box>
       ) : (
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell>Image</TableCell>
                 <TableCell>Name</TableCell>
                 <TableCell>SKU</TableCell>
                 <TableCell>Category</TableCell>
-                <TableCell>Stock</TableCell>
+                <TableCell align="right">Quantity/Weight</TableCell>
                 <TableCell align="right">Price</TableCell>
-                <TableCell align="right">Value</TableCell>
+                <TableCell>Tags</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredItems.map((item) => {
-                const status = getStockStatus(item);
-                return (
-                  <TableRow key={item._id}>
-                    <TableCell component="th" scope="row">
-                      <RouterLink to={`/inventory/${item._id}`} style={{ textDecoration: 'none', color: '#0a7ea4' }}>
-                        {item.name}
-                      </RouterLink>
-                    </TableCell>
-                    <TableCell>{item.sku}</TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={
-                          item.trackingType === 'quantity' 
-                            ? `${item.quantity} in stock` 
-                            : `${item.weight} ${item.weightUnit} in stock`
-                        } 
-                        color={status.color as any}
-                        size="small"
+              {filteredItems.map((item) => (
+                <TableRow key={item._id}>
+                  {/* Image cell */}
+                  <TableCell>
+                    {item.imageUrl ? (
+                      <Avatar
+                        src={item.imageUrl}
+                        alt={item.name}
+                        variant="rounded"
+                        sx={{ width: 50, height: 50 }}
                       />
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatCurrency(item.price)}
-                      {item.priceType === 'per_weight_unit' && `/${item.weightUnit}`}
-                    </TableCell>
-                    <TableCell align="right">
-                      {item.trackingType === 'quantity' 
-                        ? formatCurrency(item.price * item.quantity)
-                        : formatCurrency(item.price * item.weight)}
-                    </TableCell>
-                    <TableCell align="center">
-                      <IconButton 
-                        component={RouterLink} 
-                        to={`/inventory/${item._id}`}
-                        size="small"
-                        color="primary"
+                    ) : (
+                      <Avatar
+                        variant="rounded"
+                        sx={{ width: 50, height: 50, bgcolor: 'action.hover' }}
                       >
-                        <Visibility />
-                      </IconButton>
-                      <IconButton 
-                        component={RouterLink} 
-                        to={`/inventory/${item._id}/edit`}
-                        size="small"
-                        color="secondary"
-                      >
-                        <Edit />
-                      </IconButton>
-                      <IconButton 
-                        onClick={() => item._id && handleDeleteItem(item._id)} 
-                        size="small"
-                        color="error"
-                      >
-                        <Delete />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                        <ImageIcon color="disabled" />
+                      </Avatar>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{item.sku}</TableCell>
+                  <TableCell>
+                    <Chip size="small" label={item.category} />
+                  </TableCell>
+                  <TableCell align="right">
+                    {item.trackingType === 'quantity' 
+                      ? `${item.quantity} units` 
+                      : `${item.weight} ${item.weightUnit}`}
+                  </TableCell>
+                  <TableCell align="right">
+                    ${item.price.toFixed(2)}
+                    {item.priceType === 'per_weight_unit' && `/${item.weightUnit}`}
+                  </TableCell>
+                  
+                  {/* Tags cell */}
+                  <TableCell>
+                    {item.tags && item.tags.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 200 }}>
+                        {item.tags.slice(0, 2).map(tag => (
+                          <Chip 
+                            key={tag} 
+                            label={tag} 
+                            size="small" 
+                            variant="outlined" 
+                          />
+                        ))}
+                        {item.tags.length > 2 && (
+                          <Chip 
+                            label={`+${item.tags.length - 2}`} 
+                            size="small" 
+                            variant="outlined" 
+                            color="primary" 
+                          />
+                        )}
+                      </Box>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  
+                  <TableCell align="center">
+                    <IconButton 
+                      component={RouterLink} 
+                      to={`/inventory/${item._id}`}
+                      color="info"
+                      size="small"
+                      title="View details"
+                    >
+                      <Visibility />
+                    </IconButton>
+                    <IconButton 
+                      component={RouterLink} 
+                      to={`/inventory/${item._id}/edit`}
+                      color="primary"
+                      size="small"
+                      title="Edit item"
+                    >
+                      <Edit />
+                    </IconButton>
+                    <IconButton 
+                      color="error"
+                      size="small"
+                      onClick={() => item._id && handleDelete(item._id)}
+                      title="Delete item"
+                    >
+                      <Delete />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </TableContainer>

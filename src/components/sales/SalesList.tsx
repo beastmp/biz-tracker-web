@@ -15,9 +15,10 @@ import {
   TextField,
   InputAdornment,
   CircularProgress,
-  Chip
+  Chip,
+  Avatar
 } from '@mui/material';
-import { Add, Delete, Edit, Search, Visibility } from '@mui/icons-material';
+import { Add, Delete, Edit, Search, Visibility, Image as ImageIcon } from '@mui/icons-material';
 import { salesApi, Sale } from '../../services/api';
 
 export default function SalesList() {
@@ -172,7 +173,28 @@ export default function SalesList() {
                         {sale.customerName || 'Walk-in Customer'}
                       </RouterLink>
                     </TableCell>
-                    <TableCell align="right">{totalItems}</TableCell>
+                    <TableCell>
+                      {sale.items.length > 0 && (
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          {typeof sale.items[0].item === 'object' && sale.items[0].item.imageUrl ? (
+                            <Avatar
+                              src={sale.items[0].item.imageUrl}
+                              alt="Item"
+                              variant="rounded"
+                              sx={{ width: 40, height: 40, mr: 1 }}
+                            />
+                          ) : (
+                            <Avatar
+                              variant="rounded"
+                              sx={{ width: 40, height: 40, mr: 1, bgcolor: 'action.hover' }}
+                            >
+                              <ImageIcon color="disabled" fontSize="small" />
+                            </Avatar>
+                          )}
+                          <span>{totalItems} item(s)</span>
+                        </Box>
+                      )}
+                    </TableCell>
                     <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
                     <TableCell>
                       <Chip 

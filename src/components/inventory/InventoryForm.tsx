@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { 
   Box, 
@@ -14,9 +14,12 @@ import {
   InputLabel,
   Select,
   SelectChangeEvent,
-  InputAdornment
+  InputAdornment,
+  IconButton,
+  Chip,
+  Stack,
 } from '@mui/material';
-import { Save, ArrowBack } from '@mui/icons-material';
+import { Save, ArrowBack, AddPhotoAlternate, Close } from '@mui/icons-material';
 import { itemsApi, Item } from '../../services/api';
 
 export default function InventoryForm() {
@@ -37,9 +40,18 @@ export default function InventoryForm() {
     description: ''
   });
   
+  // New state for image handling
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
+  // New state for tag handling
+  const [currentTag, setCurrentTag] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -48,6 +60,16 @@ export default function InventoryForm() {
       try {
         const item = await itemsApi.getById(id);
         setFormData(item);
+        
+        // Set tags if available
+        if (item.tags) {
+          setTags(item.tags);
+        }
+        
+        // Set image preview if there's an imageUrl
+        if (item.imageUrl) {
+          setImagePreview(item.imageUrl);
+        }
       } catch (error) {
         console.error('Failed to fetch item:', error);
         setError('Failed to load item. Please try again.');
@@ -78,6 +100,57 @@ export default function InventoryForm() {
       [name]: value
     });
   };
+  
+  // Handle image change
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      
+      // Create a preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  // Remove image
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setFormData({...formData, imageUrl: undefined});
+  };
+  
+  // Handle tag input
+  const handleTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentTag(e.target.value);
+  };
+  
+  // Add tag on Enter key
+  const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && currentTag.trim()) {
+      e.preventDefault();
+      if (!tags.includes(currentTag.trim())) {
+        setTags([...tags, currentTag.trim()]);
+      }
+      setCurrentTag('');
+    }
+  };
+  
+  // Delete a tag
+  const handleDeleteTag = (tagToDelete: string) => {
+    setTags(tags.filter(tag => tag !== tagToDelete));
+  };
+  
+  // Add a tag with button
+  const handleAddTag = () => {
+    if (currentTag.trim() && !tags.includes(currentTag.trim())) {
+      setTags([...tags, currentTag.trim()]);
+      setCurrentTag('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,10 +158,28 @@ export default function InventoryForm() {
     setError(null);
     
     try {
+      // Use FormData to handle file uploads
+      const formDataToSend = new FormData();
+      
+      // Add all form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== undefined && key !== 'tags') {
+          formDataToSend.append(key, String(value));
+        }
+      });
+      
+      // Add tags as JSON string
+      formDataToSend.append('tags', JSON.stringify(tags));
+      
+      // Add image file if selected
+      if (imageFile) {
+        formDataToSend.append('image', imageFile);
+      }
+      
       if (isEditMode && id) {
-        await itemsApi.update(id, formData);
+        await itemsApi.update(id, formDataToSend);
       } else {
-        await itemsApi.create(formData);
+        await itemsApi.create(formDataToSend);
       }
       navigate('/inventory');
     } catch (error) {
@@ -131,6 +222,7 @@ export default function InventoryForm() {
       <Paper sx={{ p: 3 }}>
         <Box component="form" onSubmit={handleSubmit}>
           <Grid container spacing={3}>
+            {/* Existing form fields */}
             <Grid item xs={12}>
               <TextField
                 required
@@ -266,6 +358,113 @@ export default function InventoryForm() {
               </FormControl>
             </Grid>
 
+            {/* Image Upload Section */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" gutterBottom>
+                Item Image
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                {imagePreview ? (
+                  <Box sx={{ position: 'relative', width: 150, height: 150, mr: 2 }}>
+                    <img 
+                      src={imagePreview} 
+                      alt="Item preview"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }}
+                    />
+                    <IconButton 
+                      size="small"
+                      sx={{ position: 'absolute', top: 0, right: 0, bgcolor: 'rgba(255,255,255,0.7)' }}
+                      onClick={handleRemoveImage}
+                    >
+                      <Close fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <Box 
+                    sx={{ 
+                      width: 150, 
+                      height: 150, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      border: '1px dashed #ccc',
+                      borderRadius: 1,
+                      mr: 2
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" align="center">
+                      No image<br />selected
+                    </Typography>
+                  </Box>
+                )}
+                
+                <Box>
+                  <input
+                    ref={fileInputRef}
+                    accept="image/*"
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={handleImageChange}
+                    disabled={saving}
+                  />
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddPhotoAlternate />}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={saving}
+                  >
+                    {imagePreview ? 'Change Image' : 'Upload Image'}
+                  </Button>
+                  <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                    Max file size: 5MB. Supported formats: JPG, PNG, GIF
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
+            
+            {/* Tags Input Section */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" gutterBottom>
+                Tags
+              </Typography>
+              <Box sx={{ display: 'flex', mb: 1 }}>
+                <TextField
+                  fullWidth
+                  placeholder="Enter tag and press Enter"
+                  value={currentTag}
+                  onChange={handleTagInputChange}
+                  onKeyDown={handleTagInputKeyDown}
+                  disabled={saving}
+                  size="small"
+                  sx={{ mr: 1 }}
+                />
+                <Button 
+                  variant="outlined" 
+                  onClick={handleAddTag}
+                  disabled={!currentTag.trim() || saving}
+                >
+                  Add
+                </Button>
+              </Box>
+              
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                {tags.map((tag) => (
+                  <Chip
+                    key={tag}
+                    label={tag}
+                    onDelete={() => handleDeleteTag(tag)}
+                    disabled={saving}
+                    variant="outlined"
+                  />
+                ))}
+                {tags.length === 0 && (
+                  <Typography variant="caption" color="text.secondary">
+                    No tags added yet. Tags help organize and find your items.
+                  </Typography>
+                )}
+              </Box>
+            </Grid>
+            
             <Grid item xs={12}>
               <TextField
                 fullWidth

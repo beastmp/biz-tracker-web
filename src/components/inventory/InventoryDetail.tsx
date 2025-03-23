@@ -14,7 +14,7 @@ import {
   ListItem,
   ListItemText
 } from '@mui/material';
-import { ArrowBack, Edit, Delete } from '@mui/icons-material';
+import { ArrowBack, Edit, Delete, NoPhotography } from '@mui/icons-material';
 import { itemsApi, Item } from '../../services/api';
 
 export default function InventoryDetail() {
@@ -138,6 +138,77 @@ export default function InventoryDetail() {
       </Box>
 
       <Grid container spacing={3}>
+        {/* Left column - Image and tags */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            {/* Display item image if available */}
+            {item.imageUrl ? (
+              <Box sx={{ mb: 3, textAlign: 'center' }}>
+                <img 
+                  src={item.imageUrl} 
+                  alt={item.name} 
+                  style={{ 
+                    maxWidth: '100%', 
+                    maxHeight: '300px', 
+                    objectFit: 'contain',
+                    borderRadius: 8
+                  }} 
+                />
+              </Box>
+            ) : (
+              <Box 
+                sx={{ 
+                  height: 200, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: 2,
+                  mb: 3
+                }}
+              >
+                <Box sx={{ textAlign: 'center' }}>
+                  <NoPhotography sx={{ fontSize: 60, color: '#cccccc' }} />
+                  <Typography variant="body2" color="text.secondary">
+                    No image available
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+
+            {/* Display tags if available */}
+            <Typography variant="h6" gutterBottom>
+              Tags
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            
+            {item.tags && item.tags.length > 0 ? (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {item.tags.map(tag => (
+                  <Chip key={tag} label={tag} size="medium" />
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No tags added
+              </Typography>
+            )}
+
+            {item.description && (
+              <>
+                <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+                  Description
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                <Typography variant="body1">
+                  {item.description}
+                </Typography>
+              </>
+            )}
+          </Paper>
+        </Grid>
+
+        {/* Right column - Item details */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
@@ -156,6 +227,8 @@ export default function InventoryDetail() {
                     <Chip 
                       label={item.category} 
                       size="small"
+                      color="primary"
+                      variant="outlined"
                       sx={{ mt: 0.5 }}
                     />
                   }
@@ -216,7 +289,7 @@ export default function InventoryDetail() {
             </List>
           </Paper>
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
@@ -238,18 +311,6 @@ export default function InventoryDetail() {
                 }
               </Typography>
             </Box>
-
-            {item.description && (
-              <>
-                <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
-                  Description
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                <Typography variant="body1">
-                  {item.description}
-                </Typography>
-              </>
-            )}
           </Paper>
         </Grid>
       </Grid>

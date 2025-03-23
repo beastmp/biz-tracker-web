@@ -13,7 +13,9 @@ export interface Item {
   weightUnit: 'oz' | 'lb' | 'g' | 'kg';
   price: number;
   priceType: 'each' | 'per_weight_unit';
-  description?: string;
+  description: string;
+  imageUrl?: string; // New field for storing image URL
+  tags?: string[]; // New field for storing tags
   lastUpdated?: Date;
 }
 
@@ -63,13 +65,27 @@ export const itemsApi = {
     const response = await api.get(`/api/items/${id}`);
     return response.data;
   },
-  create: async (item: Item): Promise<Item> => {
-    const response = await api.post('/api/items', item);
-    return response.data;
+  create: async (item: Item | FormData): Promise<Item> => {
+    const response = await fetch(`${config.API_URL}/api/items`, {
+      method: 'POST',
+      body: item instanceof FormData ? item : JSON.stringify(item),
+      headers: item instanceof FormData ? {} : {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error('Failed to create item');
+    return await response.json();
   },
-  update: async (id: string, item: Item): Promise<Item> => {
-    const response = await api.patch(`/api/items/${id}`, item);
-    return response.data;
+  update: async (id: string, item: Partial<Item> | FormData): Promise<Item> => {
+    const response = await fetch(`${config.API_URL}/api/items/${id}`, {
+      method: 'PATCH',
+      body: item instanceof FormData ? item : JSON.stringify(item),
+      headers: item instanceof FormData ? {} : {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error('Failed to update item');
+    return await response.json();
   },
   delete: async (id: string): Promise<void> => {
     await api.delete(`/api/items/${id}`);

@@ -18,9 +18,10 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  Avatar
 } from '@mui/material';
-import { ArrowBack, Edit, Delete, Print } from '@mui/icons-material';
+import { ArrowBack, Edit, Delete, Print, Image as ImageIcon } from '@mui/icons-material';
 import { salesApi, Sale } from '../../services/api';
 
 export default function SaleDetail() {
@@ -306,6 +307,7 @@ export default function SaleDetail() {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell width={70}>Image</TableCell>
                     <TableCell>Item</TableCell>
                     <TableCell align="right">Price</TableCell>
                     <TableCell align="right">Quantity/Weight</TableCell>
@@ -320,7 +322,36 @@ export default function SaleDetail() {
                     
                     return (
                       <TableRow key={index}>
-                        <TableCell>{itemName}</TableCell>
+                        <TableCell>
+                          {itemDetails?.imageUrl ? (
+                            <Avatar
+                              src={itemDetails.imageUrl}
+                              alt={itemName}
+                              variant="rounded"
+                              sx={{ width: 50, height: 50 }}
+                            />
+                          ) : (
+                            <Avatar
+                              variant="rounded"
+                              sx={{ width: 50, height: 50, bgcolor: 'action.hover' }}
+                            >
+                              <ImageIcon color="disabled" />
+                            </Avatar>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {itemName}
+                          {itemDetails?.tags && itemDetails.tags.length > 0 && (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                              {itemDetails.tags.slice(0, 2).map(tag => (
+                                <Chip key={tag} label={tag} size="small" variant="outlined" />
+                              ))}
+                              {itemDetails.tags.length > 2 && (
+                                <Chip label={`+${itemDetails.tags.length - 2}`} size="small" variant="outlined" color="primary" />
+                              )}
+                            </Box>
+                          )}
+                        </TableCell>
                         <TableCell align="right">
                           {formatCurrency(item.priceAtSale)}
                           {isWeightBased && itemDetails?.priceType === 'per_weight_unit' && 

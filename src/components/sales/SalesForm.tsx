@@ -30,9 +30,12 @@ import {
   DialogTitle,
   ListItemText,
   List,
-  ListItem
+  ListItem,
+  ListItemAvatar,
+  Avatar,
+  Chip
 } from '@mui/material';
-import { Save, ArrowBack, Add, Delete } from '@mui/icons-material';
+import { Save, ArrowBack, Add, Delete, Image as ImageIcon } from '@mui/icons-material';
 import { itemsApi, salesApi, Item, Sale, SaleItem } from '../../services/api';
 
 export default function SaleForm() {
@@ -346,49 +349,64 @@ export default function SaleForm() {
             <Divider sx={{ mb: 2 }} />
             
             {formData.items && formData.items.length > 0 ? (
-              <TableContainer>
+              <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Item</TableCell>
-                      <TableCell align="right">Quantity/Weight</TableCell>
                       <TableCell align="right">Price</TableCell>
+                      <TableCell align="right">Quantity</TableCell>
                       <TableCell align="right">Total</TableCell>
-                      <TableCell align="center">Actions</TableCell>
+                      <TableCell align="center">Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {formData.items.map((item, index) => {
-                      const itemId = typeof item.item === 'string' ? item.item : item.item._id;
-                      const itemDetails = getItemById(itemId || '');
-                      
+                    {formData.items?.map((item, index) => {
+                      const itemDetails = typeof item.item === 'object' ? item.item : itemLookup[item.item];
                       return (
                         <TableRow key={index}>
                           <TableCell>
-                            {typeof item.item === 'object' && item.item.name 
-                              ? item.item.name 
-                              : getItemName(itemId || '')}
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              {itemDetails?.imageUrl ? (
+                                <Avatar
+                                  src={itemDetails.imageUrl}
+                                  alt={itemDetails.name}
+                                  variant="rounded"
+                                  sx={{ width: 40, height: 40, mr: 1 }}
+                                />
+                              ) : (
+                                <Avatar
+                                  variant="rounded"
+                                  sx={{ width: 40, height: 40, mr: 1, bgcolor: 'action.hover' }}
+                                >
+                                  <ImageIcon color="disabled" fontSize="small" />
+                                </Avatar>
+                              )}
+                              <Box>
+                                {itemDetails?.name || 'Unknown Item'}
+                                {itemDetails?.tags && itemDetails.tags.length > 0 && (
+                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                    {itemDetails.tags.slice(0, 1).map(tag => (
+                                      <Chip key={tag} label={tag} size="small" variant="outlined" />
+                                    ))}
+                                    {itemDetails.tags.length > 1 && (
+                                      <Chip label={`+${itemDetails.tags.length - 1}`} size="small" variant="outlined" color="primary" />
+                                    )}
+                                  </Box>
+                                )}
+                              </Box>
+                            </Box>
                           </TableCell>
-                          <TableCell align="right">
-                            {itemDetails?.trackingType === 'weight' 
-                              ? `${item.weight} ${item.weightUnit}`
-                              : item.quantity}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatCurrency(item.priceAtSale)}
-                            {itemDetails?.priceType === 'per_weight_unit' && `/${itemDetails.weightUnit}`}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatCurrency(item.priceAtSale * item.quantity)}
-                          </TableCell>
+                          <TableCell align="right">{formatCurrency(item.priceAtSale)}</TableCell>
+                          <TableCell align="right">{item.quantity}</TableCell>
+                          <TableCell align="right">{formatCurrency(item.priceAtSale * item.quantity)}</TableCell>
                           <TableCell align="center">
                             <IconButton 
                               size="small" 
                               color="error"
                               onClick={() => handleRemoveItem(index)}
-                              disabled={saving}
                             >
-                              <Delete />
+                              <Delete fontSize="small" />
                             </IconButton>
                           </TableCell>
                         </TableRow>
@@ -630,8 +648,34 @@ export default function SaleForm() {
                     key={item._id}
                     divider
                   >
+                    <ListItemAvatar>
+                      {item.imageUrl ? (
+                        <Avatar
+                          src={item.imageUrl}
+                          alt={item.name}
+                          variant="rounded"
+                        />
+                      ) : (
+                        <Avatar variant="rounded" sx={{ bgcolor: 'action.hover' }}>
+                          <ImageIcon color="disabled" />
+                        </Avatar>
+                      )}
+                    </ListItemAvatar>
                     <ListItemText 
-                      primary={item.name} 
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography component="span" variant="body1">
+                            {item.name}
+                          </Typography>
+                          {item.tags && item.tags.length > 0 && (
+                            <Box sx={{ display: 'flex', ml: 1, gap: 0.5 }}>
+                              {item.tags.slice(0, 2).map(tag => (
+                                <Chip key={tag} label={tag} size="small" variant="outlined" />
+                              ))}
+                            </Box>
+                          )}
+                        </Box>
+                      }
                       secondary={
                         <>
                           <Typography component="span" variant="body2">
