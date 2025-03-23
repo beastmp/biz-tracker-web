@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { AppBar, Box, Container, IconButton, Toolbar, Typography, Drawer, List, ListItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
-import { Menu as MenuIcon, Brightness4, Brightness7, Dashboard, Inventory, PieChart, ShoppingCart, Settings } from '@mui/icons-material';
+import { Menu as MenuIcon, Brightness4, Brightness7, Dashboard, Inventory, PieChart, ShoppingCart, Settings, ShoppingBag, Receipt } from '@mui/icons-material';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -64,6 +64,20 @@ export default function Layout({ toggleTheme, isDarkMode }: LayoutProps) {
                 <Inventory />
               </ListItemIcon>
               <ListItemText primary="Inventory" />
+            </ListItem>
+            
+            {/* Purchases Menu Items */}
+            <ListItem button component={Link} to="/purchases" onClick={toggleDrawer}>
+              <ListItemIcon>
+                <ShoppingBag />
+              </ListItemIcon>
+              <ListItemText primary="Purchases" />
+            </ListItem>
+            <ListItem button component={Link} to="/purchases/reports" onClick={toggleDrawer}>
+              <ListItemIcon>
+                <Receipt />
+              </ListItemIcon>
+              <ListItemText primary="Purchase Reports" />
             </ListItem>
             
             {/* Sales Menu Items */}

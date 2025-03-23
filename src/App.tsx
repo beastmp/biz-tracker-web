@@ -11,30 +11,32 @@ import SalesList from './components/sales/SalesList';
 import SalesDetail from './components/sales/SalesDetail';
 import SalesForm from './components/sales/SalesForm';
 import SalesReport from './components/sales/SalesReport';
+import PurchasesList from './components/purchases/PurchasesList';
+import PurchaseDetail from './components/purchases/PurchaseDetail';
+import PurchaseForm from './components/purchases/PurchaseForm';
+import PurchasesReport from './components/purchases/PurchasesReport';
 import Dashboard from './components/Dashboard';
 import NotFound from './components/NotFound';
 
 function App() {
   const [mode, setMode] = useState<'light' | 'dark'>('light');
   
-  const theme = useMemo(
-    () =>
-      createTheme({
-        palette: {
-          mode,
-          primary: {
-            main: '#0a7ea4',
-          },
-          secondary: {
-            main: '#f50057',
-          },
+  const theme = useMemo(() =>
+    createTheme({
+      palette: {
+        mode,
+        primary: {
+          main: '#0a7ea4',
         },
-      }),
-    [mode],
-  );
+        secondary: {
+          main: '#4caf50',
+        },
+      },
+    }),
+  [mode]);
 
-  const toggleColorMode = () => {
-    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+  const toggleMode = () => {
+    setMode(prevMode => prevMode === 'light' ? 'dark' : 'light');
   };
 
   return (
@@ -42,9 +44,8 @@ function App() {
       <CssBaseline />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Layout toggleTheme={toggleColorMode} isDarkMode={mode === 'dark'} />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
+          <Route path="/" element={<Layout toggleColorMode={toggleMode} />}>
+            <Route index element={<Dashboard />} />
             
             {/* Inventory Routes */}
             <Route path="inventory">
@@ -61,6 +62,15 @@ function App() {
               <Route path=":id" element={<SalesDetail />} />
               <Route path=":id/edit" element={<SalesForm />} />
               <Route path="reports" element={<SalesReport />} />
+            </Route>
+            
+            {/* Purchases Routes */}
+            <Route path="purchases">
+              <Route index element={<PurchasesList />} />
+              <Route path="new" element={<PurchaseForm />} />
+              <Route path=":id" element={<PurchaseDetail />} />
+              <Route path=":id/edit" element={<PurchaseForm />} />
+              <Route path="reports" element={<PurchasesReport />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
