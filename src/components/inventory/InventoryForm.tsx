@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { 
   Box, 
   Paper, 
@@ -9,6 +9,11 @@ import {
   Grid,
   CircularProgress,
   Alert,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  SelectChangeEvent,
   InputAdornment
 } from '@mui/material';
 import { Save, ArrowBack } from '@mui/icons-material';
@@ -19,12 +24,16 @@ export default function InventoryForm() {
   const navigate = useNavigate();
   const isEditMode = Boolean(id);
   
-  const [formData, setFormData] = useState<Omit<Item, '_id'>>({
+  const [formData, setFormData] = useState<Item>({
     name: '',
     sku: '',
     category: '',
+    trackingType: 'quantity',
     quantity: 0,
+    weight: 0,
+    weightUnit: 'lb',
     price: 0,
+    priceType: 'each',
     description: ''
   });
   
@@ -34,23 +43,16 @@ export default function InventoryForm() {
 
   useEffect(() => {
     const fetchItem = async () => {
-      if (id) {
-        try {
-          const data = await itemsApi.getById(id);
-          setFormData({
-            name: data.name,
-            sku: data.sku,
-            category: data.category,
-            quantity: data.quantity,
-            price: data.price,
-            description: data.description || ''
-          });
-        } catch (error) {
-          console.error('Failed to fetch item:', error);
-          setError('Failed to load item details. Please try again.');
-        } finally {
-          setLoading(false);
-        }
+      if (!id) return;
+      
+      try {
+        const item = await itemsApi.getById(id);
+        setFormData(item);
+      } catch (error) {
+        console.error('Failed to fetch item:', error);
+        setError('Failed to load item. Please try again.');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -59,34 +61,26 @@ export default function InventoryForm() {
     }
   }, [id, isEditMode]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'quantity' || name === 'price' 
-        ? parseFloat(value) || 0
+    setFormData({
+      ...formData,
+      [name]: name === 'quantity' || name === 'weight' || name === 'price' 
+        ? parseFloat(value) || 0 
         : value
-    }));
+    });
   };
 
-  const validateForm = () => {
-    if (!formData.name.trim()) return 'Name is required';
-    if (!formData.sku.trim()) return 'SKU is required';
-    if (!formData.category.trim()) return 'Category is required';
-    if (formData.quantity < 0) return 'Quantity cannot be negative';
-    if (formData.price < 0) return 'Price cannot be negative';
-    return null;
+  const handleSelectChange = (e: SelectChangeEvent<string>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
     setSaving(true);
     setError(null);
     
@@ -100,6 +94,7 @@ export default function InventoryForm() {
     } catch (error) {
       console.error('Failed to save item:', error);
       setError('Failed to save item. Please try again.');
+    } finally {
       setSaving(false);
     }
   };
@@ -114,91 +109,163 @@ export default function InventoryForm() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h4" component="h1">
           {isEditMode ? 'Edit Item' : 'Add New Item'}
         </Typography>
         <Button 
-          variant="outlined" 
           startIcon={<ArrowBack />}
-          onClick={() => navigate('/inventory')}
+          component={RouterLink}
+          to="/inventory"
         >
-          Back to List
+          Back to Inventory
         </Button>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
       <Paper sx={{ p: 3 }}>
-        <form onSubmit={handleSubmit}>
+        <Box component="form" onSubmit={handleSubmit}>
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <TextField
-                fullWidth
                 required
-                label="Name"
+                fullWidth
+                label="Item Name"
                 name="name"
                 value={formData.name}
-                onChange={handleChange}
+                onChange={handleInputChange}
                 disabled={saving}
               />
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
-                fullWidth
                 required
+                fullWidth
                 label="SKU"
                 name="sku"
                 value={formData.sku}
-                onChange={handleChange}
-                disabled={saving || isEditMode}
-                helperText={isEditMode ? "SKU cannot be changed after creation" : ""}
+                onChange={handleInputChange}
+                disabled={saving}
+                helperText="Stock Keeping Unit - must be unique"
               />
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
-                fullWidth
                 required
+                fullWidth
                 label="Category"
                 name="category"
                 value={formData.category}
-                onChange={handleChange}
+                onChange={handleInputChange}
                 disabled={saving}
               />
             </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField
-                fullWidth
-                required
-                type="number"
-                label="Quantity"
-                name="quantity"
-                value={formData.quantity}
-                onChange={handleChange}
-                inputProps={{ min: 0, step: 1 }}
-                disabled={saving}
-              />
+
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Tracking Type</InputLabel>
+                <Select
+                  name="trackingType"
+                  value={formData.trackingType}
+                  label="Tracking Type"
+                  onChange={handleSelectChange}
+                  disabled={saving}
+                >
+                  <MenuItem value="quantity">Track by Quantity</MenuItem>
+                  <MenuItem value="weight">Track by Weight</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
-            <Grid item xs={12} sm={3}>
+
+            {formData.trackingType === 'quantity' ? (
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Quantity"
+                  name="quantity"
+                  value={formData.quantity}
+                  onChange={handleInputChange}
+                  disabled={saving}
+                  InputProps={{
+                    inputProps: { min: 0 }
+                  }}
+                />
+              </Grid>
+            ) : (
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Weight"
+                    name="weight"
+                    value={formData.weight}
+                    onChange={handleInputChange}
+                    disabled={saving}
+                    InputProps={{
+                      inputProps: { min: 0, step: 0.01 }
+                    }}
+                  />
+                  <FormControl sx={{ minWidth: 80 }}>
+                    <InputLabel>Unit</InputLabel>
+                    <Select
+                      name="weightUnit"
+                      value={formData.weightUnit}
+                      label="Unit"
+                      onChange={handleSelectChange}
+                      disabled={saving}
+                    >
+                      <MenuItem value="oz">oz</MenuItem>
+                      <MenuItem value="lb">lb</MenuItem>
+                      <MenuItem value="g">g</MenuItem>
+                      <MenuItem value="kg">kg</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Grid>
+            )}
+
+            <Grid item xs={12} sm={6}>
               <TextField
-                fullWidth
                 required
+                fullWidth
                 type="number"
                 label="Price"
                 name="price"
                 value={formData.price}
-                onChange={handleChange}
-                inputProps={{ min: 0, step: 0.01 }}
+                onChange={handleInputChange}
                 disabled={saving}
                 InputProps={{
+                  inputProps: { min: 0, step: 0.01 },
                   startAdornment: <InputAdornment position="start">$</InputAdornment>,
                 }}
               />
             </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Price Type</InputLabel>
+                <Select
+                  name="priceType"
+                  value={formData.priceType}
+                  label="Price Type"
+                  onChange={handleSelectChange}
+                  disabled={saving}
+                >
+                  <MenuItem value="each">Price per Item</MenuItem>
+                  <MenuItem value="per_weight_unit">Price per {formData.weightUnit}</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -207,16 +274,17 @@ export default function InventoryForm() {
                 label="Description"
                 name="description"
                 value={formData.description}
-                onChange={handleChange}
+                onChange={handleInputChange}
                 disabled={saving}
               />
             </Grid>
+
             <Grid item xs={12}>
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                <Button 
-                  variant="contained" 
-                  color="primary" 
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
                   type="submit"
+                  variant="contained"
+                  color="primary"
                   startIcon={<Save />}
                   disabled={saving}
                 >
@@ -225,7 +293,7 @@ export default function InventoryForm() {
               </Box>
             </Grid>
           </Grid>
-        </form>
+        </Box>
       </Paper>
     </Box>
   );

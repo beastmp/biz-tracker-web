@@ -308,22 +308,37 @@ export default function SaleDetail() {
                   <TableRow>
                     <TableCell>Item</TableCell>
                     <TableCell align="right">Price</TableCell>
-                    <TableCell align="right">Quantity</TableCell>
+                    <TableCell align="right">Quantity/Weight</TableCell>
                     <TableCell align="right">Subtotal</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {sale.items.map((item, index) => {
-                    const itemName = typeof item.item === 'object' && item.item.name 
-                      ? item.item.name 
-                      : 'Unknown Item';
-
+                    const itemDetails = typeof item.item === 'object' ? item.item : null;
+                    const itemName = itemDetails?.name || 'Unknown Item';
+                    const isWeightBased = itemDetails?.trackingType === 'weight';
+                    
                     return (
                       <TableRow key={index}>
                         <TableCell>{itemName}</TableCell>
-                        <TableCell align="right">{formatCurrency(item.priceAtSale)}</TableCell>
-                        <TableCell align="right">{item.quantity}</TableCell>
-                        <TableCell align="right">{formatCurrency(item.quantity * item.priceAtSale)}</TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(item.priceAtSale)}
+                          {isWeightBased && itemDetails?.priceType === 'per_weight_unit' && 
+                            `/${item.weightUnit || itemDetails.weightUnit}`
+                          }
+                        </TableCell>
+                        <TableCell align="right">
+                          {isWeightBased 
+                            ? `${item.weight} ${item.weightUnit || itemDetails?.weightUnit || 'lb'}`
+                            : item.quantity
+                          }
+                        </TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(isWeightBased 
+                            ? item.priceAtSale * (item.weight || 0)
+                            : item.priceAtSale * item.quantity
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })}

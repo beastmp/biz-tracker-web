@@ -9,14 +9,18 @@ import {
   CircularProgress,
   Divider,
   Chip,
-  Stack
+  Stack,
+  List,
+  ListItem,
+  ListItemText
 } from '@mui/material';
 import { ArrowBack, Edit, Delete } from '@mui/icons-material';
 import { itemsApi, Item } from '../../services/api';
 
 export default function InventoryDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
+  
   const [item, setItem] = useState<Item | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +34,7 @@ export default function InventoryDetail() {
         setItem(data);
       } catch (error) {
         console.error('Failed to fetch item:', error);
-        setError('Failed to load item details. The item may have been deleted.');
+        setError('Failed to load item details');
       } finally {
         setLoading(false);
       }
@@ -40,14 +44,16 @@ export default function InventoryDetail() {
   }, [id]);
 
   const handleDelete = async () => {
-    if (!id || !window.confirm('Are you sure you want to delete this item?')) return;
+    if (!id || !window.confirm('Are you sure you want to delete this item?')) {
+      return;
+    }
     
     try {
       await itemsApi.delete(id);
       navigate('/inventory');
     } catch (error) {
       console.error('Failed to delete item:', error);
-      setError('Failed to delete item. Please try again.');
+      setError('Failed to delete item');
     }
   };
 
@@ -59,13 +65,19 @@ export default function InventoryDetail() {
   };
 
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return new Date(date).toLocaleString();
+  };
+
+  const getStockStatusColor = (item: Item) => {
+    if (item.trackingType === 'quantity') {
+      if (item.quantity === 0) return 'error';
+      if (item.quantity < 5) return 'warning';
+      return 'success';
+    } else {
+      if (item.weight === 0) return 'error';
+      if (item.weight < 5) return 'warning';
+      return 'success';
+    }
   };
 
   if (loading) {
@@ -79,24 +91,12 @@ export default function InventoryDetail() {
   if (error || !item) {
     return (
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
-          <Typography variant="h4" component="h1">
-            Item Not Found
-          </Typography>
-          <Button 
-            variant="outlined" 
-            startIcon={<ArrowBack />}
-            component={RouterLink}
-            to="/inventory"
-          >
-            Back to Inventory
-          </Button>
-        </Box>
-        <Paper sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="body1" color="error">
-            {error || "The requested item could not be found."}
-          </Typography>
-        </Paper>
+        <Typography variant="h5" color="error" gutterBottom>
+          {error || 'Item not found'}
+        </Typography>
+        <Button component={RouterLink} to="/inventory" startIcon={<ArrowBack />}>
+          Back to Inventory
+        </Button>
       </Box>
     );
   }
@@ -107,119 +107,152 @@ export default function InventoryDetail() {
         <Typography variant="h4" component="h1">
           {item.name}
         </Typography>
-        <Stack direction="row" spacing={2}>
+        <Box>
           <Button 
-            variant="outlined" 
+            component={RouterLink} 
+            to="/inventory" 
             startIcon={<ArrowBack />}
-            component={RouterLink}
-            to="/inventory"
+            sx={{ mr: 1 }}
           >
-            Back to List
+            Back
           </Button>
           <Button 
-            variant="contained" 
-            color="primary"
+            component={RouterLink} 
+            to={`/inventory/${id}/edit`} 
             startIcon={<Edit />}
-            component={RouterLink}
-            to={`/inventory/${id}/edit`}
+            variant="contained"
+            color="primary"
+            sx={{ mr: 1 }}
           >
             Edit
           </Button>
           <Button 
-            variant="contained" 
-            color="error"
+            onClick={handleDelete} 
             startIcon={<Delete />}
-            onClick={handleDelete}
+            variant="contained"
+            color="error"
           >
             Delete
           </Button>
-        </Stack>
+        </Box>
       </Box>
 
-      <Paper sx={{ p: 3 }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Item Details
             </Typography>
             <Divider sx={{ mb: 2 }} />
             
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  SKU
-                </Typography>
-                <Typography variant="body1">
-                  {item.sku}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Category
-                </Typography>
-                <Typography variant="body1">
-                  <Chip label={item.category} size="small" />
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Description
-                </Typography>
-                <Typography variant="body1">
-                  {item.description || "No description provided"}
-                </Typography>
-              </Box>
-            </Stack>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
+            <List>
+              <ListItem disablePadding sx={{ pb: 1 }}>
+                <ListItemText primary="SKU" secondary={item.sku} />
+              </ListItem>
+              <ListItem disablePadding sx={{ pb: 1 }}>
+                <ListItemText 
+                  primary="Category" 
+                  secondary={
+                    <Chip 
+                      label={item.category} 
+                      size="small"
+                      sx={{ mt: 0.5 }}
+                    />
+                  }
+                />
+              </ListItem>
+              <ListItem disablePadding sx={{ pb: 1 }}>
+                <ListItemText 
+                  primary="Tracking Type" 
+                  secondary={item.trackingType === 'quantity' ? 'Track by Quantity' : 'Track by Weight'} 
+                />
+              </ListItem>
+              {item.trackingType === 'quantity' ? (
+                <ListItem disablePadding sx={{ pb: 1 }}>
+                  <ListItemText 
+                    primary="Stock Level" 
+                    secondary={
+                      <Chip 
+                        label={`${item.quantity} in stock`}
+                        color={getStockStatusColor(item) as any}
+                        size="small"
+                        sx={{ mt: 0.5 }}
+                      />
+                    }
+                  />
+                </ListItem>
+              ) : (
+                <ListItem disablePadding sx={{ pb: 1 }}>
+                  <ListItemText 
+                    primary="Stock Level" 
+                    secondary={
+                      <Chip 
+                        label={`${item.weight} ${item.weightUnit} in stock`}
+                        color={getStockStatusColor(item) as any}
+                        size="small"
+                        sx={{ mt: 0.5 }}
+                      />
+                    }
+                  />
+                </ListItem>
+              )}
+              <ListItem disablePadding sx={{ pb: 1 }}>
+                <ListItemText 
+                  primary="Price" 
+                  secondary={
+                    <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'primary.main', mt: 0.5 }}>
+                      {formatCurrency(item.price)}
+                      {item.priceType === 'per_weight_unit' && `/${item.weightUnit}`}
+                    </Typography>
+                  }
+                />
+              </ListItem>
+              <ListItem disablePadding sx={{ pb: 1 }}>
+                <ListItemText 
+                  primary="Last Updated" 
+                  secondary={item.lastUpdated ? formatDate(item.lastUpdated) : 'Never'}
+                />
+              </ListItem>
+            </List>
+          </Paper>
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
-              Inventory Status
+              Inventory Value
             </Typography>
             <Divider sx={{ mb: 2 }} />
             
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Quantity in Stock
-                </Typography>
-                <Typography variant="h4" color={item.quantity > 0 ? 'success.main' : 'error.main'}>
-                  {item.quantity}
-                </Typography>
-              </Box>
+            <Box sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h3" component="div" color="primary">
+                {item.trackingType === 'quantity'
+                  ? formatCurrency(item.price * item.quantity)
+                  : formatCurrency(item.price * item.weight)
+                }
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {item.trackingType === 'quantity'
+                  ? `${item.quantity} units × ${formatCurrency(item.price)} each`
+                  : `${item.weight} ${item.weightUnit} × ${formatCurrency(item.price)}/${item.weightUnit}`
+                }
+              </Typography>
+            </Box>
 
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Price
+            {item.description && (
+              <>
+                <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+                  Description
                 </Typography>
-                <Typography variant="h4">
-                  {formatCurrency(item.price)}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Inventory Value
-                </Typography>
+                <Divider sx={{ mb: 2 }} />
                 <Typography variant="body1">
-                  {formatCurrency(item.price * item.quantity)}
+                  {item.description}
                 </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Last Updated
-                </Typography>
-                <Typography variant="body2">
-                  {item.lastUpdated ? formatDate(item.lastUpdated) : "Unknown"}
-                </Typography>
-              </Box>
-            </Stack>
-          </Grid>
+              </>
+            )}
+          </Paper>
         </Grid>
-      </Paper>
+      </Grid>
     </Box>
   );
 }

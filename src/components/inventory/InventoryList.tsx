@@ -14,9 +14,10 @@ import {
   IconButton,
   TextField,
   InputAdornment,
-  CircularProgress
+  CircularProgress,
+  Chip
 } from '@mui/material';
-import { Add, Delete, Edit, Search } from '@mui/icons-material';
+import { Add, Delete, Edit, Search, Visibility } from '@mui/icons-material';
 import { itemsApi, Item } from '../../services/api';
 
 export default function InventoryList() {
@@ -55,11 +56,12 @@ export default function InventoryList() {
     }
   }, [searchQuery, items]);
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteItem = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         await itemsApi.delete(id);
-        setItems(items.filter(item => item._id !== id));
+        setItems(prevItems => prevItems.filter(item => item._id !== id));
+        setFilteredItems(prevItems => prevItems.filter(item => item._id !== id));
       } catch (error) {
         console.error('Failed to delete item:', error);
       }
@@ -71,6 +73,19 @@ export default function InventoryList() {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
+  };
+
+  const getStockStatus = (item: Item) => {
+    if (item.trackingType === 'quantity') {
+      if (item.quantity === 0) return { label: 'Out of Stock', color: 'error' };
+      if (item.quantity < 5) return { label: 'Low Stock', color: 'warning' };
+      return { label: 'In Stock', color: 'success' };
+    } else {
+      // Weight-based tracking
+      if (item.weight === 0) return { label: 'Out of Stock', color: 'error' };
+      if (item.weight < 5) return { label: 'Low Stock', color: 'warning' };
+      return { label: 'In Stock', color: 'success' };
+    }
   };
 
   if (loading) {
@@ -129,42 +144,72 @@ export default function InventoryList() {
                 <TableCell>Name</TableCell>
                 <TableCell>SKU</TableCell>
                 <TableCell>Category</TableCell>
-                <TableCell align="right">Quantity</TableCell>
+                <TableCell>Stock</TableCell>
                 <TableCell align="right">Price</TableCell>
+                <TableCell align="right">Value</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item._id}>
-                  <TableCell component="th" scope="row">
-                    <RouterLink to={`/inventory/${item._id}`} style={{ textDecoration: 'none', color: '#0a7ea4' }}>
-                      {item.name}
-                    </RouterLink>
-                  </TableCell>
-                  <TableCell>{item.sku}</TableCell>
-                  <TableCell>{item.category}</TableCell>
-                  <TableCell align="right">{item.quantity}</TableCell>
-                  <TableCell align="right">{formatCurrency(item.price)}</TableCell>
-                  <TableCell align="center">
-                    <IconButton 
-                      component={RouterLink} 
-                      to={`/inventory/${item._id}/edit`}
-                      color="primary"
-                      size="small"
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton 
-                      color="error"
-                      size="small"
-                      onClick={() => item._id && handleDelete(item._id)}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredItems.map((item) => {
+                const status = getStockStatus(item);
+                return (
+                  <TableRow key={item._id}>
+                    <TableCell component="th" scope="row">
+                      <RouterLink to={`/inventory/${item._id}`} style={{ textDecoration: 'none', color: '#0a7ea4' }}>
+                        {item.name}
+                      </RouterLink>
+                    </TableCell>
+                    <TableCell>{item.sku}</TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={
+                          item.trackingType === 'quantity' 
+                            ? `${item.quantity} in stock` 
+                            : `${item.weight} ${item.weightUnit} in stock`
+                        } 
+                        color={status.color as any}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatCurrency(item.price)}
+                      {item.priceType === 'per_weight_unit' && `/${item.weightUnit}`}
+                    </TableCell>
+                    <TableCell align="right">
+                      {item.trackingType === 'quantity' 
+                        ? formatCurrency(item.price * item.quantity)
+                        : formatCurrency(item.price * item.weight)}
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton 
+                        component={RouterLink} 
+                        to={`/inventory/${item._id}`}
+                        size="small"
+                        color="primary"
+                      >
+                        <Visibility />
+                      </IconButton>
+                      <IconButton 
+                        component={RouterLink} 
+                        to={`/inventory/${item._id}/edit`}
+                        size="small"
+                        color="secondary"
+                      >
+                        <Edit />
+                      </IconButton>
+                      <IconButton 
+                        onClick={() => item._id && handleDeleteItem(item._id)} 
+                        size="small"
+                        color="error"
+                      >
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>

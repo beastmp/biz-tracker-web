@@ -17,7 +17,10 @@ import {
   TableHead,
   TableRow,
   Chip,
-  Alert
+  Alert,
+  List,
+  ListItem,
+  ListItemText
 } from '@mui/material';
 import { 
   BarChart, 
@@ -33,6 +36,8 @@ interface ReportData {
   totalRevenue: number;
   averageOrderValue: number;
   sales: Sale[];
+  topProductsByQuantity: [string, number][];
+  topProductsByWeight: [string, { weight: number, unit: string }][];
 }
 
 export default function SalesReport() {
@@ -128,6 +133,58 @@ export default function SalesReport() {
       case 'partially_refunded': return 'warning';
       default: return 'default';
     }
+  };
+
+  // Updated analysis function to handle weight-based items
+  const analyzeSales = (sales: Sale[]) => {
+    let totalRevenue = 0;
+    const salesByDate: Record<string, number> = {};
+    const revenueByDate: Record<string, number> = {};
+    const itemsSoldByQuantity: Record<string, number> = {};
+    const itemsSoldByWeight: Record<string, { weight: number, unit: string }> = {};
+    const revenueByCategory: Record<string, number> = {};
+
+    sales.forEach(sale => {
+      totalRevenue += sale.total;
+      const date = new Date(sale.createdAt!).toLocaleDateString();
+      salesByDate[date] = (salesByDate[date] || 0) + 1;
+      revenueByDate[date] = (revenueByDate[date] || 0) + sale.total;
+
+      sale.items.forEach(saleItem => {
+        const item = typeof saleItem.item === 'object' ? saleItem.item : null;
+        if (!item) return;
+
+        const category = item.category || 'Uncategorized';
+        revenueByCategory[category] = (revenueByCategory[category] || 0) + saleItem.priceAtSale * saleItem.quantity;
+
+        if (item.trackingType === 'quantity') {
+          itemsSoldByQuantity[item.name] = (itemsSoldByQuantity[item.name] || 0) + saleItem.quantity;
+        } else {
+          if (!itemsSoldByWeight[item.name]) {
+            itemsSoldByWeight[item.name] = { weight: 0, unit: item.weightUnit };
+          }
+          itemsSoldByWeight[item.name].weight += saleItem.weight || 0;
+        }
+      });
+    });
+
+    const topProductsByQuantity = Object.entries(itemsSoldByQuantity)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    const topProductsByWeight = Object.entries(itemsSoldByWeight)
+      .sort((a, b) => b[1].weight - a[1].weight)
+      .slice(0, 5);
+
+    return {
+      totalRevenue,
+      totalSales: sales.length,
+      salesByDate,
+      revenueByDate,
+      revenueByCategory,
+      topProductsByQuantity,
+      topProductsByWeight,
+    };
   };
 
   return (
@@ -312,6 +369,58 @@ export default function SalesReport() {
                     </TableBody>
                   </Table>
                 </TableContainer>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Top Products by Quantity
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                
+                <List>
+                  {reportData?.topProductsByQuantity.map(([name, quantity], index) => (
+                    <ListItem key={index} divider={index < reportData.topProductsByQuantity.length - 1}>
+                      <ListItemText 
+                        primary={name} 
+                        secondary={`${quantity} units sold`} 
+                      />
+                    </ListItem>
+                  ))}
+                  {(!reportData?.topProductsByQuantity.length) && (
+                    <ListItem>
+                      <ListItemText primary="No data available" />
+                    </ListItem>
+                  )}
+                </List>
+              </Paper>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Top Products by Weight
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                
+                <List>
+                  {reportData?.topProductsByWeight.map(([name, data], index) => (
+                    <ListItem key={index} divider={index < reportData.topProductsByWeight.length - 1}>
+                      <ListItemText 
+                        primary={name} 
+                        secondary={`${data.weight.toFixed(2)} ${data.unit} sold`} 
+                      />
+                    </ListItem>
+                  ))}
+                  {(!reportData?.topProductsByWeight.length) && (
+                    <ListItem>
+                      <ListItemText primary="No data available" />
+                    </ListItem>
+                  )}
+                </List>
               </Paper>
             </Grid>
           </Grid>

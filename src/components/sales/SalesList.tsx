@@ -154,55 +154,64 @@ export default function SalesList() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredSales.map((sale) => (
-                <TableRow key={sale._id}>
-                  <TableCell>
-                    {sale.createdAt && formatDate(sale.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <RouterLink to={`/sales/${sale._id}`} style={{ textDecoration: 'none', color: '#0a7ea4' }}>
-                      {sale.customerName || 'Guest Customer'}
-                    </RouterLink>
-                  </TableCell>
-                  <TableCell>{sale.items.length} item(s)</TableCell>
-                  <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={sale.status.replace('_', ' ')} 
-                      color={getStatusColor(sale.status) as any}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    <IconButton 
-                      component={RouterLink} 
-                      to={`/sales/${sale._id}`}
-                      color="info"
-                      size="small"
-                      title="View details"
-                    >
-                      <Visibility />
-                    </IconButton>
-                    <IconButton 
-                      component={RouterLink} 
-                      to={`/sales/${sale._id}/edit`}
-                      color="primary"
-                      size="small"
-                      title="Edit sale"
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton 
-                      color="error"
-                      size="small"
-                      onClick={() => sale._id && handleDelete(sale._id)}
-                      title="Delete sale"
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredSales.map((sale) => {
+                // Calculate total items, accounting for both quantity and weight-based items
+                const totalItems = sale.items.reduce((total, item) => {
+                  // For quantity-based items, add the quantity
+                  // For weight-based items, we count them as 1 item each
+                  return total + item.quantity;
+                }, 0);
+                
+                return (
+                  <TableRow key={sale._id} hover>
+                    <TableCell>
+                      {sale.createdAt ? formatDate(sale.createdAt) : 'Unknown'}
+                    </TableCell>
+                    <TableCell>
+                      <RouterLink to={`/sales/${sale._id}`} style={{ textDecoration: 'none', color: '#0a7ea4' }}>
+                        {sale.customerName || 'Walk-in Customer'}
+                      </RouterLink>
+                    </TableCell>
+                    <TableCell align="right">{totalItems}</TableCell>
+                    <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={sale.status.replace('_', ' ')} 
+                        color={getStatusColor(sale.status) as any}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton 
+                        component={RouterLink} 
+                        to={`/sales/${sale._id}`}
+                        color="info"
+                        size="small"
+                        title="View details"
+                      >
+                        <Visibility />
+                      </IconButton>
+                      <IconButton 
+                        component={RouterLink} 
+                        to={`/sales/${sale._id}/edit`}
+                        color="primary"
+                        size="small"
+                        title="Edit sale"
+                      >
+                        <Edit />
+                      </IconButton>
+                      <IconButton 
+                        color="error"
+                        size="small"
+                        onClick={() => sale._id && handleDelete(sale._id)}
+                        title="Delete sale"
+                      >
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>

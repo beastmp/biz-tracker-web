@@ -7,8 +7,12 @@ export interface Item {
   name: string;
   sku: string;
   category: string;
+  trackingType: 'quantity' | 'weight';
   quantity: number;
+  weight: number;
+  weightUnit: 'oz' | 'lb' | 'g' | 'kg';
   price: number;
+  priceType: 'each' | 'per_weight_unit';
   description?: string;
   lastUpdated?: Date;
 }
@@ -17,6 +21,8 @@ export interface Item {
 export interface SaleItem {
   item: string | Item; // ID or full Item object when populated
   quantity: number;
+  weight: number;
+  weightUnit?: 'oz' | 'lb' | 'g' | 'kg';
   priceAtSale: number;
 }
 
