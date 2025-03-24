@@ -1,13 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { 
-  Box, 
-  Grid, 
-  Paper, 
-  Typography, 
-  Card, 
-  CardContent, 
-  Button, 
+import {
+  Box,
+  Grid,
+  Paper,
+  Typography,
+  Card,
+  CardContent,
+  Button,
   CircularProgress,
   List,
   ListItem,
@@ -17,8 +18,8 @@ import {
   Tab,
   Tabs
 } from '@mui/material';
-import { 
-  Inventory as InventoryIcon, 
+import {
+  Inventory as InventoryIcon,
   TrendingUp as SalesRevenueIcon,
   Add as AddIcon,
   ShoppingCart as InventoryValueIcon,
@@ -33,19 +34,19 @@ export default function Dashboard() {
     lowStockItems: [] as Item[],
     categories: {} as Record<string, number>,
   });
-  
+
   const [salesStats, setSalesStats] = useState({
     totalSales: 0,
     totalRevenue: 0,
     recentSales: [] as Sale[]
   });
-  
+
   const [purchasesStats, setPurchasesStats] = useState({
     totalPurchases: 0,
     totalCost: 0,
     recentPurchases: [] as Purchase[]
   });
-  
+
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
 
@@ -54,11 +55,11 @@ export default function Dashboard() {
       try {
         // Fetch inventory data
         const items = await itemsApi.getAll();
-        
+
         const totalItems = items.length;
         const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const lowStockItems = items.filter(item => item.quantity < 2).sort((a, b) => a.quantity - b.quantity);
-        
+
         const categories: Record<string, number> = {};
         items.forEach(item => {
           if (categories[item.category]) {
@@ -67,7 +68,7 @@ export default function Dashboard() {
             categories[item.category] = 1;
           }
         });
-        
+
         setInventoryStats({
           totalItems,
           totalValue,
@@ -79,17 +80,17 @@ export default function Dashboard() {
         const today = new Date();
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(today.getDate() - 30);
-        
+
         const startDate = thirtyDaysAgo.toISOString().split('T')[0];
         const endDate = today.toISOString().split('T')[0];
-        
+
         const salesReport = await salesApi.getReport(startDate, endDate);
         setSalesStats({
           totalSales: salesReport.totalSales,
           totalRevenue: salesReport.totalRevenue,
           recentSales: salesReport.sales.slice(0, 5)
         });
-        
+
         // Fetch purchases data - last 30 days
         const purchasesReport = await purchasesApi.getReport(startDate, endDate);
         setPurchasesStats({
@@ -97,7 +98,7 @@ export default function Dashboard() {
           totalCost: purchasesReport.totalCost || 0,
           recentPurchases: (purchasesReport.purchases || []).slice(0, 5)
         });
-        
+
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -125,23 +126,23 @@ export default function Dashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': 
-      case 'received': 
+      case 'completed':
+      case 'received':
         return 'success';
-      case 'refunded': 
-      case 'cancelled': 
+      case 'refunded':
+      case 'cancelled':
         return 'error';
-      case 'partially_refunded': 
-      case 'partially_received': 
+      case 'partially_refunded':
+      case 'partially_received':
         return 'warning';
       case 'pending':
         return 'info';
-      default: 
+      default:
         return 'default';
     }
   };
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 
@@ -172,9 +173,9 @@ export default function Dashboard() {
               <Typography variant="h3" component="div">
                 {inventoryStats.totalItems}
               </Typography>
-              <Button 
-                component={RouterLink} 
-                to="/inventory" 
+              <Button
+                component={RouterLink}
+                to="/inventory"
                 size="small"
                 sx={{ mt: 2 }}
               >
@@ -212,9 +213,9 @@ export default function Dashboard() {
               <Typography variant="h3" component="div">
                 {formatCurrency(salesStats.totalRevenue)}
               </Typography>
-              <Button 
-                component={RouterLink} 
-                to="/sales" 
+              <Button
+                component={RouterLink}
+                to="/sales"
                 size="small"
                 sx={{ mt: 2 }}
               >
@@ -236,9 +237,9 @@ export default function Dashboard() {
               <Typography variant="h3" component="div">
                 {formatCurrency(purchasesStats.totalCost)}
               </Typography>
-              <Button 
-                component={RouterLink} 
-                to="/purchases" 
+              <Button
+                component={RouterLink}
+                to="/purchases"
                 size="small"
                 sx={{ mt: 2 }}
               >
@@ -256,7 +257,7 @@ export default function Dashboard() {
               Low Stock Items
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             {inventoryStats.lowStockItems.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 No items are low in stock.
@@ -264,18 +265,18 @@ export default function Dashboard() {
             ) : (
               <List>
                 {inventoryStats.lowStockItems.slice(0, 5).map((item) => (
-                  <ListItem 
+                  <ListItem
                     key={item._id}
                     component={RouterLink}
                     to={`/inventory/${item._id}`}
-                    sx={{ 
-                      textDecoration: 'none', 
+                    sx={{
+                      textDecoration: 'none',
                       color: 'text.primary',
                       '&:hover': { bgcolor: 'action.hover' }
                     }}
                   >
-                    <ListItemText 
-                      primary={item.name} 
+                    <ListItemText
+                      primary={item.name}
                       secondary={`SKU: ${item.sku} | ${item.quantity} in stock`}
                       primaryTypographyProps={{
                         color: item.quantity === 0 ? 'error' : 'text.primary',
@@ -286,8 +287,8 @@ export default function Dashboard() {
                 ))}
                 {inventoryStats.lowStockItems.length > 5 && (
                   <Box sx={{ textAlign: 'center', mt: 2 }}>
-                    <Button 
-                      component={RouterLink} 
+                    <Button
+                      component={RouterLink}
                       to="/inventory"
                       size="small"
                     >
@@ -308,7 +309,7 @@ export default function Dashboard() {
                 <Tab label="Recent Purchases" />
               </Tabs>
             </Box>
-            
+
             {activeTab === 0 && (
               <Box sx={{ pt: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
@@ -322,7 +323,7 @@ export default function Dashboard() {
                     New Sale
                   </Button>
                 </Box>
-                
+
                 {salesStats.recentSales.length === 0 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
                     No recent sales found. Create your first sale to start tracking.
@@ -334,13 +335,13 @@ export default function Dashboard() {
                         key={sale._id}
                         component={RouterLink}
                         to={`/sales/${sale._id}`}
-                        sx={{ 
-                          textDecoration: 'none', 
+                        sx={{
+                          textDecoration: 'none',
                           color: 'text.primary',
                           '&:hover': { bgcolor: 'action.hover' }
                         }}
                       >
-                        <ListItemText 
+                        <ListItemText
                           primary={
                             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span>{sale.customerName || 'Guest Customer'}</span>
@@ -352,8 +353,8 @@ export default function Dashboard() {
                           secondary={
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span>{sale.createdAt && formatDate(sale.createdAt)}</span>
-                              <Chip 
-                                label={sale.status.replace('_', ' ')} 
+                              <Chip
+                                label={sale.status.replace('_', ' ')}
                                 color={getStatusColor(sale.status) as any}
                                 size="small"
                                 sx={{ height: 20, fontSize: '0.7rem' }}
@@ -364,8 +365,8 @@ export default function Dashboard() {
                       </ListItem>
                     ))}
                     <Box sx={{ textAlign: 'center', mt: 2 }}>
-                      <Button 
-                        component={RouterLink} 
+                      <Button
+                        component={RouterLink}
                         to="/sales"
                         size="small"
                       >
@@ -376,7 +377,7 @@ export default function Dashboard() {
                 )}
               </Box>
             )}
-            
+
             {activeTab === 1 && (
               <Box sx={{ pt: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
@@ -390,7 +391,7 @@ export default function Dashboard() {
                     New Purchase
                   </Button>
                 </Box>
-                
+
                 {purchasesStats.recentPurchases.length === 0 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
                     No recent purchases found. Create your first purchase to start tracking.
@@ -402,13 +403,13 @@ export default function Dashboard() {
                         key={purchase._id}
                         component={RouterLink}
                         to={`/purchases/${purchase._id}`}
-                        sx={{ 
-                          textDecoration: 'none', 
+                        sx={{
+                          textDecoration: 'none',
                           color: 'text.primary',
                           '&:hover': { bgcolor: 'action.hover' }
                         }}
                       >
-                        <ListItemText 
+                        <ListItemText
                           primary={
                             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span>{purchase.supplier?.name || 'Unknown Supplier'}</span>
@@ -420,8 +421,8 @@ export default function Dashboard() {
                           secondary={
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span>{purchase.purchaseDate && formatDate(purchase.purchaseDate)}</span>
-                              <Chip 
-                                label={purchase.status.replace('_', ' ')} 
+                              <Chip
+                                label={purchase.status.replace('_', ' ')}
                                 color={getStatusColor(purchase.status) as any}
                                 size="small"
                                 sx={{ height: 20, fontSize: '0.7rem' }}
@@ -432,8 +433,8 @@ export default function Dashboard() {
                       </ListItem>
                     ))}
                     <Box sx={{ textAlign: 'center', mt: 2 }}>
-                      <Button 
-                        component={RouterLink} 
+                      <Button
+                        component={RouterLink}
                         to="/purchases"
                         size="small"
                       >

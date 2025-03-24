@@ -1,14 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
+import {
+  Box,
+  Paper,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
   TableRow,
   Button,
   IconButton,
@@ -46,8 +47,8 @@ export default function SalesList() {
   useEffect(() => {
     if (searchQuery) {
       const lowerCaseQuery = searchQuery.toLowerCase();
-      const filtered = sales.filter(sale => 
-        (sale.customerName && sale.customerName.toLowerCase().includes(lowerCaseQuery)) || 
+      const filtered = sales.filter(sale =>
+        (sale.customerName && sale.customerName.toLowerCase().includes(lowerCaseQuery)) ||
         (sale._id && sale._id.includes(lowerCaseQuery))
       );
       setFilteredSales(filtered);
@@ -107,9 +108,9 @@ export default function SalesList() {
         <Typography variant="h4" component="h1">
           Sales
         </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
+        <Button
+          variant="contained"
+          color="primary"
           startIcon={<Add />}
           component={RouterLink}
           to="/sales/new"
@@ -162,7 +163,7 @@ export default function SalesList() {
                   // For weight-based items, we count them as 1 item each
                   return total + item.quantity;
                 }, 0);
-                
+
                 return (
                   <TableRow key={sale._id} hover>
                     <TableCell>
@@ -197,15 +198,15 @@ export default function SalesList() {
                     </TableCell>
                     <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
                     <TableCell>
-                      <Chip 
-                        label={sale.status.replace('_', ' ')} 
+                      <Chip
+                        label={sale.status.replace('_', ' ')}
                         color={getStatusColor(sale.status) as any}
                         size="small"
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <IconButton 
-                        component={RouterLink} 
+                      <IconButton
+                        component={RouterLink}
                         to={`/sales/${sale._id}`}
                         color="info"
                         size="small"
@@ -213,8 +214,8 @@ export default function SalesList() {
                       >
                         <Visibility />
                       </IconButton>
-                      <IconButton 
-                        component={RouterLink} 
+                      <IconButton
+                        component={RouterLink}
                         to={`/sales/${sale._id}/edit`}
                         color="primary"
                         size="small"
@@ -222,7 +223,7 @@ export default function SalesList() {
                       >
                         <Edit />
                       </IconButton>
-                      <IconButton 
+                      <IconButton
                         color="error"
                         size="small"
                         onClick={() => sale._id && handleDelete(sale._id)}

@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Grid, 
+import {
+  Box,
+  Paper,
+  Typography,
+  Grid,
   Card,
   CardContent,
   TextField,
@@ -22,11 +24,11 @@ import {
   ListItem,
   ListItemText
 } from '@mui/material';
-import { 
-  BarChart, 
-  ShowChart, 
-  DateRange, 
-  Search, 
+import {
+  BarChart,
+  ShowChart,
+  DateRange,
+  Search,
   PieChart
 } from '@mui/icons-material';
 import { salesApi, Sale } from '../../services/api';
@@ -102,7 +104,8 @@ export default function SalesReport() {
 
     try {
       const data = await salesApi.getReport(startDate, endDate);
-      setReportData(data);
+      const analysis = analyzeSales(data.sales);
+      setReportData({ ...data, ...analysis });
     } catch (error) {
       console.error('Failed to fetch sales report:', error);
       setError('Failed to load sales report. Please try again.');
@@ -228,7 +231,7 @@ export default function SalesReport() {
             </Button>
           </Grid>
         </Grid>
-        
+
         {error && (
           <Alert severity="error" sx={{ mt: 2 }}>
             {error}
@@ -307,7 +310,7 @@ export default function SalesReport() {
                   <PieChart color="primary" />
                 </Box>
                 <Divider sx={{ mb: 2 }} />
-                
+
                 <TableContainer>
                   <Table>
                     <TableHead>
@@ -342,7 +345,7 @@ export default function SalesReport() {
                   <PieChart color="primary" />
                 </Box>
                 <Divider sx={{ mb: 2 }} />
-                
+
                 <TableContainer>
                   <Table>
                     <TableHead>
@@ -356,8 +359,8 @@ export default function SalesReport() {
                       {getStatusStats().map((stat) => (
                         <TableRow key={stat.status}>
                           <TableCell>
-                            <Chip 
-                              label={stat.status.replace('_', ' ')} 
+                            <Chip
+                              label={stat.status.replace('_', ' ')}
                               color={getStatusColor(stat.status) as any}
                               size="small"
                             />
@@ -380,13 +383,13 @@ export default function SalesReport() {
                   Top Products by Quantity
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
-                
+
                 <List>
                   {reportData?.topProductsByQuantity.map(([name, quantity], index) => (
                     <ListItem key={index} divider={index < reportData.topProductsByQuantity.length - 1}>
-                      <ListItemText 
-                        primary={name} 
-                        secondary={`${quantity} units sold`} 
+                      <ListItemText
+                        primary={name}
+                        secondary={`${quantity} units sold`}
                       />
                     </ListItem>
                   ))}
@@ -398,20 +401,20 @@ export default function SalesReport() {
                 </List>
               </Paper>
             </Grid>
-            
+
             <Grid item xs={12} md={6}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
                   Top Products by Weight
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
-                
+
                 <List>
                   {reportData?.topProductsByWeight.map(([name, data], index) => (
                     <ListItem key={index} divider={index < reportData.topProductsByWeight.length - 1}>
-                      <ListItemText 
-                        primary={name} 
-                        secondary={`${data.weight.toFixed(2)} ${data.unit} sold`} 
+                      <ListItemText
+                        primary={name}
+                        secondary={`${data.weight.toFixed(2)} ${data.unit} sold`}
                       />
                     </ListItem>
                   ))}
@@ -430,7 +433,7 @@ export default function SalesReport() {
               Recent Sales
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <TableContainer>
               <Table>
                 <TableHead>
@@ -455,8 +458,8 @@ export default function SalesReport() {
                       <TableCell>{sale.items.length} item(s)</TableCell>
                       <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
                       <TableCell>
-                        <Chip 
-                          label={sale.status.replace('_', ' ')} 
+                        <Chip
+                          label={sale.status.replace('_', ' ')}
                           color={getStatusColor(sale.status) as any}
                           size="small"
                         />
@@ -469,7 +472,7 @@ export default function SalesReport() {
                 </TableBody>
               </Table>
             </TableContainer>
-            
+
             {reportData.sales.length === 0 && (
               <Typography variant="body1" sx={{ textAlign: 'center', py: 3 }}>
                 No sales found in the selected date range.

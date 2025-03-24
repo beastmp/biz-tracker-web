@@ -1,13 +1,14 @@
+ 
 import { useState, useEffect } from 'react';
-import { 
-  Box, Typography, Table, TableBody, TableCell, TableContainer, 
+import {
+  Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Button, TextField,
-  MenuItem, Menu, Chip, InputAdornment, CircularProgress 
+  Menu, Chip, InputAdornment, CircularProgress
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { 
-  Add as AddIcon, 
-  Edit as EditIcon, 
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
   Delete as DeleteIcon,
   FilterList as FilterIcon,
   Search as SearchIcon,
@@ -16,27 +17,18 @@ import {
 } from '@mui/icons-material';
 import { itemsApi, Item } from '../../services/api';
 
-// Define types for column filtering
-type FilterConfig = {
-  name: boolean;
-  sku: boolean;
-  category: boolean;
-  price: boolean;
-  quantity: boolean;
-};
-
 export default function InventoryList() {
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // States for column filtering
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [activeColumn, setActiveColumn] = useState<string | null>(null);
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
-  
+
   // Load items
   useEffect(() => {
     const fetchItems = async () => {
@@ -51,14 +43,14 @@ export default function InventoryList() {
         setLoading(false);
       }
     };
-    
+
     fetchItems();
   }, []);
-  
+
   // Filter items when search query or filter values change
   useEffect(() => {
     let result = [...items];
-    
+
     // Apply column filters
     Object.entries(filterValues).forEach(([column, value]) => {
       if (value) {
@@ -70,7 +62,7 @@ export default function InventoryList() {
           } else if (typeof itemValue === 'number') {
             return itemValue.toString().includes(value);
           } else if (Array.isArray(itemValue)) {
-            return itemValue.some(v => 
+            return itemValue.some(v =>
               v.toLowerCase().includes(value.toLowerCase())
             );
           }
@@ -78,21 +70,21 @@ export default function InventoryList() {
         });
       }
     });
-    
+
     // Apply general search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(item => 
+      result = result.filter(item =>
         item.name.toLowerCase().includes(query) ||
         item.sku.toLowerCase().includes(query) ||
         (item.category && item.category.toLowerCase().includes(query)) ||
         (item.tags && item.tags.some(tag => tag.toLowerCase().includes(query)))
       );
     }
-    
+
     setFilteredItems(result);
   }, [items, searchQuery, filterValues]);
-  
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
@@ -104,40 +96,40 @@ export default function InventoryList() {
       }
     }
   };
-  
+
   // Column filter handlers
   const handleFilterClick = (event: React.MouseEvent<HTMLElement>, column: string) => {
     setFilterAnchorEl(event.currentTarget);
     setActiveColumn(column);
   };
-  
+
   const handleFilterClose = () => {
     setFilterAnchorEl(null);
     setActiveColumn(null);
   };
-  
+
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!activeColumn) return;
-    
+
     setFilterValues({
       ...filterValues,
       [activeColumn]: e.target.value
     });
   };
-  
+
   const clearFilter = (column: string) => {
     const newFilterValues = { ...filterValues };
     delete newFilterValues[column];
     setFilterValues(newFilterValues);
   };
-  
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
     }).format(price);
   };
-  
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" p={3}>
@@ -145,14 +137,14 @@ export default function InventoryList() {
       </Box>
     );
   }
-  
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" component="h2">
           Inventory Items ({filteredItems.length})
         </Typography>
-        
+
         <Box display="flex" gap={2}>
           <TextField
             size="small"
@@ -174,24 +166,24 @@ export default function InventoryList() {
               ) : null
             }}
           />
-          
-          <Button 
-            component={RouterLink} 
+
+          <Button
+            component={RouterLink}
             to="/inventory/new"
-            variant="contained" 
+            variant="contained"
             startIcon={<AddIcon />}
           >
             Add Item
           </Button>
         </Box>
       </Box>
-      
+
       {error && (
         <Typography color="error" sx={{ mb: 2 }}>
           {error}
         </Typography>
       )}
-      
+
       {/* Display active filters */}
       {Object.keys(filterValues).length > 0 && (
         <Box display="flex" gap={1} flexWrap="wrap" mb={2}>
@@ -208,8 +200,8 @@ export default function InventoryList() {
               variant="outlined"
             />
           ))}
-          <Button 
-            size="small" 
+          <Button
+            size="small"
             onClick={() => setFilterValues({})}
             variant="outlined"
           >
@@ -217,7 +209,7 @@ export default function InventoryList() {
           </Button>
         </Box>
       )}
-      
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -285,10 +277,10 @@ export default function InventoryList() {
                     {item.tags && item.tags.length > 0 ? (
                       <Box display="flex" gap={0.5} flexWrap="wrap">
                         {item.tags.map(tag => (
-                          <Chip 
-                            key={tag} 
-                            label={tag} 
-                            size="small" 
+                          <Chip
+                            key={tag}
+                            label={tag}
+                            size="small"
                             variant="outlined"
                           />
                         ))}
@@ -302,11 +294,11 @@ export default function InventoryList() {
                       <>
                         {item.quantity}
                         {item.quantity <= 5 && (
-                          <Chip 
-                            label="Low Stock" 
-                            size="small" 
-                            color="error" 
-                            sx={{ ml: 1 }} 
+                          <Chip
+                            label="Low Stock"
+                            size="small"
+                            color="error"
+                            sx={{ ml: 1 }}
                           />
                         )}
                       </>
@@ -320,18 +312,18 @@ export default function InventoryList() {
                               <>
                                 {item.quantity} {item.quantity === 1 ? 'item' : 'items'} × {item.weight}{item.weightUnit}
                                 {item.quantity <= 3 && (
-                                  <Chip 
-                                    label="Low Stock" 
-                                    size="small" 
-                                    color="error" 
-                                    sx={{ ml: 1 }} 
+                                  <Chip
+                                    label="Low Stock"
+                                    size="small"
+                                    color="error"
+                                    sx={{ ml: 1 }}
                                   />
                                 )}
                               </>
                             ) : (
-                              <Chip 
-                                label="Out of Stock" 
-                                size="small" 
+                              <Chip
+                                label="Out of Stock"
+                                size="small"
                                 color="error"
                               />
                             )}
@@ -346,11 +338,11 @@ export default function InventoryList() {
                               item.weightUnit === 'lb' ? 2 :
                               item.weightUnit === 'oz' ? 16 : 5
                             ) && (
-                              <Chip 
-                                label="Low Stock" 
-                                size="small" 
-                                color="error" 
-                                sx={{ ml: 1 }} 
+                              <Chip
+                                label="Low Stock"
+                                size="small"
+                                color="error"
+                                sx={{ ml: 1 }}
                               />
                             )}
                           </>
@@ -359,23 +351,23 @@ export default function InventoryList() {
                     )}
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton 
-                      component={RouterLink} 
+                    <IconButton
+                      component={RouterLink}
                       to={`/inventory/${item._id}`}
                       color="primary"
                       size="small"
-                    >                      
+                    >
                       <ViewIcon />
                     </IconButton>
-                    <IconButton 
-                      component={RouterLink} 
+                    <IconButton
+                      component={RouterLink}
                       to={`/inventory/${item._id}/edit`}
                       color="primary"
                       size="small"
                     >
                       <EditIcon />
                     </IconButton>
-                    <IconButton 
+                    <IconButton
                       onClick={() => handleDelete(item._id as string)}
                       color="error"
                       size="small"
@@ -389,7 +381,7 @@ export default function InventoryList() {
           </TableBody>
         </Table>
       </TableContainer>
-      
+
       {/* Filter Menu */}
       <Menu
         anchorEl={filterAnchorEl}

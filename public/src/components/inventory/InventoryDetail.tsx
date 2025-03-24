@@ -1,15 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Button, 
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
   Grid,
   CircularProgress,
   Divider,
   Chip,
-  Stack,
   List,
   ListItem,
   ListItemText
@@ -20,7 +20,7 @@ import { itemsApi, Item } from '../../services/api';
 export default function InventoryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+
   const [item, setItem] = useState<Item | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export default function InventoryDetail() {
   useEffect(() => {
     const fetchItem = async () => {
       if (!id) return;
-      
+
       try {
         const data = await itemsApi.getById(id);
         setItem(data);
@@ -47,7 +47,7 @@ export default function InventoryDetail() {
     if (!id || !window.confirm('Are you sure you want to delete this item?')) {
       return;
     }
-    
+
     try {
       await itemsApi.delete(id);
       navigate('/inventory');
@@ -83,14 +83,14 @@ export default function InventoryDetail() {
       } else {
         // Base status on weight when pricing is per weight
         if (!item.weight || item.weight === 0) return 'error';
-        
+
         // Different thresholds based on weight unit
-        const lowThreshold = 
+        const lowThreshold =
           item.weightUnit === 'kg' ? 1 :
           item.weightUnit === 'g' ? 500 :
           item.weightUnit === 'lb' ? 2 :
           item.weightUnit === 'oz' ? 16 : 5;
-          
+
         if (item.weight < lowThreshold) return 'warning';
         return 'success';
       }
@@ -125,17 +125,17 @@ export default function InventoryDetail() {
           {item.name}
         </Typography>
         <Box>
-          <Button 
-            component={RouterLink} 
-            to="/inventory" 
+          <Button
+            component={RouterLink}
+            to="/inventory"
             startIcon={<ArrowBack />}
             sx={{ mr: 1 }}
           >
             Back
           </Button>
-          <Button 
-            component={RouterLink} 
-            to={`/inventory/${id}/edit`} 
+          <Button
+            component={RouterLink}
+            to={`/inventory/${id}/edit`}
             startIcon={<Edit />}
             variant="contained"
             color="primary"
@@ -143,8 +143,8 @@ export default function InventoryDetail() {
           >
             Edit
           </Button>
-          <Button 
-            onClick={handleDelete} 
+          <Button
+            onClick={handleDelete}
             startIcon={<Delete />}
             variant="contained"
             color="error"
@@ -161,23 +161,23 @@ export default function InventoryDetail() {
             {/* Display item image if available */}
             {item.imageUrl ? (
               <Box sx={{ mb: 3, textAlign: 'center' }}>
-                <img 
-                  src={item.imageUrl} 
-                  alt={item.name} 
-                  style={{ 
-                    maxWidth: '100%', 
-                    maxHeight: '300px', 
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '300px',
                     objectFit: 'contain',
                     borderRadius: 8
-                  }} 
+                  }}
                 />
               </Box>
             ) : (
-              <Box 
-                sx={{ 
-                  height: 200, 
-                  display: 'flex', 
-                  alignItems: 'center', 
+              <Box
+                sx={{
+                  height: 200,
+                  display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: '#f5f5f5',
                   borderRadius: 2,
@@ -198,7 +198,7 @@ export default function InventoryDetail() {
               Tags
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             {item.tags && item.tags.length > 0 ? (
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {item.tags.map(tag => (
@@ -232,17 +232,17 @@ export default function InventoryDetail() {
               Item Details
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <List>
               <ListItem disablePadding sx={{ pb: 1 }}>
                 <ListItemText primary="SKU" secondary={item.sku} />
               </ListItem>
               <ListItem disablePadding sx={{ pb: 1 }}>
-                <ListItemText 
-                  primary="Category" 
+                <ListItemText
+                  primary="Category"
                   secondary={
-                    <Chip 
-                      label={item.category} 
+                    <Chip
+                      label={item.category}
                       size="small"
                       color="primary"
                       variant="outlined"
@@ -252,17 +252,17 @@ export default function InventoryDetail() {
                 />
               </ListItem>
               <ListItem disablePadding sx={{ pb: 1 }}>
-                <ListItemText 
-                  primary="Tracking Type" 
-                  secondary={item.trackingType === 'quantity' ? 'Track by Quantity' : 'Track by Weight'} 
+                <ListItemText
+                  primary="Tracking Type"
+                  secondary={item.trackingType === 'quantity' ? 'Track by Quantity' : 'Track by Weight'}
                 />
               </ListItem>
               {item.trackingType === 'quantity' ? (
                 <ListItem disablePadding sx={{ pb: 1 }}>
-                  <ListItemText 
-                    primary="Stock Level" 
+                  <ListItemText
+                    primary="Stock Level"
                     secondary={
-                      <Chip 
+                      <Chip
                         label={`${item.quantity} in stock`}
                         color={getStockStatusColor(item) as any}
                         size="small"
@@ -274,10 +274,10 @@ export default function InventoryDetail() {
               ) : (
                 <>
                   <ListItem disablePadding sx={{ pb: 1 }}>
-                    <ListItemText 
-                      primary="Stock Level" 
+                    <ListItemText
+                      primary="Stock Level"
                       secondary={
-                        <Chip 
+                        <Chip
                           label={`${item.weight} ${item.weightUnit} in stock`}
                           color={getStockStatusColor(item) as any}
                           size="small"
@@ -289,10 +289,10 @@ export default function InventoryDetail() {
                   {/* Add quantity display for weight-tracked items with price per item */}
                   {item.priceType === 'each' && (
                     <ListItem disablePadding sx={{ pb: 1 }}>
-                      <ListItemText 
-                        primary="Item Quantity" 
+                      <ListItemText
+                        primary="Item Quantity"
                         secondary={
-                          <Chip 
+                          <Chip
                             label={`${item.quantity || 0} items`}
                             color={(item.quantity || 0) > 0 ? 'success' : 'error'}
                             size="small"
@@ -305,17 +305,17 @@ export default function InventoryDetail() {
                 </>
               )}
               <ListItem disablePadding sx={{ pb: 1 }}>
-                <ListItemText 
-                  primary="Price" 
+                <ListItemText
+                  primary="Price"
                   secondary={
                     <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'primary.main', mt: 0.5 }}>
                       {formatCurrency(item.price)}
                       {/* Show appropriate price label based on tracking and price types */}
                       <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
-                        {item.trackingType === 'quantity' 
-                          ? 'per item' 
-                          : item.priceType === 'each' 
-                            ? 'per item' 
+                        {item.trackingType === 'quantity'
+                          ? 'per item'
+                          : item.priceType === 'each'
+                            ? 'per item'
                             : `/${item.weightUnit}`}
                       </Typography>
                     </Typography>
@@ -323,8 +323,8 @@ export default function InventoryDetail() {
                 />
               </ListItem>
               <ListItem disablePadding sx={{ pb: 1 }}>
-                <ListItemText 
-                  primary="Last Updated" 
+                <ListItemText
+                  primary="Last Updated"
                   secondary={item.lastUpdated ? formatDate(item.lastUpdated) : 'Never'}
                 />
               </ListItem>
@@ -338,13 +338,13 @@ export default function InventoryDetail() {
               Inventory Value
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <Box sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant="h3" component="div" color="primary">
                 {/* Calculate inventory value based on tracking type AND price type */}
-                {item.trackingType === 'quantity' 
+                {item.trackingType === 'quantity'
                   ? formatCurrency(item.price * item.quantity)
-                  : item.priceType === 'each' 
+                  : item.priceType === 'each'
                     ? formatCurrency(item.price * (item.quantity || 0)) // Price per item × quantity
                     : formatCurrency(item.price * item.weight) // Price per weight unit × weight
                 }

@@ -1,11 +1,12 @@
+ 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  TextField, 
-  Button, 
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
   Grid,
   CircularProgress,
   Alert,
@@ -19,7 +20,6 @@ import {
   TableHead,
   TableRow,
   Divider,
-  Stack,
   FormControl,
   InputLabel,
   Select,
@@ -30,8 +30,8 @@ import {
   DialogTitle,
   ListItemText,
   List,
-  ListItem,
   ListItemAvatar,
+  ListItemButton,
   Avatar,
   Chip
 } from '@mui/material';
@@ -42,7 +42,7 @@ export default function SaleForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditMode = Boolean(id);
-  
+
   const [formData, setFormData] = useState<Partial<Sale>>({
     customerName: '',
     customerEmail: '',
@@ -57,7 +57,7 @@ export default function SaleForm() {
     notes: '',
     status: 'completed'
   });
-  
+
   const [availableItems, setAvailableItems] = useState<Item[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<string>('1');
@@ -66,6 +66,7 @@ export default function SaleForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
+  const itemLookup = Object.fromEntries(availableItems.map(item => [item._id, item]));
 
   useEffect(() => {
     const fetchData = async () => {
@@ -73,7 +74,7 @@ export default function SaleForm() {
         // First fetch items
         const items = await itemsApi.getAll();
         setAvailableItems(items);
-        
+
         // If edit mode, fetch the sale data
         if (isEditMode && id) {
           const sale = await salesApi.getById(id);
@@ -101,15 +102,15 @@ export default function SaleForm() {
       }));
       return;
     }
-    
+
     const subtotal = formData.items.reduce(
-      (sum, item) => sum + (item.quantity * item.priceAtSale), 
+      (sum, item) => sum + (item.quantity * item.priceAtSale),
       0
     );
-    
+
     const taxAmount = subtotal * ((formData.taxRate || 0) / 100);
     const total = subtotal + taxAmount - (formData.discountAmount || 0);
-    
+
     setFormData(prev => ({
       ...prev,
       subtotal,
@@ -120,7 +121,7 @@ export default function SaleForm() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'taxRate' || name === 'discountAmount') {
       setFormData({
         ...formData,
@@ -144,7 +145,7 @@ export default function SaleForm() {
 
   const handleAddItem = () => {
     if (!selectedItem) return;
-    
+
     if (selectedItem.trackingType === 'quantity') {
       // Check if quantity is valid
       const quantity = parseInt(selectedQuantity);
@@ -152,14 +153,14 @@ export default function SaleForm() {
         setError(`Please enter a valid quantity between 1 and ${selectedItem.quantity}`);
         return;
       }
-      
+
       const newItem: SaleItem = {
         item: selectedItem._id || '',
         quantity,
         weight: 0,
         priceAtSale: selectedItem.price
       };
-      
+
       setFormData(prev => ({
         ...prev,
         items: [...(prev.items || []), newItem]
@@ -171,7 +172,7 @@ export default function SaleForm() {
         setError(`Please enter a valid weight between 0.1 and ${selectedItem.weight}`);
         return;
       }
-      
+
       const newItem: SaleItem = {
         item: selectedItem._id || '',
         quantity: 1, // We still set quantity to 1 for database consistency
@@ -179,13 +180,13 @@ export default function SaleForm() {
         weightUnit: selectedItem.weightUnit,
         priceAtSale: selectedItem.price * weight // Calculate total price based on weight
       };
-      
+
       setFormData(prev => ({
         ...prev,
         items: [...(prev.items || []), newItem]
       }));
     }
-    
+
     // Reset selected item and quantities
     setSelectedItem(null);
     setSelectedQuantity('1');
@@ -211,20 +212,36 @@ export default function SaleForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.items?.length) {
       setError('Please add at least one item to the sale');
       return;
     }
-    
+
     setSaving(true);
     setError(null);
-    
+
     try {
+      const saleData: Sale = {
+        ...formData,
+        items: formData.items,
+        customerName: formData.customerName || '',
+        customerEmail: formData.customerEmail || '',
+        customerPhone: formData.customerPhone || '',
+        subtotal: formData.subtotal || 0,
+        taxRate: formData.taxRate || 0,
+        taxAmount: formData.taxAmount || 0,
+        discountAmount: formData.discountAmount || 0,
+        total: formData.total || 0,
+        paymentMethod: formData.paymentMethod || 'cash',
+        notes: formData.notes || '',
+        status: formData.status || 'completed'
+      };
+
       if (isEditMode && id) {
-        await salesApi.update(id, formData);
+        await salesApi.update(id, saleData);
       } else {
-        await salesApi.create(formData);
+        await salesApi.create(saleData);
       }
       navigate('/sales');
     } catch (error) {
@@ -243,15 +260,15 @@ export default function SaleForm() {
   };
 
   // Find item by ID in the available items array
-  const getItemById = (itemId: string): Item | undefined => {
-    return availableItems.find(item => item._id === itemId);
-  };
+  // const getItemById = (itemId: string): Item | undefined => {
+  //   return availableItems.find(item => item._id === itemId);
+  // };
 
   // Get item name for display
-  const getItemName = (itemId: string): string => {
-    const item = getItemById(itemId);
-    return item ? item.name : 'Unknown Item';
-  };
+  // const getItemName = (itemId: string): string => {
+  //   const item = getItemById(itemId);
+  //   return item ? item.name : 'Unknown Item';
+  // };
 
   if (loading) {
     return (
@@ -267,7 +284,7 @@ export default function SaleForm() {
         <Typography variant="h4" component="h1">
           {isEditMode ? 'Edit Sale' : 'New Sale'}
         </Typography>
-        <Button 
+        <Button
           startIcon={<ArrowBack />}
           component="a"
           href="/sales"
@@ -293,7 +310,7 @@ export default function SaleForm() {
               Customer Information
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <Grid container spacing={2}>
               <Grid item xs={12} sm={12}>
                 <TextField
@@ -336,9 +353,9 @@ export default function SaleForm() {
               <Typography variant="h6">
                 Sale Items
               </Typography>
-              <Button 
-                variant="contained" 
-                color="primary" 
+              <Button
+                variant="contained"
+                color="primary"
                 startIcon={<Add />}
                 onClick={() => setItemDialogOpen(true)}
                 disabled={saving || availableItems.length === 0}
@@ -347,7 +364,7 @@ export default function SaleForm() {
               </Button>
             </Box>
             <Divider sx={{ mb: 2 }} />
-            
+
             {formData.items && formData.items.length > 0 ? (
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
@@ -386,7 +403,7 @@ export default function SaleForm() {
                                 {itemDetails?.name || 'Unknown Item'}
                                 {itemDetails?.tags && itemDetails.tags.length > 0 && (
                                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                                    {itemDetails.tags.slice(0, 1).map(tag => (
+                                    {itemDetails.tags.slice(0, 1).map((tag: string) => (
                                       <Chip key={tag} label={tag} size="small" variant="outlined" />
                                     ))}
                                     {itemDetails.tags.length > 1 && (
@@ -401,8 +418,8 @@ export default function SaleForm() {
                           <TableCell align="right">{item.quantity}</TableCell>
                           <TableCell align="right">{formatCurrency(item.priceAtSale * item.quantity)}</TableCell>
                           <TableCell align="center">
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="error"
                               onClick={() => handleRemoveItem(index)}
                             >
@@ -429,7 +446,7 @@ export default function SaleForm() {
               Payment Information
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth>
@@ -488,7 +505,7 @@ export default function SaleForm() {
               Sale Summary
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <Box sx={{ mb: 2 }}>
               <Grid container spacing={2}>
                 <Grid item xs={7}>
@@ -499,7 +516,7 @@ export default function SaleForm() {
                     {formatCurrency(formData.subtotal || 0)}
                   </Typography>
                 </Grid>
-                
+
                 <Grid item xs={7} sx={{ display: 'flex', alignItems: 'center' }}>
                   <Typography variant="body1" sx={{ mr: 1 }}>Tax Rate:</Typography>
                   <TextField
@@ -521,7 +538,7 @@ export default function SaleForm() {
                     {formatCurrency(formData.taxAmount || 0)}
                   </Typography>
                 </Grid>
-                
+
                 <Grid item xs={7} sx={{ display: 'flex', alignItems: 'center' }}>
                   <Typography variant="body1" sx={{ mr: 1 }}>Discount:</Typography>
                   <TextField
@@ -545,9 +562,9 @@ export default function SaleForm() {
                 </Grid>
               </Grid>
             </Box>
-            
+
             <Divider sx={{ my: 2 }} />
-            
+
             <Box sx={{ mb: 3 }}>
               <Grid container spacing={1}>
                 <Grid item xs={6}>
@@ -560,7 +577,7 @@ export default function SaleForm() {
                 </Grid>
               </Grid>
             </Box>
-            
+
             <Button
               fullWidth
               variant="contained"
@@ -593,8 +610,8 @@ export default function SaleForm() {
                 </Grid>
                 <Grid item xs={12}>
                   <Typography variant="body1">
-                    {selectedItem.trackingType === 'quantity' 
-                      ? `Available: ${selectedItem.quantity} in stock` 
+                    {selectedItem.trackingType === 'quantity'
+                      ? `Available: ${selectedItem.quantity} in stock`
                       : `Available: ${selectedItem.weight} ${selectedItem.weightUnit} in stock`}
                   </Typography>
                 </Grid>
@@ -642,9 +659,8 @@ export default function SaleForm() {
                   return item.weight > 0;
                 })
                 .map((item) => (
-                  <ListItem 
-                    button 
-                    onClick={() => handleItemSelect(item)} 
+                  <ListItemButton
+                    onClick={() => handleItemSelect(item)}
                     key={item._id}
                     divider
                   >
@@ -661,7 +677,7 @@ export default function SaleForm() {
                         </Avatar>
                       )}
                     </ListItemAvatar>
-                    <ListItemText 
+                    <ListItemText
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <Typography component="span" variant="body1">
@@ -679,8 +695,8 @@ export default function SaleForm() {
                       secondary={
                         <>
                           <Typography component="span" variant="body2">
-                            {item.trackingType === 'quantity' 
-                              ? `${item.quantity} in stock` 
+                            {item.trackingType === 'quantity'
+                              ? `${item.quantity} in stock`
                               : `${item.weight} ${item.weightUnit} in stock`}
                           </Typography>
                           <br />
@@ -689,9 +705,9 @@ export default function SaleForm() {
                             {item.priceType === 'per_weight_unit' && `/${item.weightUnit}`}
                           </Typography>
                         </>
-                      } 
+                      }
                     />
-                  </ListItem>
+                  </ListItemButton>
                 ))
               }
             </List>

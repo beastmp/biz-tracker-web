@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { useState, useMemo } from 'react';
 
@@ -20,7 +20,7 @@ import NotFound from './components/NotFound';
 
 function App() {
   const [mode, setMode] = useState<'light' | 'dark'>('light');
-  
+
   const theme = useMemo(() =>
     createTheme({
       palette: {
@@ -46,7 +46,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout toggleColorMode={toggleMode} />}>
             <Route index element={<Dashboard />} />
-            
+
             {/* Inventory Routes */}
             <Route path="inventory">
               <Route index element={<InventoryList />} />
@@ -54,7 +54,7 @@ function App() {
               <Route path=":id" element={<InventoryDetail />} />
               <Route path=":id/edit" element={<InventoryForm />} />
             </Route>
-            
+
             {/* Sales Routes */}
             <Route path="sales">
               <Route index element={<SalesList />} />
@@ -63,7 +63,7 @@ function App() {
               <Route path=":id/edit" element={<SalesForm />} />
               <Route path="reports" element={<SalesReport />} />
             </Route>
-            
+
             {/* Purchases Routes */}
             <Route path="purchases">
               <Route index element={<PurchasesList />} />
@@ -72,7 +72,7 @@ function App() {
               <Route path=":id/edit" element={<PurchaseForm />} />
               <Route path="reports" element={<PurchasesReport />} />
             </Route>
-            
+
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

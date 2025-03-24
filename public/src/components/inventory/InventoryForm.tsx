@@ -1,11 +1,12 @@
+ 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  TextField, 
-  Button, 
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
   Grid,
   CircularProgress,
   Alert,
@@ -17,7 +18,6 @@ import {
   InputAdornment,
   IconButton,
   Chip,
-  Stack,
   Autocomplete,
   FormHelperText
 } from '@mui/material';
@@ -28,7 +28,7 @@ export default function InventoryForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditMode = Boolean(id);
-  
+
   const [formData, setFormData] = useState<Item>({
     name: '',
     sku: '',
@@ -41,15 +41,14 @@ export default function InventoryForm() {
     priceType: 'each',
     description: ''
   });
-  
+
   // New state for image handling
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  
+
   // New state for tag handling
-  const [currentTag, setCurrentTag] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  
+
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,21 +57,20 @@ export default function InventoryForm() {
   // New states for categories and tags
   const [categories, setCategories] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
 
   useEffect(() => {
     const fetchItem = async () => {
       if (!id) return;
-      
+
       try {
         const item = await itemsApi.getById(id);
         setFormData(item);
-        
+
         // Set tags if available
         if (item.tags) {
           setTags(item.tags);
         }
-        
+
         // Set image preview if there's an imageUrl
         if (item.imageUrl) {
           setImagePreview(item.imageUrl);
@@ -90,7 +88,7 @@ export default function InventoryForm() {
       try {
         let categoriesData: string[] = [];
         let tagsData: string[] = [];
-        
+
         // Fetch categories and tags separately with error handling
         try {
           categoriesData = await itemsApi.getCategories();
@@ -98,17 +96,17 @@ export default function InventoryForm() {
           console.error('Error fetching categories:', err);
           // Continue with empty categories
         }
-        
+
         try {
           tagsData = await itemsApi.getTags();
         } catch (err) {
           console.error('Error fetching tags:', err);
           // Continue with empty tags
         }
-        
+
         setCategories(categoriesData);
         setAllTags(tagsData);
-        
+
         if (!isEditMode) {
           try {
             // Get next available SKU for new items
@@ -136,7 +134,7 @@ export default function InventoryForm() {
         setLoading(false);
       }
     };
-    
+
     if (isEditMode) {
       fetchItem();
     }
@@ -147,8 +145,8 @@ export default function InventoryForm() {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: name === 'quantity' || name === 'weight' || name === 'price' 
-        ? parseFloat(value) || 0 
+      [name]: name === 'quantity' || name === 'weight' || name === 'price'
+        ? parseFloat(value) || 0
         : value
     });
   };
@@ -160,13 +158,13 @@ export default function InventoryForm() {
       [name]: value
     });
   };
-  
+
   // Handle image change
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setImageFile(file);
-      
+
       // Create a preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -175,67 +173,38 @@ export default function InventoryForm() {
       reader.readAsDataURL(file);
     }
   };
-  
+
   // Remove image
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
     setFormData({...formData, imageUrl: undefined});
   };
-  
-  // Handle tag input
-  const handleTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCurrentTag(e.target.value);
-  };
-  
-  // Add tag on Enter key
-  const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && currentTag.trim()) {
-      e.preventDefault();
-      if (!tags.includes(currentTag.trim())) {
-        setTags([...tags, currentTag.trim()]);
-      }
-      setCurrentTag('');
-    }
-  };
-  
-  // Delete a tag
-  const handleDeleteTag = (tagToDelete: string) => {
-    setTags(tags.filter(tag => tag !== tagToDelete));
-  };
-  
-  // Add a tag with button
-  const handleAddTag = () => {
-    if (currentTag.trim() && !tags.includes(currentTag.trim())) {
-      setTags([...tags, currentTag.trim()]);
-      setCurrentTag('');
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
-    
+
     try {
       // Use FormData to handle file uploads
       const formDataToSend = new FormData();
-      
+
       // Add all form fields
       Object.entries(formData).forEach(([key, value]) => {
         if (value !== undefined && key !== 'tags') {
           formDataToSend.append(key, String(value));
         }
       });
-      
+
       // Add tags as JSON string
       formDataToSend.append('tags', JSON.stringify(tags));
-      
+
       // Add image file if selected
       if (imageFile) {
         formDataToSend.append('image', imageFile);
       }
-      
+
       if (isEditMode && id) {
         await itemsApi.update(id, formDataToSend);
       } else {
@@ -264,7 +233,7 @@ export default function InventoryForm() {
         <Typography variant="h4" component="h1">
           {isEditMode ? 'Edit Item' : 'Add New Item'}
         </Typography>
-        <Button 
+        <Button
           startIcon={<ArrowBack />}
           component={RouterLink}
           to="/inventory"
@@ -317,9 +286,9 @@ export default function InventoryForm() {
                   setFormData(prev => ({ ...prev, category: newValue || '' }));
                 }}
                 renderInput={(params) => (
-                  <TextField 
+                  <TextField
                     {...params}
-                    label="Category" 
+                    label="Category"
                     name="category"
                     onChange={handleInputChange}
                   />
@@ -393,7 +362,7 @@ export default function InventoryForm() {
                     </FormControl>
                   </Box>
                 </Grid>
-                
+
                 {/* Add quantity field when price type is "each" */}
                 {formData.priceType === 'each' && (
                   <Grid item xs={12} sm={6}>
@@ -452,10 +421,10 @@ export default function InventoryForm() {
                   <MenuItem value="per_weight_unit">Price per {formData.weightUnit}</MenuItem>
                 </Select>
                 <FormHelperText>
-                  {formData.trackingType === 'weight' && formData.priceType === 'each' 
-                    ? 'Price for each package/unit of this weight' 
-                    : formData.trackingType === 'weight' 
-                      ? `Price per ${formData.weightUnit} of this item` 
+                  {formData.trackingType === 'weight' && formData.priceType === 'each'
+                    ? 'Price for each package/unit of this weight'
+                    : formData.trackingType === 'weight'
+                      ? `Price per ${formData.weightUnit} of this item`
                       : 'Price for each individual unit'}
                 </FormHelperText>
               </FormControl>
@@ -469,12 +438,12 @@ export default function InventoryForm() {
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 {imagePreview ? (
                   <Box sx={{ position: 'relative', width: 150, height: 150, mr: 2 }}>
-                    <img 
-                      src={imagePreview} 
+                    <img
+                      src={imagePreview}
                       alt="Item preview"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }}
                     />
-                    <IconButton 
+                    <IconButton
                       size="small"
                       sx={{ position: 'absolute', top: 0, right: 0, bgcolor: 'rgba(255,255,255,0.7)' }}
                       onClick={handleRemoveImage}
@@ -483,12 +452,12 @@ export default function InventoryForm() {
                     </IconButton>
                   </Box>
                 ) : (
-                  <Box 
-                    sx={{ 
-                      width: 150, 
-                      height: 150, 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                  <Box
+                    sx={{
+                      width: 150,
+                      height: 150,
+                      display: 'flex',
+                      alignItems: 'center',
                       justifyContent: 'center',
                       border: '1px dashed #ccc',
                       borderRadius: 1,
@@ -500,7 +469,7 @@ export default function InventoryForm() {
                     </Typography>
                   </Box>
                 )}
-                
+
                 <Box>
                   <input
                     ref={fileInputRef}
@@ -524,7 +493,7 @@ export default function InventoryForm() {
                 </Box>
               </Box>
             </Grid>
-            
+
             {/* Tags Input Section */}
             <Grid item xs={12}>
               <Typography variant="subtitle1" gutterBottom>
@@ -540,27 +509,27 @@ export default function InventoryForm() {
                 }}
                 renderTags={(value, getTagProps) =>
                   value.map((tag, index) => (
-                    <Chip 
-                      label={tag} 
-                      {...getTagProps({ index })} 
+                    <Chip
+                      label={tag}
+                      {...getTagProps({ index })}
                       key={index}
-                      color="primary" 
+                      color="primary"
                       variant="outlined"
-                      size="small"  
+                      size="small"
                     />
                   ))
                 }
                 renderInput={(params) => (
-                  <TextField 
+                  <TextField
                     {...params}
-                    label="Tags" 
+                    label="Tags"
                     placeholder="Add tags"
                   />
                 )}
                 disabled={saving}
               />
             </Grid>
-            
+
             <Grid item xs={12}>
               <TextField
                 fullWidth

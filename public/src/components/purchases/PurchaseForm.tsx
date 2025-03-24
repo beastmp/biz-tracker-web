@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  TextField, 
-  Button, 
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
   Grid,
   CircularProgress,
   Alert,
@@ -24,7 +25,7 @@ import {
   DialogContent,
   DialogTitle,
   List,
-  ListItem,
+  ListItemButton,
   ListItemText,
   ListItemAvatar,
   Avatar,
@@ -85,7 +86,7 @@ export default function PurchaseForm() {
 
     const fetchPurchase = async () => {
       if (!id) return;
-      
+
       try {
         const data = await purchasesApi.getById(id);
         setPurchase(data);
@@ -109,14 +110,14 @@ export default function PurchaseForm() {
   // Update total costs whenever items, tax, or shipping change
   useEffect(() => {
     const subtotal = purchase.items.reduce(
-      (sum, item) => sum + item.totalCost, 
+      (sum, item) => sum + item.totalCost,
       0
     );
-    
+
     const taxAmount = subtotal * ((purchase.taxRate || 0) / 100);
     const shippingCost = purchase.shippingCost || 0;
     const total = subtotal + taxAmount + shippingCost;
-    
+
     setPurchase(prev => ({
       ...prev,
       subtotal,
@@ -160,8 +161,8 @@ export default function PurchaseForm() {
       quantity: selectedItem.trackingType === 'weight' ? 1 : quantity,
       costPerUnit,
       totalCost,
-      paymentMethod: purchase.paymentMethod,
-      status: purchase.status
+      // paymentMethod: purchase.paymentMethod,
+      // status: purchase.status
     };
 
     if (selectedItem.trackingType === 'weight') {
@@ -209,7 +210,7 @@ export default function PurchaseForm() {
     if (!purchase.supplier.name) return 'Supplier name is required';
     if (purchase.items.length === 0) return 'At least one item is required';
     if (purchase.total <= 0) return 'Total must be greater than zero';
-    
+
     return null;
   };
 
@@ -222,7 +223,7 @@ export default function PurchaseForm() {
 
     setSaving(true);
     setError(null);
-    
+
     try {
       if (isEditMode && id) {
         await purchasesApi.update(id, purchase);
@@ -259,8 +260,8 @@ export default function PurchaseForm() {
         <Typography variant="h4" component="h1">
           {isEditMode ? 'Edit Purchase' : 'New Purchase'}
         </Typography>
-        <Button 
-          variant="outlined" 
+        <Button
+          variant="outlined"
           startIcon={<ArrowBack />}
           component={RouterLink}
           to="/purchases"
@@ -278,7 +279,7 @@ export default function PurchaseForm() {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Supplier Information</Typography>
         <Divider sx={{ mb: 2 }} />
-        
+
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <TextField
@@ -350,8 +351,8 @@ export default function PurchaseForm() {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
           <Typography variant="h6">Purchase Items</Typography>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             startIcon={<Add />}
             onClick={handleOpenItemDialog}
             disabled={saving}
@@ -360,13 +361,13 @@ export default function PurchaseForm() {
           </Button>
         </Box>
         <Divider sx={{ mb: 2 }} />
-        
+
         {selectedItem && (
           <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
             <Typography variant="subtitle1" gutterBottom>
               {selectedItem.name} - {formatCurrency(selectedItem.price)}
             </Typography>
-            
+
             <Grid container spacing={2} alignItems="center">
               {selectedItem.trackingType === 'weight' ? (
                 <>
@@ -410,7 +411,7 @@ export default function PurchaseForm() {
                   />
                 </Grid>
               )}
-              
+
               <Grid item xs={4}>
                 <TextField
                   fullWidth
@@ -424,7 +425,7 @@ export default function PurchaseForm() {
                   }}
                 />
               </Grid>
-              
+
               <Grid item xs={4}>
                 <TextField
                   fullWidth
@@ -439,11 +440,11 @@ export default function PurchaseForm() {
                 />
               </Grid>
             </Grid>
-            
+
             <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button 
-                variant="outlined" 
-                color="secondary" 
+              <Button
+                variant="outlined"
+                color="secondary"
                 onClick={handleAddItem}
                 disabled={saving}
               >
@@ -452,7 +453,7 @@ export default function PurchaseForm() {
             </Box>
           </Paper>
         )}
-        
+
         {purchase.items.length > 0 ? (
           <TableContainer>
             <Table>
@@ -477,9 +478,9 @@ export default function PurchaseForm() {
                       <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
                       <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
                       <TableCell>
-                        <IconButton 
-                          size="small" 
-                          color="error" 
+                        <IconButton
+                          size="small"
+                          color="error"
                           onClick={() => handleRemoveItem(index)}
                           disabled={saving}
                         >
@@ -500,7 +501,7 @@ export default function PurchaseForm() {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Payment Details</Typography>
         <Divider sx={{ mb: 2 }} />
-        
+
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <FormControl fullWidth margin="normal">
@@ -554,7 +555,7 @@ export default function PurchaseForm() {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Purchase Summary</Typography>
         <Divider sx={{ mb: 2 }} />
-        
+
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <TextField
@@ -642,9 +643,8 @@ export default function PurchaseForm() {
         <DialogContent>
           <List>
             {availableItems.map((item) => (
-              <ListItem 
-                button 
-                key={item._id} 
+              <ListItemButton
+                key={item._id}
                 onClick={() => handleSelectItem(item)}
                 divider
               >
@@ -657,11 +657,11 @@ export default function PurchaseForm() {
                     )}
                   </Avatar>
                 </ListItemAvatar>
-                <ListItemText 
-                  primary={item.name} 
-                  secondary={`SKU: ${item.sku} | Price: ${formatCurrency(item.price)} | ${item.trackingType === 'quantity' ? `${item.quantity} in stock` : `${item.weight} ${item.weightUnit} in stock`}`} 
+                <ListItemText
+                  primary={item.name}
+                  secondary={`SKU: ${item.sku} | Price: ${formatCurrency(item.price)} | ${item.trackingType === 'quantity' ? `${item.quantity} in stock` : `${item.weight} ${item.weightUnit} in stock`}`}
                 />
-              </ListItem>
+              </ListItemButton>
             ))}
           </List>
         </DialogContent>

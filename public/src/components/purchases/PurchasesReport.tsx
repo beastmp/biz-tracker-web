@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
+import {
+  Box,
+  Paper,
+  Typography,
   Grid,
   CircularProgress,
   Divider,
@@ -17,7 +18,7 @@ import {
   TableHead,
   TableRow
 } from '@mui/material';
-import { ArrowBack, BarChart } from '@mui/icons-material';
+import { ArrowBack } from '@mui/icons-material';
 import { purchasesApi, Purchase } from '../../services/api';
 
 export default function PurchasesReport() {
@@ -26,11 +27,11 @@ export default function PurchasesReport() {
     date.setMonth(date.getMonth() - 1);
     return date.toISOString().split('T')[0];
   });
-  
+
   const [endDate, setEndDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
   });
-  
+
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,10 +41,10 @@ export default function PurchasesReport() {
       setError('Please select both start and end dates');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const data = await purchasesApi.getReport(startDate, endDate);
       setReportData(data);
@@ -73,8 +74,8 @@ export default function PurchasesReport() {
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric', 
-      month: 'short', 
+      year: 'numeric',
+      month: 'short',
       day: 'numeric'
     });
   };
@@ -85,8 +86,8 @@ export default function PurchasesReport() {
         <Typography variant="h4" component="h1">
           Purchases Report
         </Typography>
-        <Button 
-          variant="outlined" 
+        <Button
+          variant="outlined"
           startIcon={<ArrowBack />}
           component={RouterLink}
           to="/purchases"
@@ -98,7 +99,7 @@ export default function PurchasesReport() {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Report Parameters</Typography>
         <Divider sx={{ mb: 2 }} />
-        
+
         <Box component="form" onSubmit={handleSubmit}>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} sm={4}>
@@ -111,7 +112,7 @@ export default function PurchasesReport() {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
@@ -122,11 +123,11 @@ export default function PurchasesReport() {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={4}>
-              <Button 
+              <Button
                 type="submit"
-                variant="contained" 
+                variant="contained"
                 color="primary"
                 disabled={loading || !startDate || !endDate}
                 fullWidth
@@ -153,7 +154,7 @@ export default function PurchasesReport() {
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>Summary</Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <Grid container spacing={3}>
               <Grid item xs={12} sm={4}>
                 <Box sx={{ textAlign: 'center', p: 2 }}>
@@ -161,14 +162,14 @@ export default function PurchasesReport() {
                   <Typography variant="h4">{reportData.totalPurchases}</Typography>
                 </Box>
               </Grid>
-              
+
               <Grid item xs={12} sm={4}>
                 <Box sx={{ textAlign: 'center', p: 2 }}>
                   <Typography variant="body1" color="textSecondary">Total Cost</Typography>
                   <Typography variant="h4">{formatCurrency(reportData.totalCost)}</Typography>
                 </Box>
               </Grid>
-              
+
               <Grid item xs={12} sm={4}>
                 <Box sx={{ textAlign: 'center', p: 2 }}>
                   <Typography variant="body1" color="textSecondary">Average Purchase Value</Typography>
@@ -177,11 +178,11 @@ export default function PurchasesReport() {
               </Grid>
             </Grid>
           </Paper>
-          
+
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>Purchase Details</Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <TableContainer>
               <Table>
                 <TableHead>
@@ -196,12 +197,12 @@ export default function PurchasesReport() {
                 </TableHead>
                 <TableBody>
                   {reportData.purchases.map((purchase: Purchase) => (
-                    <TableRow 
-                      key={purchase._id} 
+                    <TableRow
+                      key={purchase._id}
                       hover
                       component={RouterLink}
                       to={`/purchases/${purchase._id}`}
-                      sx={{ 
+                      sx={{
                         textDecoration: 'none',
                         '&:hover': {
                           backgroundColor: '#f5f5f5',
