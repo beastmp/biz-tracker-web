@@ -125,20 +125,50 @@ export const itemsApi = {
     await api.delete(`/api/items/${id}`);
   },
   getNextSku: async (): Promise<string> => {
-    const response = await fetch(`${config.API_URL}/items/nextsku`);
-    if (!response.ok) throw new Error('Failed to fetch next SKU');
-    const data = await response.json();
-    return data.nextSku;
+    try {
+      const response = await fetch(`${config.API_URL}/api/items/nextsku`);
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Error response:', text);
+        throw new Error(`Failed to fetch next SKU: ${response.statusText}`);
+      }
+      const data = await response.json();
+      return data.nextSku;
+    } catch (error) {
+      console.error('Error in getNextSku:', error);
+      // Return a default SKU as fallback
+      return "0000000001";
+    }
   },
   getCategories: async (): Promise<string[]> => {
-    const response = await fetch(`${config.API_URL}/items/categories`);
-    if (!response.ok) throw new Error('Failed to fetch categories');
-    return response.json();
+    try {
+      const response = await fetch(`${config.API_URL}/api/items/categories`);
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Error response:', text);
+        throw new Error(`Failed to fetch categories: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error in getCategories:', error);
+      // Return empty array as fallback
+      return [];
+    }
   },
   getTags: async (): Promise<string[]> => {
-    const response = await fetch(`${config.API_URL}/items/tags`);
-    if (!response.ok) throw new Error('Failed to fetch tags');
-    return response.json();
+    try {
+      const response = await fetch(`${config.API_URL}/api/items/tags`);
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Error response:', text);
+        throw new Error(`Failed to fetch tags: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error in getTags:', error);
+      // Return empty array as fallback
+      return [];
+    }
   }
 };
 

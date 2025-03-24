@@ -74,9 +74,26 @@ export default function InventoryDetail() {
       if (item.quantity < 5) return 'warning';
       return 'success';
     } else {
-      if (item.weight === 0) return 'error';
-      if (item.weight < 5) return 'warning';
-      return 'success';
+      // For weight-tracked items
+      if (item.priceType === 'each') {
+        // Base status on quantity when pricing is per item
+        if (!item.quantity || item.quantity === 0) return 'error';
+        if (item.quantity < 3) return 'warning';
+        return 'success';
+      } else {
+        // Base status on weight when pricing is per weight
+        if (!item.weight || item.weight === 0) return 'error';
+        
+        // Different thresholds based on weight unit
+        const lowThreshold = 
+          item.weightUnit === 'kg' ? 1 :
+          item.weightUnit === 'g' ? 500 :
+          item.weightUnit === 'lb' ? 2 :
+          item.weightUnit === 'oz' ? 16 : 5;
+          
+        if (item.weight < lowThreshold) return 'warning';
+        return 'success';
+      }
     }
   };
 
@@ -255,19 +272,37 @@ export default function InventoryDetail() {
                   />
                 </ListItem>
               ) : (
-                <ListItem disablePadding sx={{ pb: 1 }}>
-                  <ListItemText 
-                    primary="Stock Level" 
-                    secondary={
-                      <Chip 
-                        label={`${item.weight} ${item.weightUnit} in stock`}
-                        color={getStockStatusColor(item) as any}
-                        size="small"
-                        sx={{ mt: 0.5 }}
+                <>
+                  <ListItem disablePadding sx={{ pb: 1 }}>
+                    <ListItemText 
+                      primary="Stock Level" 
+                      secondary={
+                        <Chip 
+                          label={`${item.weight} ${item.weightUnit} in stock`}
+                          color={getStockStatusColor(item) as any}
+                          size="small"
+                          sx={{ mt: 0.5 }}
+                        />
+                      }
+                    />
+                  </ListItem>
+                  {/* Add quantity display for weight-tracked items with price per item */}
+                  {item.priceType === 'each' && (
+                    <ListItem disablePadding sx={{ pb: 1 }}>
+                      <ListItemText 
+                        primary="Item Quantity" 
+                        secondary={
+                          <Chip 
+                            label={`${item.quantity || 0} items`}
+                            color={(item.quantity || 0) > 0 ? 'success' : 'error'}
+                            size="small"
+                            sx={{ mt: 0.5 }}
+                          />
+                        }
                       />
-                    }
-                  />
-                </ListItem>
+                    </ListItem>
+                  )}
+                </>
               )}
               <ListItem disablePadding sx={{ pb: 1 }}>
                 <ListItemText 
@@ -275,7 +310,14 @@ export default function InventoryDetail() {
                   secondary={
                     <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'primary.main', mt: 0.5 }}>
                       {formatCurrency(item.price)}
-                      {item.priceType === 'per_weight_unit' && `/${item.weightUnit}`}
+                      {/* Show appropriate price label based on tracking and price types */}
+                      <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
+                        {item.trackingType === 'quantity' 
+                          ? 'per item' 
+                          : item.priceType === 'each' 
+                            ? 'per item' 
+                            : `/${item.weightUnit}`}
+                      </Typography>
                     </Typography>
                   }
                 />
@@ -299,16 +341,23 @@ export default function InventoryDetail() {
             
             <Box sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant="h3" component="div" color="primary">
-                {item.trackingType === 'quantity'
+                {/* Calculate inventory value based on tracking type AND price type */}
+                {item.trackingType === 'quantity' 
                   ? formatCurrency(item.price * item.quantity)
-                  : formatCurrency(item.price * item.weight)
+                  : item.priceType === 'each' 
+                    ? formatCurrency(item.price * (item.quantity || 0)) // Price per item × quantity
+                    : formatCurrency(item.price * item.weight) // Price per weight unit × weight
                 }
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                {item.trackingType === 'quantity'
-                  ? `${item.quantity} units × ${formatCurrency(item.price)} each`
-                  : `${item.weight} ${item.weightUnit} × ${formatCurrency(item.price)}/${item.weightUnit}`
-                }
+                {/* Display calculation details based on tracking and price types */}
+                {item.trackingType === 'quantity' ? (
+                  `${item.quantity} units × ${formatCurrency(item.price)} each`
+                ) : item.priceType === 'each' ? (
+                  `${item.quantity || 0} items × ${formatCurrency(item.price)} each`
+                ) : (
+                  `${item.weight} ${item.weightUnit} × ${formatCurrency(item.price)}/${item.weightUnit}`
+                )}
               </Typography>
             </Box>
           </Paper>

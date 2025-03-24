@@ -297,14 +297,66 @@ export default function InventoryList() {
                   </TableCell>
                   <TableCell>{formatPrice(item.price)}</TableCell>
                   <TableCell>
-                    {item.quantity <= 2 ? (
-                      <Chip 
-                        label={`${item.quantity} - Low Stock`} 
-                        size="small" 
-                        color="error" 
-                        sx={{ ml: 1 }} 
-                      />
-                    ) : item.quantity}
+                    {item.trackingType === 'quantity' ? (
+                      // Regular quantity tracking
+                      <>
+                        {item.quantity}
+                        {item.quantity <= 5 && (
+                          <Chip 
+                            label="Low Stock" 
+                            size="small" 
+                            color="error" 
+                            sx={{ ml: 1 }} 
+                          />
+                        )}
+                      </>
+                    ) : (
+                      // Weight tracking
+                      <>
+                        {item.priceType === 'each' ? (
+                          // Display both weight per item and quantity for "price per item"
+                          <>
+                            {item.quantity > 0 ? (
+                              <>
+                                {item.quantity} {item.quantity === 1 ? 'item' : 'items'} × {item.weight}{item.weightUnit}
+                                {item.quantity <= 3 && (
+                                  <Chip 
+                                    label="Low Stock" 
+                                    size="small" 
+                                    color="error" 
+                                    sx={{ ml: 1 }} 
+                                  />
+                                )}
+                              </>
+                            ) : (
+                              <Chip 
+                                label="Out of Stock" 
+                                size="small" 
+                                color="error"
+                              />
+                            )}
+                          </>
+                        ) : (
+                          // Display total weight for "price per weight unit"
+                          <>
+                            {item.weight}{item.weightUnit}
+                            {item.weight <= (
+                              item.weightUnit === 'kg' ? 1 :
+                              item.weightUnit === 'g' ? 500 :
+                              item.weightUnit === 'lb' ? 2 :
+                              item.weightUnit === 'oz' ? 16 : 5
+                            ) && (
+                              <Chip 
+                                label="Low Stock" 
+                                size="small" 
+                                color="error" 
+                                sx={{ ml: 1 }} 
+                              />
+                            )}
+                          </>
+                        )}
+                      </>
+                    )}
                   </TableCell>
                   <TableCell align="right">
                     <IconButton 

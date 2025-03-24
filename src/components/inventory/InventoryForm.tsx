@@ -18,7 +18,8 @@ import {
   IconButton,
   Chip,
   Stack,
-  Autocomplete
+  Autocomplete,
+  FormHelperText
 } from '@mui/material';
 import { Save, ArrowBack, AddPhotoAlternate, Close } from '@mui/icons-material';
 import { itemsApi, Item } from '../../services/api';
@@ -87,23 +88,46 @@ export default function InventoryForm() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch categories and tags
-        const [categoriesData, tagsData] = await Promise.all([
-          itemsApi.getCategories(),
-          itemsApi.getTags()
-        ]);
+        let categoriesData: string[] = [];
+        let tagsData: string[] = [];
+        
+        // Fetch categories and tags separately with error handling
+        try {
+          categoriesData = await itemsApi.getCategories();
+        } catch (err) {
+          console.error('Error fetching categories:', err);
+          // Continue with empty categories
+        }
+        
+        try {
+          tagsData = await itemsApi.getTags();
+        } catch (err) {
+          console.error('Error fetching tags:', err);
+          // Continue with empty tags
+        }
         
         setCategories(categoriesData);
         setAllTags(tagsData);
         
         if (!isEditMode) {
-          // Get next available SKU for new items
-          const nextSku = await itemsApi.getNextSku();
-          setFormData(prev => ({ ...prev, sku: nextSku }));
+          try {
+            // Get next available SKU for new items
+            const nextSku = await itemsApi.getNextSku();
+            setFormData(prev => ({ ...prev, sku: nextSku }));
+          } catch (err) {
+            console.error('Error fetching next SKU:', err);
+            // Set a default SKU
+            setFormData(prev => ({ ...prev, sku: "0000000001" }));
+          }
         } else if (id) {
           // Fetch existing item data for edit
-          const itemData = await itemsApi.getById(id);
-          setFormData(itemData);
+          try {
+            const itemData = await itemsApi.getById(id);
+            setFormData(itemData);
+          } catch (err) {
+            console.error('Error fetching item data:', err);
+            setError('Failed to load item data. Please try again.');
+          }
         }
       } catch (err) {
         console.error('Error fetching form data:', err);
@@ -336,37 +360,59 @@ export default function InventoryForm() {
                 />
               </Grid>
             ) : (
-              <Grid item xs={12} sm={6}>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <TextField
-                    fullWidth
-                    type="number"
-                    label="Weight"
-                    name="weight"
-                    value={formData.weight}
-                    onChange={handleInputChange}
-                    disabled={saving}
-                    InputProps={{
-                      inputProps: { min: 0, step: 0.01 }
-                    }}
-                  />
-                  <FormControl sx={{ minWidth: 80 }}>
-                    <InputLabel>Unit</InputLabel>
-                    <Select
-                      name="weightUnit"
-                      value={formData.weightUnit}
-                      label="Unit"
-                      onChange={handleSelectChange}
+              // Weight tracking section
+              <>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Weight"
+                      name="weight"
+                      value={formData.weight}
+                      onChange={handleInputChange}
                       disabled={saving}
-                    >
-                      <MenuItem value="oz">oz</MenuItem>
-                      <MenuItem value="lb">lb</MenuItem>
-                      <MenuItem value="g">g</MenuItem>
-                      <MenuItem value="kg">kg</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Grid>
+                      InputProps={{
+                        inputProps: { min: 0, step: 0.01 }
+                      }}
+                    />
+                    <FormControl sx={{ minWidth: 80 }}>
+                      <InputLabel>Unit</InputLabel>
+                      <Select
+                        name="weightUnit"
+                        value={formData.weightUnit}
+                        label="Unit"
+                        onChange={handleSelectChange}
+                        disabled={saving}
+                      >
+                        <MenuItem value="oz">oz</MenuItem>
+                        <MenuItem value="lb">lb</MenuItem>
+                        <MenuItem value="g">g</MenuItem>
+                        <MenuItem value="kg">kg</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Grid>
+                
+                {/* Add quantity field when price type is "each" */}
+                {formData.priceType === 'each' && (
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Quantity (# of items)"
+                      name="quantity"
+                      value={formData.quantity}
+                      onChange={handleInputChange}
+                      disabled={saving}
+                      InputProps={{
+                        inputProps: { min: 0 }
+                      }}
+                      helperText="Number of items at specified weight"
+                    />
+                  </Grid>
+                )}
+              </>
             )}
 
             <Grid item xs={12} sm={6}>
@@ -393,12 +439,25 @@ export default function InventoryForm() {
                   name="priceType"
                   value={formData.priceType}
                   label="Price Type"
-                  onChange={handleSelectChange}
+                  onChange={(e) => {
+                    handleSelectChange(e);
+                    // Reset quantity to 1 when switching price types for weight-tracked items
+                    if (formData.trackingType === 'weight' && e.target.value === 'each' && (!formData.quantity || formData.quantity === 0)) {
+                      setFormData(prev => ({...prev, quantity: 1}));
+                    }
+                  }}
                   disabled={saving}
                 >
                   <MenuItem value="each">Price per Item</MenuItem>
                   <MenuItem value="per_weight_unit">Price per {formData.weightUnit}</MenuItem>
                 </Select>
+                <FormHelperText>
+                  {formData.trackingType === 'weight' && formData.priceType === 'each' 
+                    ? 'Price for each package/unit of this weight' 
+                    : formData.trackingType === 'weight' 
+                      ? `Price per ${formData.weightUnit} of this item` 
+                      : 'Price for each individual unit'}
+                </FormHelperText>
               </FormControl>
             </Grid>
 
