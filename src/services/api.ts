@@ -90,12 +90,14 @@ const api = axios.create({
 // Items API methods
 export const itemsApi = {
   getAll: async (): Promise<Item[]> => {
-    const response = await api.get('/api/items');
-    return response.data;
+    const response = await fetch(`${config.API_URL}/api/items`);
+    if (!response.ok) throw new Error('Failed to fetch items');
+    return response.json();
   },
   getById: async (id: string): Promise<Item> => {
-    const response = await api.get(`/api/items/${id}`);
-    return response.data;
+    const response = await fetch(`${config.API_URL}/api/items/${id}`);
+    if (!response.ok) throw new Error('Failed to fetch item');
+    return response.json();
   },
   create: async (item: Item | FormData): Promise<Item> => {
     const response = await fetch(`${config.API_URL}/api/items`, {
@@ -122,6 +124,22 @@ export const itemsApi = {
   delete: async (id: string): Promise<void> => {
     await api.delete(`/api/items/${id}`);
   },
+  getNextSku: async (): Promise<string> => {
+    const response = await fetch(`${config.API_URL}/items/nextsku`);
+    if (!response.ok) throw new Error('Failed to fetch next SKU');
+    const data = await response.json();
+    return data.nextSku;
+  },
+  getCategories: async (): Promise<string[]> => {
+    const response = await fetch(`${config.API_URL}/items/categories`);
+    if (!response.ok) throw new Error('Failed to fetch categories');
+    return response.json();
+  },
+  getTags: async (): Promise<string[]> => {
+    const response = await fetch(`${config.API_URL}/items/tags`);
+    if (!response.ok) throw new Error('Failed to fetch tags');
+    return response.json();
+  }
 };
 
 // Sales API methods

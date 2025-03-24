@@ -18,6 +18,7 @@ import {
   IconButton,
   Chip,
   Stack,
+  Autocomplete
 } from '@mui/material';
 import { Save, ArrowBack, AddPhotoAlternate, Close } from '@mui/icons-material';
 import { itemsApi, Item } from '../../services/api';
@@ -53,6 +54,11 @@ export default function InventoryForm() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // New states for categories and tags
+  const [categories, setCategories] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+
   useEffect(() => {
     const fetchItem = async () => {
       if (!id) return;
@@ -78,9 +84,39 @@ export default function InventoryForm() {
       }
     };
 
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch categories and tags
+        const [categoriesData, tagsData] = await Promise.all([
+          itemsApi.getCategories(),
+          itemsApi.getTags()
+        ]);
+        
+        setCategories(categoriesData);
+        setAllTags(tagsData);
+        
+        if (!isEditMode) {
+          // Get next available SKU for new items
+          const nextSku = await itemsApi.getNextSku();
+          setFormData(prev => ({ ...prev, sku: nextSku }));
+        } else if (id) {
+          // Fetch existing item data for edit
+          const itemData = await itemsApi.getById(id);
+          setFormData(itemData);
+        }
+      } catch (err) {
+        console.error('Error fetching form data:', err);
+        setError('Failed to load form data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     if (isEditMode) {
       fetchItem();
     }
+    fetchData();
   }, [id, isEditMode]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -249,13 +285,21 @@ export default function InventoryForm() {
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <TextField
-                required
-                fullWidth
-                label="Category"
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
+              <Autocomplete
+                freeSolo
+                options={categories}
+                value={formData.category || ''}
+                onChange={(_, newValue) => {
+                  setFormData(prev => ({ ...prev, category: newValue || '' }));
+                }}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params}
+                    label="Category" 
+                    name="category"
+                    onChange={handleInputChange}
+                  />
+                )}
                 disabled={saving}
               />
             </Grid>
@@ -427,42 +471,35 @@ export default function InventoryForm() {
               <Typography variant="subtitle1" gutterBottom>
                 Tags
               </Typography>
-              <Box sx={{ display: 'flex', mb: 1 }}>
-                <TextField
-                  fullWidth
-                  placeholder="Enter tag and press Enter"
-                  value={currentTag}
-                  onChange={handleTagInputChange}
-                  onKeyDown={handleTagInputKeyDown}
-                  disabled={saving}
-                  size="small"
-                  sx={{ mr: 1 }}
-                />
-                <Button 
-                  variant="outlined" 
-                  onClick={handleAddTag}
-                  disabled={!currentTag.trim() || saving}
-                >
-                  Add
-                </Button>
-              </Box>
-              
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                {tags.map((tag) => (
-                  <Chip
-                    key={tag}
-                    label={tag}
-                    onDelete={() => handleDeleteTag(tag)}
-                    disabled={saving}
-                    variant="outlined"
+              <Autocomplete
+                multiple
+                freeSolo
+                options={allTags}
+                value={tags}
+                onChange={(_, newValue) => {
+                  setTags(newValue);
+                }}
+                renderTags={(value, getTagProps) =>
+                  value.map((tag, index) => (
+                    <Chip 
+                      label={tag} 
+                      {...getTagProps({ index })} 
+                      key={index}
+                      color="primary" 
+                      variant="outlined"
+                      size="small"  
+                    />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField 
+                    {...params}
+                    label="Tags" 
+                    placeholder="Add tags"
                   />
-                ))}
-                {tags.length === 0 && (
-                  <Typography variant="caption" color="text.secondary">
-                    No tags added yet. Tags help organize and find your items.
-                  </Typography>
                 )}
-              </Box>
+                disabled={saving}
+              />
             </Grid>
             
             <Grid item xs={12}>

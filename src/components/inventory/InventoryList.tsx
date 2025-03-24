@@ -1,228 +1,368 @@
 import { useState, useEffect } from 'react';
+import { 
+  Box, Typography, Table, TableBody, TableCell, TableContainer, 
+  TableHead, TableRow, Paper, IconButton, Button, TextField,
+  MenuItem, Menu, Chip, InputAdornment, CircularProgress 
+} from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow,
-  Button,
-  IconButton,
-  TextField,
-  InputAdornment,
-  CircularProgress,
-  Chip,
-  Avatar
-} from '@mui/material';
-import { Add, Delete, Edit, Search, Visibility, Image as ImageIcon } from '@mui/icons-material';
+  Add as AddIcon, 
+  Edit as EditIcon, 
+  Delete as DeleteIcon,
+  FilterList as FilterIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
+  Visibility as ViewIcon
+} from '@mui/icons-material';
 import { itemsApi, Item } from '../../services/api';
+
+// Define types for column filtering
+type FilterConfig = {
+  name: boolean;
+  sku: boolean;
+  category: boolean;
+  price: boolean;
+  quantity: boolean;
+};
 
 export default function InventoryList() {
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-
+  
+  // States for column filtering
+  const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
+  const [activeColumn, setActiveColumn] = useState<string | null>(null);
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  
+  // Load items
   useEffect(() => {
     const fetchItems = async () => {
       try {
         const data = await itemsApi.getAll();
         setItems(data);
         setFilteredItems(data);
-      } catch (error) {
-        console.error('Failed to fetch items:', error);
+      } catch (err) {
+        console.error('Error fetching inventory:', err);
+        setError('Failed to load inventory items.');
       } finally {
         setLoading(false);
       }
     };
-
+    
     fetchItems();
   }, []);
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value.toLowerCase();
-    setSearchQuery(query);
+  
+  // Filter items when search query or filter values change
+  useEffect(() => {
+    let result = [...items];
     
-    if (query) {
-      const filtered = items.filter(
-        item => 
-          item.name.toLowerCase().includes(query) || 
-          item.sku.toLowerCase().includes(query) || 
-          item.category.toLowerCase().includes(query) ||
-          // Also search in tags
-          (item.tags && item.tags.some(tag => tag.toLowerCase().includes(query)))
+    // Apply column filters
+    Object.entries(filterValues).forEach(([column, value]) => {
+      if (value) {
+        result = result.filter(item => {
+          const itemValue = item[column as keyof Item];
+          // Handle different types of values
+          if (typeof itemValue === 'string') {
+            return itemValue.toLowerCase().includes(value.toLowerCase());
+          } else if (typeof itemValue === 'number') {
+            return itemValue.toString().includes(value);
+          } else if (Array.isArray(itemValue)) {
+            return itemValue.some(v => 
+              v.toLowerCase().includes(value.toLowerCase())
+            );
+          }
+          return false;
+        });
+      }
+    });
+    
+    // Apply general search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(item => 
+        item.name.toLowerCase().includes(query) ||
+        item.sku.toLowerCase().includes(query) ||
+        (item.category && item.category.toLowerCase().includes(query)) ||
+        (item.tags && item.tags.some(tag => tag.toLowerCase().includes(query)))
       );
-      setFilteredItems(filtered);
-    } else {
-      setFilteredItems(items);
     }
-  };
-
+    
+    setFilteredItems(result);
+  }, [items, searchQuery, filterValues]);
+  
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         await itemsApi.delete(id);
-        setItems(prevItems => prevItems.filter(item => item._id !== id));
-        setFilteredItems(prevItems => prevItems.filter(item => item._id !== id));
-      } catch (error) {
-        console.error('Failed to delete item:', error);
+        setItems(items.filter(item => item._id !== id));
+      } catch (err) {
+        console.error('Error deleting item:', err);
+        setError('Failed to delete item.');
       }
     }
   };
-
+  
+  // Column filter handlers
+  const handleFilterClick = (event: React.MouseEvent<HTMLElement>, column: string) => {
+    setFilterAnchorEl(event.currentTarget);
+    setActiveColumn(column);
+  };
+  
+  const handleFilterClose = () => {
+    setFilterAnchorEl(null);
+    setActiveColumn(null);
+  };
+  
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeColumn) return;
+    
+    setFilterValues({
+      ...filterValues,
+      [activeColumn]: e.target.value
+    });
+  };
+  
+  const clearFilter = (column: string) => {
+    const newFilterValues = { ...filterValues };
+    delete newFilterValues[column];
+    setFilterValues(newFilterValues);
+  };
+  
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(price);
+  };
+  
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" p={3}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+  
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
-          Inventory
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h5" component="h2">
+          Inventory Items ({filteredItems.length})
         </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          startIcon={<Add />}
-          component={RouterLink}
-          to="/inventory/new"
-        >
-          Add Item
-        </Button>
-      </Box>
-
-      <TextField
-        fullWidth
-        margin="normal"
-        variant="outlined"
-        placeholder="Search by name, SKU, category, or tag..."
-        value={searchQuery}
-        onChange={handleSearch}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <Search />
-            </InputAdornment>
-          ),
-        }}
-      />
-
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress />
+        
+        <Box display="flex" gap={2}>
+          <TextField
+            size="small"
+            placeholder="Search inventory..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchQuery('')}>
+                    <ClearIcon />
+                  </IconButton>
+                </InputAdornment>
+              ) : null
+            }}
+          />
+          
+          <Button 
+            component={RouterLink} 
+            to="/inventory/new"
+            variant="contained" 
+            startIcon={<AddIcon />}
+          >
+            Add Item
+          </Button>
         </Box>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
+      </Box>
+      
+      {error && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          {error}
+        </Typography>
+      )}
+      
+      {/* Display active filters */}
+      {Object.keys(filterValues).length > 0 && (
+        <Box display="flex" gap={1} flexWrap="wrap" mb={2}>
+          <Typography variant="body2" sx={{ alignSelf: 'center' }}>
+            Active filters:
+          </Typography>
+          {Object.entries(filterValues).map(([column, value]) => (
+            <Chip
+              key={column}
+              label={`${column}: ${value}`}
+              onDelete={() => clearFilter(column)}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+          ))}
+          <Button 
+            size="small" 
+            onClick={() => setFilterValues({})}
+            variant="outlined"
+          >
+            Clear All
+          </Button>
+        </Box>
+      )}
+      
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>
+                <Box display="flex" alignItems="center">
+                  Name
+                  <IconButton size="small" onClick={(e) => handleFilterClick(e, 'name')}>
+                    <FilterIcon fontSize="small" color={filterValues.name ? 'primary' : 'inherit'} />
+                  </IconButton>
+                </Box>
+              </TableCell>
+              <TableCell>
+                <Box display="flex" alignItems="center">
+                  SKU
+                  <IconButton size="small" onClick={(e) => handleFilterClick(e, 'sku')}>
+                    <FilterIcon fontSize="small" color={filterValues.sku ? 'primary' : 'inherit'} />
+                  </IconButton>
+                </Box>
+              </TableCell>
+              <TableCell>
+                <Box display="flex" alignItems="center">
+                  Category
+                  <IconButton size="small" onClick={(e) => handleFilterClick(e, 'category')}>
+                    <FilterIcon fontSize="small" color={filterValues.category ? 'primary' : 'inherit'} />
+                  </IconButton>
+                </Box>
+              </TableCell>
+              <TableCell>Tags</TableCell>
+              <TableCell>
+                <Box display="flex" alignItems="center">
+                  Price
+                  <IconButton size="small" onClick={(e) => handleFilterClick(e, 'price')}>
+                    <FilterIcon fontSize="small" color={filterValues.price ? 'primary' : 'inherit'} />
+                  </IconButton>
+                </Box>
+              </TableCell>
+              <TableCell>
+                <Box display="flex" alignItems="center">
+                  Quantity
+                  <IconButton size="small" onClick={(e) => handleFilterClick(e, 'quantity')}>
+                    <FilterIcon fontSize="small" color={filterValues.quantity ? 'primary' : 'inherit'} />
+                  </IconButton>
+                </Box>
+              </TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell>Image</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>SKU</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell align="right">Quantity/Weight</TableCell>
-                <TableCell align="right">Price</TableCell>
-                <TableCell>Tags</TableCell>
-                <TableCell align="center">Actions</TableCell>
+                <TableCell colSpan={7} align="center">
+                  No items found.
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredItems.map((item) => (
+            ) : (
+              filteredItems.map(item => (
                 <TableRow key={item._id}>
-                  {/* Image cell */}
-                  <TableCell>
-                    {item.imageUrl ? (
-                      <Avatar
-                        src={item.imageUrl}
-                        alt={item.name}
-                        variant="rounded"
-                        sx={{ width: 50, height: 50 }}
-                      />
-                    ) : (
-                      <Avatar
-                        variant="rounded"
-                        sx={{ width: 50, height: 50, bgcolor: 'action.hover' }}
-                      >
-                        <ImageIcon color="disabled" />
-                      </Avatar>
-                    )}
+                  <TableCell component="th" scope="row">
+                    {item.name}
                   </TableCell>
-                  
-                  <TableCell>{item.name}</TableCell>
                   <TableCell>{item.sku}</TableCell>
-                  <TableCell>
-                    <Chip size="small" label={item.category} />
-                  </TableCell>
-                  <TableCell align="right">
-                    {item.trackingType === 'quantity' 
-                      ? `${item.quantity} units` 
-                      : `${item.weight} ${item.weightUnit}`}
-                  </TableCell>
-                  <TableCell align="right">
-                    ${item.price.toFixed(2)}
-                    {item.priceType === 'per_weight_unit' && `/${item.weightUnit}`}
-                  </TableCell>
-                  
-                  {/* Tags cell */}
+                  <TableCell>{item.category || '-'}</TableCell>
                   <TableCell>
                     {item.tags && item.tags.length > 0 ? (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 200 }}>
-                        {item.tags.slice(0, 2).map(tag => (
+                      <Box display="flex" gap={0.5} flexWrap="wrap">
+                        {item.tags.map(tag => (
                           <Chip 
                             key={tag} 
                             label={tag} 
                             size="small" 
-                            variant="outlined" 
+                            variant="outlined"
                           />
                         ))}
-                        {item.tags.length > 2 && (
-                          <Chip 
-                            label={`+${item.tags.length - 2}`} 
-                            size="small" 
-                            variant="outlined" 
-                            color="primary" 
-                          />
-                        )}
                       </Box>
-                    ) : (
-                      '-'
-                    )}
+                    ) : '-'}
                   </TableCell>
-                  
-                  <TableCell align="center">
+                  <TableCell>{formatPrice(item.price)}</TableCell>
+                  <TableCell>
+                    {item.quantity <= 2 ? (
+                      <Chip 
+                        label={`${item.quantity} - Low Stock`} 
+                        size="small" 
+                        color="error" 
+                        sx={{ ml: 1 }} 
+                      />
+                    ) : item.quantity}
+                  </TableCell>
+                  <TableCell align="right">
                     <IconButton 
                       component={RouterLink} 
                       to={`/inventory/${item._id}`}
-                      color="info"
+                      color="primary"
                       size="small"
-                      title="View details"
-                    >
-                      <Visibility />
+                    >                      
+                      <ViewIcon />
                     </IconButton>
                     <IconButton 
                       component={RouterLink} 
                       to={`/inventory/${item._id}/edit`}
                       color="primary"
                       size="small"
-                      title="Edit item"
                     >
-                      <Edit />
+                      <EditIcon />
                     </IconButton>
                     <IconButton 
+                      onClick={() => handleDelete(item._id as string)}
                       color="error"
                       size="small"
-                      onClick={() => item._id && handleDelete(item._id)}
-                      title="Delete item"
                     >
-                      <Delete />
+                      <DeleteIcon />
                     </IconButton>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      
+      {/* Filter Menu */}
+      <Menu
+        anchorEl={filterAnchorEl}
+        open={Boolean(filterAnchorEl)}
+        onClose={handleFilterClose}
+      >
+        <Box sx={{ p: 2, width: 250 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Filter by {activeColumn}
+          </Typography>
+          <TextField
+            fullWidth
+            size="small"
+            value={activeColumn ? filterValues[activeColumn] || '' : ''}
+            onChange={handleFilterChange}
+            autoFocus
+            placeholder={`Enter ${activeColumn} filter...`}
+          />
+          <Box display="flex" justifyContent="flex-end" mt={1}>
+            <Button size="small" onClick={handleFilterClose}>
+              Apply
+            </Button>
+          </Box>
+        </Box>
+      </Menu>
     </Box>
   );
 }
