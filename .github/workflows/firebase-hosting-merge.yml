@@ -12,7 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies and build
-        working-directory: ./public
         run: npm ci && npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
