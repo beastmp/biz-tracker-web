@@ -155,33 +155,6 @@ export default function InventoryList() {
     }
   };
 
-  // Helper function to generate appropriate stock status label
-  const getStockStatusLabel = (item: Item): string => {
-    if (item.trackingType === 'quantity') {
-      if (item.quantity <= 0) return 'Out of Stock';
-      if (item.quantity <= 5) return 'Low Stock';
-      return 'In Stock';
-    } else {
-      // Weight tracking
-      if (item.priceType === 'each') {
-        if (item.quantity <= 0) return 'Out of Stock';
-        if (item.quantity <= 3) return 'Low Stock';
-        return 'In Stock';
-      } else {
-        // Price per weight unit
-        if (item.weight <= 0) return 'Out of Stock';
-        const threshold =
-          item.weightUnit === 'kg' ? 1 :
-          item.weightUnit === 'g' ? 500 :
-          item.weightUnit === 'lb' ? 2 :
-          item.weightUnit === 'oz' ? 16 : 5;
-
-        if (item.weight <= threshold) return 'Low Stock';
-        return 'In Stock';
-      }
-    }
-  };
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" p={3}>
