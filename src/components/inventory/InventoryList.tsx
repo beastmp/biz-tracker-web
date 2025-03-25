@@ -128,6 +128,33 @@ export default function InventoryList() {
     }).format(price);
   };
 
+  // Determine stock status color based on item tracking type and quantity/weight
+  const getStockStatusColor = (item: Item): string => {
+    if (item.trackingType === 'quantity') {
+      if (item.quantity <= 0) return 'error.main';
+      if (item.quantity <= 5) return 'warning.main';
+      return 'success.main';
+    } else {
+      // Weight tracking
+      if (item.priceType === 'each') {
+        if (item.quantity <= 0) return 'error.main';
+        if (item.quantity <= 3) return 'warning.main';
+        return 'success.main';
+      } else {
+        // Price per weight unit
+        if (item.weight <= 0) return 'error.main';
+        const threshold =
+          item.weightUnit === 'kg' ? 1 :
+          item.weightUnit === 'g' ? 500 :
+          item.weightUnit === 'lb' ? 2 :
+          item.weightUnit === 'oz' ? 16 : 5;
+
+        if (item.weight <= threshold) return 'warning.main';
+        return 'success.main';
+      }
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" p={3}>
@@ -254,13 +281,14 @@ export default function InventoryList() {
                   </IconButton>
                 </Box>
               </TableCell>
+              <TableCell>Stock</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={9} align="center">
                   No items found.
                 </TableCell>
               </TableRow>
@@ -306,65 +334,30 @@ export default function InventoryList() {
                   <TableCell>{formatPrice(item.price)}</TableCell>
                   <TableCell>
                     {item.trackingType === 'quantity' ? (
-                      // Regular quantity tracking
-                      <>
-                        {item.quantity}
-                        {item.quantity <= 5 && (
-                          <Chip
-                            label="Low Stock"
-                            size="small"
-                            color="error"
-                            sx={{ ml: 1 }}
-                          />
-                        )}
-                      </>
+                      // Regular quantity tracking - without status chip
+                      item.quantity
                     ) : (
-                      // Weight tracking
-                      <>
-                        {item.priceType === 'each' ? (
-                          // Display both weight per item and quantity for "price per item"
-                          <>
-                            {item.quantity > 0 ? (
-                              <>
-                                {item.quantity} {item.quantity === 1 ? 'item' : 'items'} × {item.weight}{item.weightUnit}
-                                {item.quantity <= 3 && (
-                                  <Chip
-                                    label="Low Stock"
-                                    size="small"
-                                    color="error"
-                                    sx={{ ml: 1 }}
-                                  />
-                                )}
-                              </>
-                            ) : (
-                              <Chip
-                                label="Out of Stock"
-                                size="small"
-                                color="error"
-                              />
-                            )}
-                          </>
-                        ) : (
-                          // Display total weight for "price per weight unit"
-                          <>
-                            {item.weight}{item.weightUnit}
-                            {item.weight <= (
-                              item.weightUnit === 'kg' ? 1 :
-                              item.weightUnit === 'g' ? 500 :
-                              item.weightUnit === 'lb' ? 2 :
-                              item.weightUnit === 'oz' ? 16 : 5
-                            ) && (
-                              <Chip
-                                label="Low Stock"
-                                size="small"
-                                color="error"
-                                sx={{ ml: 1 }}
-                              />
-                            )}
-                          </>
-                        )}
-                      </>
+                      // Weight tracking - without status chips
+                      item.priceType === 'each' ? (
+                        // Display both weight per item and quantity for "price per item"
+                        item.quantity > 0 ?
+                          `${item.quantity} ${item.quantity === 1 ? 'item' : 'items'} × ${item.weight}${item.weightUnit}` :
+                          '0'
+                      ) : (
+                        // Display total weight for "price per weight unit"
+                        `${item.weight}${item.weightUnit}`
+                      )
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <Box
+                      sx={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        bgcolor: getStockStatusColor(item),
+                      }}
+                    />
                   </TableCell>
                   <TableCell align="right">
                     <IconButton
