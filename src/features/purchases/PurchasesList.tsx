@@ -13,8 +13,8 @@ import {
   Button,
   IconButton,
   TextField,
-  InputAdornment,
-  Chip
+  InputAdornment//,
+  //Chip
 } from '@mui/material';
 import { Add, Delete, Edit, Search, Visibility } from '@mui/icons-material';
 import { usePurchases, useDeletePurchase } from '@hooks/usePurchases';

@@ -14,12 +14,12 @@ import {
   IconButton,
   TextField,
   InputAdornment,
-  Avatar,
-  Chip
+  Avatar//,
+  //Chip
 } from '@mui/material';
 import { Add, Delete, Edit, Search, Visibility, Image as ImageIcon } from '@mui/icons-material';
 import { useSales, useDeleteSale } from '@hooks/useSales';
-import { formatCurrency, formatDate, getStatusColor } from '@utils/formatters';
+import { formatCurrency, formatDate } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import StatusChip from '@components/ui/StatusChip';

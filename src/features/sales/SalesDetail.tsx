@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { ArrowBack, Edit, Delete, Print, Image as ImageIcon } from '@mui/icons-material';
 import { useSale, useDeleteSale } from '@hooks/useSales';
-import { formatCurrency, formatDate, getStatusColor, formatPaymentMethod } from '@utils/formatters';
+import { formatCurrency, formatDate, formatPaymentMethod } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import StatusChip from '@components/ui/StatusChip';

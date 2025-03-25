@@ -21,7 +21,7 @@ import {
   ShoppingCartOutlined,
   LocalShippingOutlined,
   SearchOutlined,
-  TrendingUpOutlined,
+  //TrendingUpOutlined,
   ArrowForward
 } from '@mui/icons-material';
 import { useItems } from '@hooks/useItems';

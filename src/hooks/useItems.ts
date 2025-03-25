@@ -68,29 +68,19 @@ export const useUpdateItem = (id: string | undefined) => {
         // Log for debugging
         console.log(`Making PATCH request to: ${baseUrl}/api/items/${id}`);
 
-        try {
-          const response = await axios({
-            method: 'patch',
-            url: `${baseUrl}/api/items/${id}`,
-            data: itemData,
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-            // Add detailed logging
-            onUploadProgress: (progressEvent) => {
-              console.log('Upload progress:', progressEvent);
-            }
-          });
-          return response.data;
-        } catch (error) {
-          // Detailed error logging
-          console.error('API Error Details:', {
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status
-          });
-          throw error;
-        }
+        const response = await axios({
+          method: 'patch',
+          url: `${baseUrl}/api/items/${id}`,
+          data: itemData,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          // Add detailed logging
+          onUploadProgress: (progressEvent) => {
+            console.log('Upload progress:', progressEvent);
+          }
+        });
+        return response.data;
       } else {
         // Regular JSON data
         return await patch<Item>(`/api/items/${id}`, itemData);

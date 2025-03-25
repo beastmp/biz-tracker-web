@@ -17,7 +17,7 @@ import {
   Divider,
   Menu,
   MenuItem,
-  ListItemIcon,
+  //ListItemIcon,
   ListItemText,
   Tooltip,
   Stack,
@@ -30,12 +30,12 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  FilterList as FilterIcon,
+  //FilterList as FilterIcon,
   Search as SearchIcon,
   Clear as ClearIcon,
   Visibility as ViewIcon,
   Sort as SortIcon,
-  FilterAlt as FilterAltIcon,
+  //FilterAlt as FilterAltIcon,
   GridView as GridViewIcon,
   List as ListViewIcon,
   TrendingDown as LowStockIcon,
@@ -59,7 +59,7 @@ export default function InventoryList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('name');
-  const [filterMenuAnchor, setFilterMenuAnchor] = useState<null | HTMLElement>(null);
+  //const [filterMenuAnchor, setFilterMenuAnchor] = useState<null | HTMLElement>(null);
   const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null);
 
   // Filter and sort items

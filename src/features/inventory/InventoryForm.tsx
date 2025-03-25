@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
-  Paper,
+  //Paper,
   Typography,
   TextField,
   Button,
@@ -19,7 +19,7 @@ import {
   Autocomplete,
   FormHelperText,
   Divider,
-  Stack,
+  //Stack,
   Card,
   CardContent,
   styled,
@@ -33,7 +33,7 @@ import {
   Category,
   Inventory,
   AttachMoney,
-  LocalOffer,
+  //LocalOffer,
   Description,
   Help,
   Label,
@@ -207,7 +207,7 @@ export default function InventoryForm() {
       navigate('/inventory');
     } catch (err) {
       console.error('Failed to save item:', err);
-      const errorMessage = err.response?.data?.message || 'Failed to save item. Please try again.';
+      const errorMessage = 'Failed to save item. Please try again.';
       setError(errorMessage);
     }
   };
