@@ -342,18 +342,13 @@ export default function InventoryList() {
                     ) : (
                       // Weight tracking with status chip
                       item.priceType === 'each' ? (
-                        // Display both weight per item and quantity for "price per item"
+                        // Display both quantity and weight in one chip
                         item.quantity > 0 ? (
-                          <Box display="flex" flexDirection="column" gap={1}>
-                            <Chip
-                              label={`${item.quantity} ${item.quantity === 1 ? 'item' : 'items'}`}
-                              color={getStockStatusColor(item) as any}
-                              size="small"
-                            />
-                            <Typography variant="body2">
-                              × {item.weight}{item.weightUnit} each
-                            </Typography>
-                          </Box>
+                          <Chip
+                            label={`${item.quantity} × ${item.weight}${item.weightUnit}`}
+                            color={getStockStatusColor(item) as any}
+                            size="small"
+                          />
                         ) : (
                           <Chip
                             label="Out of Stock"
