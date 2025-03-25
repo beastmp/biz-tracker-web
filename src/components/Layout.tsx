@@ -15,6 +15,7 @@ import {
   Divider,
   Container,
   useTheme,
+  useMediaQuery
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -26,24 +27,31 @@ import {
   Brightness4 as DarkModeIcon,
   Brightness7 as LightModeIcon,
   Receipt as PurchaseReportsIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  ChevronLeft as ChevronLeftIcon
 } from '@mui/icons-material';
 import { useAppContext } from '@context/AppContext';
 
 const drawerWidth = 240;
 
 export default function Layout() {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(true);
   const location = useLocation();
   const theme = useTheme();
   const { toggleColorMode } = useAppContext();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // Close drawer when route changes
+  // Close drawer when route changes on mobile
   useEffect(() => {
-    if (drawerOpen) {
+    if (isMobile && drawerOpen) {
       setDrawerOpen(false);
     }
-  }, [location.pathname]);
+  }, [location.pathname, isMobile]);
+
+  // Set initial drawer state based on screen size
+  useEffect(() => {
+    setDrawerOpen(!isMobile);
+  }, [isMobile]);
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
@@ -55,10 +63,15 @@ export default function Layout() {
 
   const drawer = (
     <div>
-      <Toolbar sx={{ display: 'flex', justifyContent: 'center' }}>
+      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
         <Typography variant="h6" noWrap component={RouterLink} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
           BizTracker
         </Typography>
+        {!isMobile && (
+          <IconButton onClick={toggleDrawer}>
+            <ChevronLeftIcon />
+          </IconButton>
+        )}
       </Toolbar>
       <Divider />
       <List>
@@ -132,8 +145,12 @@ export default function Layout() {
       <AppBar
         position="fixed"
         sx={{
-          width: '100%',
-          zIndex: (theme) => theme.zIndex.drawer + 1
+          width: { md: drawerOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
+          ml: { md: drawerOpen ? `${drawerWidth}px` : 0 },
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
         }}
       >
         <Toolbar>
@@ -154,17 +171,33 @@ export default function Layout() {
           </IconButton>
         </Toolbar>
       </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: drawerWidth, flexShrink: 0 }}
-        aria-label="mailbox folders"
-      >
+
+      {/* Desktop: Persistent drawer */}
+      {!isMobile && (
+        <Drawer
+          variant="persistent"
+          open={drawerOpen}
+          sx={{
+            width: drawerWidth,
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+            },
+          }}
+        >
+          {drawer}
+        </Drawer>
+      )}
+
+      {/* Mobile: Temporary drawer */}
+      {isMobile && (
         <Drawer
           variant="temporary"
           open={drawerOpen}
           onClose={toggleDrawer}
           ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
+            keepMounted: true, // Better open performance on mobile
           }}
           sx={{
             '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
@@ -172,10 +205,21 @@ export default function Layout() {
         >
           {drawer}
         </Drawer>
-      </Box>
+      )}
+
+      {/* Main content - shifts when drawer opens/closes */}
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 3, width: '100%' }}
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          width: '100%',
+          ml: { md: drawerOpen ? `${drawerWidth}px` : 0 },
+          transition: theme.transitions.create(['margin', 'width'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        }}
       >
         <Toolbar />
         <Container maxWidth="lg">
