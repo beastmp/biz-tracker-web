@@ -155,6 +155,20 @@ export default function InventoryList() {
     }
   };
 
+  // Calculate total inventory value for an item
+  const calculateTotalValue = (item: Item): number => {
+    if (item.trackingType === 'quantity') {
+      return item.price * item.quantity;
+    } else {
+      // Weight tracking
+      if (item.priceType === 'each') {
+        return item.price * (item.quantity || 0); // Price per item × quantity
+      } else {
+        return item.price * item.weight; // Price per weight unit × weight
+      }
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" p={3}>
@@ -267,7 +281,7 @@ export default function InventoryList() {
               <TableCell>Tags</TableCell>
               <TableCell>
                 <Box display="flex" alignItems="center">
-                  Price
+                  Price (per item)
                   <IconButton size="small" onClick={(e) => handleFilterClick(e, 'price')}>
                     <FilterIcon fontSize="small" color={filterValues.price ? 'primary' : 'inherit'} />
                   </IconButton>
@@ -275,19 +289,20 @@ export default function InventoryList() {
               </TableCell>
               <TableCell>
                 <Box display="flex" alignItems="center">
-                  Quantity
+                  Stock Level
                   <IconButton size="small" onClick={(e) => handleFilterClick(e, 'quantity')}>
                     <FilterIcon fontSize="small" color={filterValues.quantity ? 'primary' : 'inherit'} />
                   </IconButton>
                 </Box>
               </TableCell>
+              <TableCell>Price (total)</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={9} align="center">
                   No items found.
                 </TableCell>
               </TableRow>
@@ -365,6 +380,11 @@ export default function InventoryList() {
                         />
                       )
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <Typography color="primary.main" fontWeight="medium">
+                      {formatPrice(calculateTotalValue(item))}
+                    </Typography>
                   </TableCell>
                   <TableCell align="right">
                     <IconButton

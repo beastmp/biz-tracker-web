@@ -279,7 +279,7 @@ export default function InventoryDetail() {
                       item.priceType === 'each' ? (
                         item.quantity > 0 ? (
                           <Chip
-                            label={`${item.quantity} × ${item.weight}${item.weightUnit}`}
+                            label={`${item.quantity} × ${item.weight}${item.weightUnit} in stock`}
                             color={getStockStatusColor(item) as any}
                             size="small"
                             sx={{ mt: 0.5 }}
