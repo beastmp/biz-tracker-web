@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Button, TextField,
-  Menu, Chip, InputAdornment, CircularProgress
+  Menu, Chip, InputAdornment, CircularProgress, Avatar
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import {
@@ -212,6 +212,7 @@ export default function InventoryList() {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell>Image</TableCell>
               <TableCell>
                 <Box display="flex" alignItems="center">
                   Name
@@ -259,13 +260,30 @@ export default function InventoryList() {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={8} align="center">
                   No items found.
                 </TableCell>
               </TableRow>
             ) : (
               filteredItems.map(item => (
                 <TableRow key={item._id}>
+                  <TableCell>
+                    {item.imageUrl ? (
+                      <Avatar
+                        src={item.imageUrl}
+                        alt={item.name}
+                        variant="rounded"
+                        sx={{ width: 50, height: 50 }}
+                      />
+                    ) : (
+                      <Avatar
+                        variant="rounded"
+                        sx={{ width: 50, height: 50, bgcolor: 'grey.300' }}
+                      >
+                        No img
+                      </Avatar>
+                    )}
+                  </TableCell>
                   <TableCell component="th" scope="row">
                     {item.name}
                   </TableCell>
