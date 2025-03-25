@@ -178,7 +178,7 @@ export default function Layout() {
           variant="persistent"
           open={drawerOpen}
           sx={{
-            width: drawerWidth,
+            width: 0,
             flexShrink: 0,
             '& .MuiDrawer-paper': {
               width: drawerWidth,
