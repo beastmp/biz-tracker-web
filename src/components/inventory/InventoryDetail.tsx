@@ -272,37 +272,37 @@ export default function InventoryDetail() {
                   />
                 </ListItem>
               ) : (
-                <>
-                  <ListItem disablePadding sx={{ pb: 1 }}>
-                    <ListItemText
-                      primary="Stock Level"
-                      secondary={
+                <ListItem disablePadding sx={{ pb: 1 }}>
+                  <ListItemText
+                    primary="Stock Level"
+                    secondary={
+                      item.priceType === 'each' ? (
+                        item.quantity > 0 ? (
+                          <Chip
+                            label={`${item.quantity} × ${item.weight}${item.weightUnit}`}
+                            color={getStockStatusColor(item) as any}
+                            size="small"
+                            sx={{ mt: 0.5 }}
+                          />
+                        ) : (
+                          <Chip
+                            label="Out of Stock"
+                            color="error"
+                            size="small"
+                            sx={{ mt: 0.5 }}
+                          />
+                        )
+                      ) : (
                         <Chip
-                          label={`${item.weight} ${item.weightUnit} in stock`}
+                          label={`${item.weight}${item.weightUnit} in stock`}
                           color={getStockStatusColor(item) as any}
                           size="small"
                           sx={{ mt: 0.5 }}
                         />
-                      }
-                    />
-                  </ListItem>
-                  {/* Add quantity display for weight-tracked items with price per item */}
-                  {item.priceType === 'each' && (
-                    <ListItem disablePadding sx={{ pb: 1 }}>
-                      <ListItemText
-                        primary="Item Quantity"
-                        secondary={
-                          <Chip
-                            label={`${item.quantity || 0} items`}
-                            color={(item.quantity || 0) > 0 ? 'success' : 'error'}
-                            size="small"
-                            sx={{ mt: 0.5 }}
-                          />
-                        }
-                      />
-                    </ListItem>
-                  )}
-                </>
+                      )
+                    }
+                  />
+                </ListItem>
               )}
               <ListItem disablePadding sx={{ pb: 1 }}>
                 <ListItemText
