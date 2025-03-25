@@ -1,4 +1,3 @@
- 
 import { useState, useEffect } from 'react';
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
@@ -33,12 +32,11 @@ export default function InventoryList() {
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const data = await itemsApi.getAll();
-        setItems(data);
-        setFilteredItems(data);
+        const response = await itemsApi.getAll();
+        setItems(Array.isArray(response) ? response : []);
       } catch (err) {
-        console.error('Error fetching inventory:', err);
-        setError('Failed to load inventory items.');
+        console.error('Failed to fetch inventory items:', err);
+        setItems([]);
       } finally {
         setLoading(false);
       }
