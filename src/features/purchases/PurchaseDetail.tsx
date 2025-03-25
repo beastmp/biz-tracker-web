@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -7,7 +5,6 @@ import {
   Typography,
   Button,
   Grid,
-  CircularProgress,
   Divider,
   Chip,
   Stack,
@@ -19,89 +16,31 @@ import {
   TableRow
 } from '@mui/material';
 import { ArrowBack, Edit, Delete, Print } from '@mui/icons-material';
-import { purchasesApi, Purchase } from '../../services/api';
+import { usePurchase, useDeletePurchase } from '@hooks/usePurchases';
+import { formatCurrency, formatDate, formatPaymentMethod } from '@utils/formatters';
+import LoadingScreen from '@components/ui/LoadingScreen';
+import ErrorFallback from '@components/ui/ErrorFallback';
+import StatusChip from '@components/ui/StatusChip';
 
 export default function PurchaseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [purchase, setPurchase] = useState<Purchase | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchPurchase = async () => {
-      if (!id) return;
-
-      try {
-        const data = await purchasesApi.getById(id);
-        setPurchase(data);
-      } catch (error) {
-        console.error('Failed to fetch purchase:', error);
-        setError('Failed to load purchase details. The purchase may have been deleted.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPurchase();
-  }, [id]);
+  const { data: purchase, isLoading, error } = usePurchase(id);
+  const deletePurchase = useDeletePurchase();
 
   const handleDelete = async () => {
     if (!id || !window.confirm('Are you sure you want to delete this purchase? This will update inventory quantities.')) return;
 
     try {
-      await purchasesApi.delete(id);
+      await deletePurchase.mutateAsync(id);
       navigate('/purchases');
     } catch (error) {
       console.error('Failed to delete purchase:', error);
-      setError('Failed to delete purchase. Please try again.');
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'received': return 'success';
-      case 'cancelled': return 'error';
-      case 'partially_received': return 'warning';
-      case 'pending': return 'info';
-      default: return 'default';
-    }
-  };
-
-  const getPaymentMethodLabel = (method: string) => {
-    switch (method) {
-      case 'cash': return 'Cash';
-      case 'credit': return 'Credit Card';
-      case 'debit': return 'Debit Card';
-      case 'check': return 'Check';
-      case 'bank_transfer': return 'Bank Transfer';
-      default: return 'Other';
-    }
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
+  if (isLoading) {
+    return <LoadingScreen />;
   }
 
   if (error || !purchase) {
@@ -120,9 +59,7 @@ export default function PurchaseDetail() {
             Back to Purchases
           </Button>
         </Box>
-        <Paper sx={{ p: 3, bgcolor: '#ffebee' }}>
-          <Typography color="error">{error || 'The purchase you are looking for does not exist or has been deleted.'}</Typography>
-        </Paper>
+        <ErrorFallback error={error as Error} message="The requested purchase could not be found." />
       </Box>
     );
   }
@@ -184,16 +121,12 @@ export default function PurchaseDetail() {
 
             <Box sx={{ mb: 1.5 }}>
               <Typography variant="body2" color="text.secondary">Status</Typography>
-              <Chip
-                label={purchase.status.replace('_', ' ')}
-                color={getStatusColor(purchase.status) as any}
-                size="small"
-              />
+              <StatusChip status={purchase.status} sx={{ mt: 0.5 }} />
             </Box>
 
             <Box sx={{ mb: 1.5 }}>
               <Typography variant="body2" color="text.secondary">Payment Method</Typography>
-              <Typography variant="body1">{getPaymentMethodLabel(purchase.paymentMethod)}</Typography>
+              <Typography variant="body1">{formatPaymentMethod(purchase.paymentMethod)}</Typography>
             </Box>
 
             {purchase.invoiceNumber && (
@@ -261,7 +194,7 @@ export default function PurchaseDetail() {
             <TableContainer>
               <Table>
                 <TableHead>
-                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                  <TableRow>
                     <TableCell>Item</TableCell>
                     <TableCell align="right">Quantity</TableCell>
                     <TableCell align="right">Unit Cost</TableCell>
@@ -309,20 +242,20 @@ export default function PurchaseDetail() {
               </Box>
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '250px', mb: 1 }}>
-                <Typography>Tax ({purchase.taxRate}%):</Typography>
-                <Typography>{formatCurrency(purchase.taxAmount ?? 0)}</Typography>
+                <Typography>Tax ({purchase.taxRate || 0}%):</Typography>
+                <Typography>{formatCurrency(purchase.taxAmount || 0)}</Typography>
               </Box>
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '250px', mb: 1 }}>
                 <Typography>Shipping:</Typography>
-                <Typography>{formatCurrency(purchase.shippingCost ?? 0)}</Typography>
+                <Typography>{formatCurrency(purchase.shippingCost || 0)}</Typography>
               </Box>
 
               <Divider sx={{ width: '250px', my: 1 }} />
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '250px' }}>
                 <Typography variant="h6">Total:</Typography>
-                <Typography variant="h6">{formatCurrency(purchase.total)}</Typography>
+                <Typography variant="h6" color="primary">{formatCurrency(purchase.total)}</Typography>
               </Box>
             </Box>
           </Paper>

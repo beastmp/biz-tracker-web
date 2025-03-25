@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
@@ -8,7 +7,6 @@ import {
   TextField,
   Button,
   Grid,
-  CircularProgress,
   Alert,
   InputAdornment,
   MenuItem,
@@ -35,13 +33,25 @@ import {
   SelectChangeEvent,
 } from '@mui/material';
 import { Save, ArrowBack, Add, Delete, Image as ImageIcon } from '@mui/icons-material';
-import { itemsApi, purchasesApi, Item, Purchase, PurchaseItem } from '../../services/api';
+import { usePurchase, useCreatePurchase, useUpdatePurchase } from '@hooks/usePurchases';
+import { useItems } from '@hooks/useItems';
+import { Purchase, PurchaseItem, Item } from '@custTypes/models';
+import { formatCurrency } from '@utils/formatters';
+import LoadingScreen from '@components/ui/LoadingScreen';
+import ErrorFallback from '@components/ui/ErrorFallback';
 
 export default function PurchaseForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditMode = Boolean(id);
 
+  // Queries
+  const { data: existingPurchase, isLoading: purchaseLoading, error: purchaseError } = usePurchase(id);
+  const { data: items = [], isLoading: itemsLoading, error: itemsError } = useItems();
+  const createPurchase = useCreatePurchase();
+  const updatePurchase = useUpdatePurchase(id);
+
+  // Form state
   const [purchase, setPurchase] = useState<Purchase>({
     supplier: {
       name: '',
@@ -59,53 +69,22 @@ export default function PurchaseForm() {
     status: 'received'
   });
 
-  const [availableItems, setAvailableItems] = useState<Item[]>([]);
+  // Item selection state
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [weight, setWeight] = useState(0);
   const [weightUnit, setWeightUnit] = useState<'oz' | 'lb' | 'g' | 'kg'>('lb');
   const [costPerUnit, setCostPerUnit] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [itemSelectDialogOpen, setItemSelectDialogOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch available items and purchase data if in edit mode
+  // Load existing purchase data if in edit mode
   useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        const items = await itemsApi.getAll();
-        setAvailableItems(items);
-      } catch (error) {
-        console.error('Failed to fetch items:', error);
-        setError('Failed to load inventory items. Please check your connection.');
-      }
-    };
-
-    const fetchPurchase = async () => {
-      if (!id) return;
-
-      try {
-        const data = await purchasesApi.getById(id);
-        setPurchase(data);
-      } catch (error) {
-        console.error('Failed to fetch purchase:', error);
-        setError('Failed to load purchase details. The purchase may have been deleted.');
-      }
-    };
-
-    const loadData = async () => {
-      await fetchItems();
-      if (isEditMode) {
-        await fetchPurchase();
-      }
-      setLoading(false);
-    };
-
-    loadData();
-  }, [id, isEditMode]);
+    if (isEditMode && existingPurchase) {
+      setPurchase(existingPurchase);
+    }
+  }, [isEditMode, existingPurchase]);
 
   // Update total costs whenever items, tax, or shipping change
   useEffect(() => {
@@ -153,6 +132,14 @@ export default function PurchaseForm() {
     }
   };
 
+  const handleSelectChange = (e: SelectChangeEvent<string>) => {
+    const { name, value } = e.target;
+    setPurchase({
+      ...purchase,
+      [name]: value
+    });
+  };
+
   const handleAddItem = () => {
     if (!selectedItem) return;
 
@@ -161,8 +148,6 @@ export default function PurchaseForm() {
       quantity: selectedItem.trackingType === 'weight' ? 1 : quantity,
       costPerUnit,
       totalCost,
-      // paymentMethod: purchase.paymentMethod,
-      // status: purchase.status
     };
 
     if (selectedItem.trackingType === 'weight') {
@@ -192,15 +177,7 @@ export default function PurchaseForm() {
     });
   };
 
-  const handleOpenItemDialog = () => {
-    setItemSelectDialogOpen(true);
-  };
-
-  const handleCloseItemDialog = () => {
-    setItemSelectDialogOpen(false);
-  };
-
-  const handleSelectItem = (item: Item) => {
+  const handleItemSelect = (item: Item) => {
     setSelectedItem(item);
     setCostPerUnit(item.price);
     setItemSelectDialogOpen(false);
@@ -214,45 +191,39 @@ export default function PurchaseForm() {
     return null;
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
       return;
     }
 
-    setSaving(true);
     setError(null);
 
     try {
-      if (isEditMode && id) {
-        await purchasesApi.update(id, purchase);
+      if (isEditMode) {
+        await updatePurchase.mutateAsync(purchase);
       } else {
-        await purchasesApi.create(purchase);
+        await createPurchase.mutateAsync(purchase);
       }
       navigate('/purchases');
     } catch (error) {
       console.error('Failed to save purchase:', error);
       setError('Failed to save purchase. Please try again.');
-    } finally {
-      setSaving(false);
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
+  if (purchaseLoading || itemsLoading) {
+    return <LoadingScreen />;
   }
+
+  if (purchaseError || itemsError) {
+    return <ErrorFallback error={(purchaseError || itemsError) as Error} message="Failed to load data" />;
+  }
+
+  // Create a lookup object for items for efficient access
+  const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
 
   return (
     <Box>
@@ -289,7 +260,7 @@ export default function PurchaseForm() {
               onChange={(e) => handleTextChange('supplier.name', e.target.value)}
               margin="normal"
               required
-              disabled={saving}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -299,7 +270,7 @@ export default function PurchaseForm() {
               value={purchase.supplier.contactName || ''}
               onChange={(e) => handleTextChange('supplier.contactName', e.target.value)}
               margin="normal"
-              disabled={saving}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -310,7 +281,7 @@ export default function PurchaseForm() {
               value={purchase.supplier.email || ''}
               onChange={(e) => handleTextChange('supplier.email', e.target.value)}
               margin="normal"
-              disabled={saving}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -320,7 +291,7 @@ export default function PurchaseForm() {
               value={purchase.supplier.phone || ''}
               onChange={(e) => handleTextChange('supplier.phone', e.target.value)}
               margin="normal"
-              disabled={saving}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -330,7 +301,7 @@ export default function PurchaseForm() {
               value={purchase.invoiceNumber || ''}
               onChange={(e) => handleTextChange('invoiceNumber', e.target.value)}
               margin="normal"
-              disabled={saving}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -342,7 +313,7 @@ export default function PurchaseForm() {
               onChange={(e) => handleTextChange('purchaseDate', e.target.value)}
               margin="normal"
               InputLabelProps={{ shrink: true }}
-              disabled={saving}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid>
         </Grid>
@@ -354,8 +325,8 @@ export default function PurchaseForm() {
           <Button
             variant="contained"
             startIcon={<Add />}
-            onClick={handleOpenItemDialog}
-            disabled={saving}
+            onClick={() => setItemSelectDialogOpen(true)}
+            disabled={createPurchase.isPending || updatePurchase.isPending}
           >
             Add Item
           </Button>
@@ -378,7 +349,7 @@ export default function PurchaseForm() {
                       type="number"
                       value={weight}
                       onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
-                      disabled={saving}
+                      disabled={createPurchase.isPending || updatePurchase.isPending}
                       InputProps={{
                         endAdornment: (
                           <InputAdornment position="end">
@@ -386,7 +357,7 @@ export default function PurchaseForm() {
                               value={weightUnit}
                               onChange={(e) => setWeightUnit(e.target.value as any)}
                               size="small"
-                              disabled={saving}
+                              disabled={createPurchase.isPending || updatePurchase.isPending}
                             >
                               <MenuItem value="oz">oz</MenuItem>
                               <MenuItem value="lb">lb</MenuItem>
@@ -407,7 +378,7 @@ export default function PurchaseForm() {
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                    disabled={saving}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
                   />
                 </Grid>
               )}
@@ -419,7 +390,7 @@ export default function PurchaseForm() {
                   type="number"
                   value={costPerUnit}
                   onChange={(e) => setCostPerUnit(parseFloat(e.target.value) || 0)}
-                  disabled={saving}
+                  disabled={createPurchase.isPending || updatePurchase.isPending}
                   InputProps={{
                     startAdornment: <InputAdornment position="start">$</InputAdornment>,
                   }}
@@ -433,7 +404,7 @@ export default function PurchaseForm() {
                   type="number"
                   value={totalCost}
                   onChange={(e) => setTotalCost(parseFloat(e.target.value) || 0)}
-                  disabled={saving}
+                  disabled={createPurchase.isPending || updatePurchase.isPending}
                   InputProps={{
                     startAdornment: <InputAdornment position="start">$</InputAdornment>,
                   }}
@@ -446,7 +417,7 @@ export default function PurchaseForm() {
                 variant="outlined"
                 color="secondary"
                 onClick={handleAddItem}
-                disabled={saving}
+                disabled={createPurchase.isPending || updatePurchase.isPending}
               >
                 Add to Purchase
               </Button>
@@ -468,7 +439,7 @@ export default function PurchaseForm() {
               </TableHead>
               <TableBody>
                 {purchase.items.map((item, index) => {
-                  const itemDetails = typeof item.item === 'object' ? item.item : availableItems.find(i => i._id === item.item);
+                  const itemDetails = typeof item.item === 'object' ? item.item : itemLookup[item.item as string];
                   return (
                     <TableRow key={index}>
                       <TableCell>{itemDetails ? itemDetails.name : 'Unknown Item'}</TableCell>
@@ -482,7 +453,7 @@ export default function PurchaseForm() {
                           size="small"
                           color="error"
                           onClick={() => handleRemoveItem(index)}
-                          disabled={saving}
+                          disabled={createPurchase.isPending || updatePurchase.isPending}
                         >
                           <Delete />
                         </IconButton>
@@ -507,10 +478,11 @@ export default function PurchaseForm() {
             <FormControl fullWidth margin="normal">
               <InputLabel>Payment Method</InputLabel>
               <Select
+                name="paymentMethod"
                 value={purchase.paymentMethod}
                 label="Payment Method"
-                onChange={(e: SelectChangeEvent) => handleTextChange('paymentMethod', e.target.value)}
-                disabled={saving}
+                onChange={handleSelectChange}
+                disabled={createPurchase.isPending || updatePurchase.isPending}
               >
                 <MenuItem value="cash">Cash</MenuItem>
                 <MenuItem value="credit">Credit Card</MenuItem>
@@ -525,10 +497,11 @@ export default function PurchaseForm() {
             <FormControl fullWidth margin="normal">
               <InputLabel>Status</InputLabel>
               <Select
+                name="status"
                 value={purchase.status}
                 label="Status"
-                onChange={(e: SelectChangeEvent) => handleTextChange('status', e.target.value)}
-                disabled={saving}
+                onChange={handleSelectChange}
+                disabled={createPurchase.isPending || updatePurchase.isPending}
               >
                 <MenuItem value="pending">Pending</MenuItem>
                 <MenuItem value="received">Received</MenuItem>
@@ -541,12 +514,13 @@ export default function PurchaseForm() {
             <TextField
               fullWidth
               label="Notes"
+              name="notes"
               value={purchase.notes || ''}
               onChange={(e) => handleTextChange('notes', e.target.value)}
               margin="normal"
               multiline
               rows={3}
-              disabled={saving}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid>
         </Grid>
@@ -575,10 +549,11 @@ export default function PurchaseForm() {
               fullWidth
               label="Tax Rate (%)"
               type="number"
+              name="taxRate"
               value={purchase.taxRate || 0}
               onChange={(e) => handleTextChange('taxRate', parseFloat(e.target.value) || 0)}
               margin="normal"
-              disabled={saving}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -599,10 +574,11 @@ export default function PurchaseForm() {
               fullWidth
               label="Shipping Cost"
               type="number"
+              name="shippingCost"
               value={purchase.shippingCost || 0}
               onChange={(e) => handleTextChange('shippingCost', parseFloat(e.target.value) || 0)}
               margin="normal"
-              disabled={saving}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
               InputProps={{
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
@@ -630,26 +606,26 @@ export default function PurchaseForm() {
           color="primary"
           startIcon={<Save />}
           onClick={handleSave}
-          disabled={saving}
+          disabled={createPurchase.isPending || updatePurchase.isPending}
           size="large"
         >
-          {saving ? 'Saving...' : 'Save Purchase'}
+          {createPurchase.isPending || updatePurchase.isPending ? 'Saving...' : isEditMode ? 'Update Purchase' : 'Save Purchase'}
         </Button>
       </Box>
 
       {/* Item Selection Dialog */}
-      <Dialog open={itemSelectDialogOpen} onClose={handleCloseItemDialog} maxWidth="md" fullWidth>
+      <Dialog open={itemSelectDialogOpen} onClose={() => setItemSelectDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Select Item</DialogTitle>
         <DialogContent>
           <List>
-            {availableItems.map((item) => (
+            {items.map((item) => (
               <ListItemButton
                 key={item._id}
-                onClick={() => handleSelectItem(item)}
+                onClick={() => handleItemSelect(item)}
                 divider
               >
                 <ListItemAvatar>
-                  <Avatar>
+                  <Avatar variant="rounded">
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
@@ -666,7 +642,7 @@ export default function PurchaseForm() {
           </List>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseItemDialog} color="primary">
+          <Button onClick={() => setItemSelectDialogOpen(false)} color="primary">
             Cancel
           </Button>
         </DialogActions>

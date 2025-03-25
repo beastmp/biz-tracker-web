@@ -1,6 +1,5 @@
- 
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -8,7 +7,6 @@ import {
   TextField,
   Button,
   Grid,
-  CircularProgress,
   Alert,
   InputAdornment,
   MenuItem,
@@ -36,13 +34,24 @@ import {
   Chip
 } from '@mui/material';
 import { Save, ArrowBack, Add, Delete, Image as ImageIcon } from '@mui/icons-material';
-import { itemsApi, salesApi, Item, Sale, SaleItem } from '../../services/api';
+import { useSale, useCreateSale, useUpdateSale } from '@hooks/useSales';
+import { useItems } from '@hooks/useItems';
+import { Sale, SaleItem, Item } from '@custTypes/models';
+import { formatCurrency } from '@utils/formatters';
+import LoadingScreen from '@components/ui/LoadingScreen';
 
 export default function SaleForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditMode = Boolean(id);
 
+  // Queries
+  const { data: existingSale, isLoading: saleLoading } = useSale(id);
+  const { data: items = [], isLoading: itemsLoading } = useItems();
+  const createSale = useCreateSale();
+  const updateSale = useUpdateSale(id);
+
+  // Form state
   const [formData, setFormData] = useState<Partial<Sale>>({
     customerName: '',
     customerEmail: '',
@@ -58,38 +67,19 @@ export default function SaleForm() {
     status: 'completed'
   });
 
-  const [availableItems, setAvailableItems] = useState<Item[]>([]);
+  // Item selection state
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<string>('1');
   const [selectedWeight, setSelectedWeight] = useState<string>('1');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
-  const itemLookup = Object.fromEntries(availableItems.map(item => [item._id, item]));
+  const [error, setError] = useState<string | null>(null);
 
+  // Load existing sale data if in edit mode
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // First fetch items
-        const items = await itemsApi.getAll();
-        setAvailableItems(items);
-
-        // If edit mode, fetch the sale data
-        if (isEditMode && id) {
-          const sale = await salesApi.getById(id);
-          setFormData(sale);
-        }
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-        setError('Failed to load required data. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [id, isEditMode]);
+    if (isEditMode && existingSale) {
+      setFormData(existingSale);
+    }
+  }, [isEditMode, existingSale]);
 
   // Recalculate totals when items, tax rate, or discount change
   useEffect(() => {
@@ -218,64 +208,28 @@ export default function SaleForm() {
       return;
     }
 
-    setSaving(true);
     setError(null);
 
     try {
-      const saleData: Sale = {
-        ...formData,
-        items: formData.items,
-        customerName: formData.customerName || '',
-        customerEmail: formData.customerEmail || '',
-        customerPhone: formData.customerPhone || '',
-        subtotal: formData.subtotal || 0,
-        taxRate: formData.taxRate || 0,
-        taxAmount: formData.taxAmount || 0,
-        discountAmount: formData.discountAmount || 0,
-        total: formData.total || 0,
-        paymentMethod: formData.paymentMethod || 'cash',
-        notes: formData.notes || '',
-        status: formData.status || 'completed'
-      };
+      const saleData = formData as Sale;
 
-      if (isEditMode && id) {
-        await salesApi.update(id, saleData);
+      if (isEditMode) {
+        await updateSale.mutateAsync(saleData);
       } else {
-        await salesApi.create(saleData);
+        await createSale.mutateAsync(saleData);
       }
       navigate('/sales');
     } catch (error) {
       console.error('Failed to save sale:', error);
       setError('Failed to save sale. Please try again.');
-    } finally {
-      setSaving(false);
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
+  // Create a lookup object for items for efficient access
+  const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
 
-  // Find item by ID in the available items array
-  // const getItemById = (itemId: string): Item | undefined => {
-  //   return availableItems.find(item => item._id === itemId);
-  // };
-
-  // Get item name for display
-  // const getItemName = (itemId: string): string => {
-  //   const item = getItemById(itemId);
-  //   return item ? item.name : 'Unknown Item';
-  // };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
+  if (saleLoading || itemsLoading) {
+    return <LoadingScreen />;
   }
 
   return (
@@ -303,6 +257,7 @@ export default function SaleForm() {
         </Alert>
       )}
 
+      {/* Form content (identical to original) */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3, mb: 3 }}>
@@ -317,9 +272,9 @@ export default function SaleForm() {
                   fullWidth
                   label="Customer Name"
                   name="customerName"
-                  value={formData.customerName}
+                  value={formData.customerName || ''}
                   onChange={handleInputChange}
-                  disabled={saving}
+                  disabled={createSale.isPending || updateSale.isPending}
                   placeholder="Optional"
                 />
               </Grid>
@@ -328,9 +283,9 @@ export default function SaleForm() {
                   fullWidth
                   label="Email"
                   name="customerEmail"
-                  value={formData.customerEmail}
+                  value={formData.customerEmail || ''}
                   onChange={handleInputChange}
-                  disabled={saving}
+                  disabled={createSale.isPending || updateSale.isPending}
                   placeholder="Optional"
                 />
               </Grid>
@@ -339,9 +294,9 @@ export default function SaleForm() {
                   fullWidth
                   label="Phone"
                   name="customerPhone"
-                  value={formData.customerPhone}
+                  value={formData.customerPhone || ''}
                   onChange={handleInputChange}
-                  disabled={saving}
+                  disabled={createSale.isPending || updateSale.isPending}
                   placeholder="Optional"
                 />
               </Grid>
@@ -358,7 +313,7 @@ export default function SaleForm() {
                 color="primary"
                 startIcon={<Add />}
                 onClick={() => setItemDialogOpen(true)}
-                disabled={saving || availableItems.length === 0}
+                disabled={createSale.isPending || updateSale.isPending || items.length === 0}
               >
                 Add Item
               </Button>
@@ -379,7 +334,7 @@ export default function SaleForm() {
                   </TableHead>
                   <TableBody>
                     {formData.items?.map((item, index) => {
-                      const itemDetails = typeof item.item === 'object' ? item.item : itemLookup[item.item];
+                      const itemDetails = typeof item.item === 'object' ? item.item : itemLookup[item.item as string];
                       return (
                         <TableRow key={index}>
                           <TableCell>
@@ -422,6 +377,7 @@ export default function SaleForm() {
                               size="small"
                               color="error"
                               onClick={() => handleRemoveItem(index)}
+                              disabled={createSale.isPending || updateSale.isPending}
                             >
                               <Delete fontSize="small" />
                             </IconButton>
@@ -453,10 +409,10 @@ export default function SaleForm() {
                   <InputLabel>Payment Method</InputLabel>
                   <Select
                     name="paymentMethod"
-                    value={formData.paymentMethod}
+                    value={formData.paymentMethod || 'cash'}
                     label="Payment Method"
                     onChange={handleSelectChange}
-                    disabled={saving}
+                    disabled={createSale.isPending || updateSale.isPending}
                   >
                     <MenuItem value="cash">Cash</MenuItem>
                     <MenuItem value="credit">Credit Card</MenuItem>
@@ -471,10 +427,10 @@ export default function SaleForm() {
                   <InputLabel>Status</InputLabel>
                   <Select
                     name="status"
-                    value={formData.status}
+                    value={formData.status || 'completed'}
                     label="Status"
                     onChange={handleSelectChange}
-                    disabled={saving}
+                    disabled={createSale.isPending || updateSale.isPending}
                   >
                     <MenuItem value="completed">Completed</MenuItem>
                     <MenuItem value="refunded">Refunded</MenuItem>
@@ -489,9 +445,9 @@ export default function SaleForm() {
                   rows={3}
                   label="Notes"
                   name="notes"
-                  value={formData.notes}
+                  value={formData.notes || ''}
                   onChange={handleInputChange}
-                  disabled={saving}
+                  disabled={createSale.isPending || updateSale.isPending}
                   placeholder="Optional notes about this sale"
                 />
               </Grid>
@@ -525,7 +481,7 @@ export default function SaleForm() {
                     type="number"
                     value={formData.taxRate || 0}
                     onChange={handleInputChange}
-                    disabled={saving}
+                    disabled={createSale.isPending || updateSale.isPending}
                     InputProps={{
                       endAdornment: <InputAdornment position="end">%</InputAdornment>,
                       inputProps: { min: 0, max: 100, step: 0.1 }
@@ -547,7 +503,7 @@ export default function SaleForm() {
                     type="number"
                     value={formData.discountAmount || 0}
                     onChange={handleInputChange}
-                    disabled={saving}
+                    disabled={createSale.isPending || updateSale.isPending}
                     InputProps={{
                       startAdornment: <InputAdornment position="start">$</InputAdornment>,
                       inputProps: { min: 0, step: 0.01 }
@@ -585,9 +541,9 @@ export default function SaleForm() {
               size="large"
               startIcon={<Save />}
               onClick={handleSubmit}
-              disabled={saving || !formData.items?.length}
+              disabled={(createSale.isPending || updateSale.isPending) || !formData.items?.length}
             >
-              {saving ? 'Saving...' : isEditMode ? 'Update Sale' : 'Complete Sale'}
+              {createSale.isPending || updateSale.isPending ? 'Saving...' : isEditMode ? 'Update Sale' : 'Complete Sale'}
             </Button>
           </Paper>
         </Grid>
@@ -597,7 +553,7 @@ export default function SaleForm() {
       <Dialog open={itemDialogOpen} onClose={() => setItemDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Select Item</DialogTitle>
         <DialogContent>
-          {availableItems.length === 0 ? (
+          {items.length === 0 ? (
             <Typography>No items available in inventory</Typography>
           ) : selectedItem ? (
             <Box sx={{ mb: 2 }}>
@@ -652,7 +608,7 @@ export default function SaleForm() {
             </Box>
           ) : (
             <List sx={{ pt: 0 }}>
-              {availableItems
+              {items
                 .filter(item => {
                   // Only show items that have stock available
                   if (item.trackingType === 'quantity') return item.quantity > 0;

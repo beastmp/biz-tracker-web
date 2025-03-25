@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -15,91 +14,45 @@ import {
   IconButton,
   TextField,
   InputAdornment,
-  CircularProgress,
-  Chip,
-  Avatar
+  Avatar,
+  Chip
 } from '@mui/material';
 import { Add, Delete, Edit, Search, Visibility, Image as ImageIcon } from '@mui/icons-material';
-import { salesApi, Sale } from '../../services/api';
+import { useSales, useDeleteSale } from '@hooks/useSales';
+import { formatCurrency, formatDate, getStatusColor } from '@utils/formatters';
+import LoadingScreen from '@components/ui/LoadingScreen';
+import ErrorFallback from '@components/ui/ErrorFallback';
+import StatusChip from '@components/ui/StatusChip';
 
 export default function SalesList() {
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const { data: sales = [], isLoading, error } = useSales();
+  const deleteSale = useDeleteSale();
 
-  useEffect(() => {
-    const fetchSales = async () => {
-      try {
-        const data = await salesApi.getAll();
-        setSales(data);
-        setFilteredSales(data);
-      } catch (error) {
-        console.error('Failed to fetch sales:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSales();
-  }, []);
-
-  useEffect(() => {
-    if (searchQuery) {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-      const filtered = sales.filter(sale =>
-        (sale.customerName && sale.customerName.toLowerCase().includes(lowerCaseQuery)) ||
-        (sale._id && sale._id.includes(lowerCaseQuery))
-      );
-      setFilteredSales(filtered);
-    } else {
-      setFilteredSales(sales);
-    }
-  }, [searchQuery, sales]);
+  // Filter sales when search query changes
+  const filteredSales = searchQuery
+    ? sales.filter(sale =>
+        (sale.customerName && sale.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (sale._id && sale._id.includes(searchQuery))
+      )
+    : sales;
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this sale? This will restore inventory quantities.')) {
       try {
-        await salesApi.delete(id);
-        setSales(sales.filter(sale => sale._id !== id));
+        await deleteSale.mutateAsync(id);
       } catch (error) {
         console.error('Failed to delete sale:', error);
       }
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'success';
-      case 'refunded': return 'error';
-      case 'partially_refunded': return 'warning';
-      default: return 'default';
-    }
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
+  if (error) {
+    return <ErrorFallback error={error as Error} message="Failed to load sales" />;
   }
 
   return (
@@ -198,11 +151,7 @@ export default function SalesList() {
                     </TableCell>
                     <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={sale.status.replace('_', ' ')}
-                        color={getStatusColor(sale.status) as any}
-                        size="small"
-                      />
+                      <StatusChip status={sale.status} />
                     </TableCell>
                     <TableCell align="center">
                       <IconButton

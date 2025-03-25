@@ -1,21 +1,46 @@
 import { Box, Typography, Button, Paper } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import { Home as HomeIcon } from '@mui/icons-material';
 
 export default function NotFound() {
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '70vh' }}>
-      <Paper sx={{ p: 4, textAlign: 'center', maxWidth: 500 }}>
-        <Typography variant="h2" sx={{ mb: 2 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        py: 5,
+      }}
+    >
+      <Paper
+        sx={{
+          p: 5,
+          textAlign: 'center',
+          maxWidth: 500,
+          width: '100%'
+        }}
+      >
+        <Typography variant="h1" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>
           404
         </Typography>
-        <Typography variant="h5" sx={{ mb: 4 }}>
+
+        <Typography variant="h4" sx={{ mb: 2 }}>
           Page Not Found
         </Typography>
-        <Typography variant="body1" sx={{ mb: 4 }}>
+
+        <Typography color="text.secondary" paragraph>
           The page you're looking for doesn't exist or has been moved.
         </Typography>
-        <Button variant="contained" color="primary" component={RouterLink} to="/dashboard">
-          Go to Dashboard
+
+        <Button
+          variant="contained"
+          component={RouterLink}
+          to="/"
+          startIcon={<HomeIcon />}
+          sx={{ mt: 3 }}
+        >
+          Return to Dashboard
         </Button>
       </Paper>
     </Box>

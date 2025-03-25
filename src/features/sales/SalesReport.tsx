@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
 import { useState, useEffect } from 'react';
 import {
   Box,
@@ -10,7 +8,6 @@ import {
   CardContent,
   TextField,
   Button,
-  CircularProgress,
   Divider,
   Table,
   TableBody,
@@ -18,11 +15,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
-  Alert,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
+  Alert
 } from '@mui/material';
 import {
   BarChart,
@@ -31,37 +27,36 @@ import {
   Search,
   PieChart
 } from '@mui/icons-material';
-import { salesApi, Sale } from '../../services/api';
-
-interface ReportData {
-  totalSales: number;
-  totalRevenue: number;
-  averageOrderValue: number;
-  sales: Sale[];
-  topProductsByQuantity: [string, number][];
-  topProductsByWeight: [string, { weight: number, unit: string }][];
-}
+import { useSalesReport } from '@hooks/useSales';
+import { formatCurrency, formatDate } from '@utils/formatters';
+import LoadingScreen from '@components/ui/LoadingScreen';
+import StatusChip from '@components/ui/StatusChip';
 
 export default function SalesReport() {
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-  const [reportData, setReportData] = useState<ReportData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string>(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().split('T')[0];
+  });
 
-  // Get default date range (last 30 days)
+  const [endDate, setEndDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+
+  const [shouldFetch, setShouldFetch] = useState(false);
+  const { data: reportData, isLoading, error } = useSalesReport(
+    shouldFetch ? startDate : undefined,
+    shouldFetch ? endDate : undefined
+  );
+
+  // Run the report on initial load
   useEffect(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 30);
-
-    setEndDate(end.toISOString().split('T')[0]);
-    setStartDate(start.toISOString().split('T')[0]);
+    setShouldFetch(true);
   }, []);
 
   // Get sales by payment method
   const getPaymentMethodStats = () => {
-    if (!reportData?.sales) return [];
+    if (!reportData?.sales || reportData.sales.length === 0) return [];
 
     const methodCounts: Record<string, number> = {};
     reportData.sales.forEach(sale => {
@@ -78,7 +73,7 @@ export default function SalesReport() {
 
   // Get sales by status
   const getStatusStats = () => {
-    if (!reportData?.sales) return [];
+    if (!reportData?.sales || reportData.sales.length === 0) return [];
 
     const statusCounts: Record<string, number> = {};
     reportData.sales.forEach(sale => {
@@ -93,102 +88,21 @@ export default function SalesReport() {
     }));
   };
 
-  const fetchReport = async () => {
+  const fetchReport = () => {
     if (!startDate || !endDate) {
-      setError('Please select both start and end dates');
       return;
     }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const data = await salesApi.getReport(startDate, endDate);
-      const analysis = analyzeSales(data.sales);
-      setReportData({ ...data, ...analysis });
-    } catch (error) {
-      console.error('Failed to fetch sales report:', error);
-      setError('Failed to load sales report. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    setShouldFetch(true);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    fetchReport();
   };
 
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'success';
-      case 'refunded': return 'error';
-      case 'partially_refunded': return 'warning';
-      default: return 'default';
-    }
-  };
-
-  // Updated analysis function to handle weight-based items
-  const analyzeSales = (sales: Sale[]) => {
-    let totalRevenue = 0;
-    const salesByDate: Record<string, number> = {};
-    const revenueByDate: Record<string, number> = {};
-    const itemsSoldByQuantity: Record<string, number> = {};
-    const itemsSoldByWeight: Record<string, { weight: number, unit: string }> = {};
-    const revenueByCategory: Record<string, number> = {};
-
-    sales.forEach(sale => {
-      totalRevenue += sale.total;
-      const date = new Date(sale.createdAt!).toLocaleDateString();
-      salesByDate[date] = (salesByDate[date] || 0) + 1;
-      revenueByDate[date] = (revenueByDate[date] || 0) + sale.total;
-
-      sale.items.forEach(saleItem => {
-        const item = typeof saleItem.item === 'object' ? saleItem.item : null;
-        if (!item) return;
-
-        const category = item.category || 'Uncategorized';
-        revenueByCategory[category] = (revenueByCategory[category] || 0) + saleItem.priceAtSale * saleItem.quantity;
-
-        if (item.trackingType === 'quantity') {
-          itemsSoldByQuantity[item.name] = (itemsSoldByQuantity[item.name] || 0) + saleItem.quantity;
-        } else {
-          if (!itemsSoldByWeight[item.name]) {
-            itemsSoldByWeight[item.name] = { weight: 0, unit: item.weightUnit };
-          }
-          itemsSoldByWeight[item.name].weight += saleItem.weight || 0;
-        }
-      });
-    });
-
-    const topProductsByQuantity = Object.entries(itemsSoldByQuantity)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-
-    const topProductsByWeight = Object.entries(itemsSoldByWeight)
-      .sort((a, b) => b[1].weight - a[1].weight)
-      .slice(0, 5);
-
-    return {
-      totalRevenue,
-      totalSales: sales.length,
-      salesByDate,
-      revenueByDate,
-      revenueByCategory,
-      topProductsByQuantity,
-      topProductsByWeight,
-    };
-  };
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <Box>
@@ -197,7 +111,7 @@ export default function SalesReport() {
       </Typography>
 
       <Paper sx={{ p: 3, mb: 4 }}>
-        <Grid container spacing={3} alignItems="center">
+        <Grid container spacing={3} alignItems="center" component="form" onSubmit={handleSubmit}>
           <Grid item xs={12} sm={4}>
             <TextField
               fullWidth
@@ -225,16 +139,17 @@ export default function SalesReport() {
               fullWidth
               startIcon={<Search />}
               onClick={fetchReport}
-              disabled={loading || !startDate || !endDate}
+              type="submit"
+              disabled={!startDate || !endDate}
             >
-              {loading ? <CircularProgress size={24} /> : 'Generate Report'}
+              Generate Report
             </Button>
           </Grid>
         </Grid>
 
         {error && (
           <Alert severity="error" sx={{ mt: 2 }}>
-            {error}
+            Error loading report data. Please try again.
           </Alert>
         )}
       </Paper>
@@ -330,6 +245,11 @@ export default function SalesReport() {
                           <TableCell align="right">{stat.percentage.toFixed(1)}%</TableCell>
                         </TableRow>
                       ))}
+                      {getPaymentMethodStats().length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} align="center">No data available</TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -359,16 +279,17 @@ export default function SalesReport() {
                       {getStatusStats().map((stat) => (
                         <TableRow key={stat.status}>
                           <TableCell>
-                            <Chip
-                              label={stat.status.replace('_', ' ')}
-                              color={getStatusColor(stat.status) as any}
-                              size="small"
-                            />
+                            <StatusChip status={stat.status} />
                           </TableCell>
                           <TableCell align="right">{stat.count}</TableCell>
                           <TableCell align="right">{stat.percentage.toFixed(1)}%</TableCell>
                         </TableRow>
                       ))}
+                      {getStatusStats().length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} align="center">No data available</TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -428,7 +349,7 @@ export default function SalesReport() {
             </Grid>
           </Grid>
 
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 3, mt: 3 }}>
             <Typography variant="h6" gutterBottom>
               Recent Sales
             </Typography>
@@ -458,26 +379,21 @@ export default function SalesReport() {
                       <TableCell>{sale.items.length} item(s)</TableCell>
                       <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
                       <TableCell>
-                        <Chip
-                          label={sale.status.replace('_', ' ')}
-                          color={getStatusColor(sale.status) as any}
-                          size="small"
-                        />
+                        <StatusChip status={sale.status} />
                       </TableCell>
                       <TableCell>
                         {sale.paymentMethod.charAt(0).toUpperCase() + sale.paymentMethod.slice(1)}
                       </TableCell>
                     </TableRow>
                   ))}
+                  {reportData.sales.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">No sales found in the selected date range.</TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
-
-            {reportData.sales.length === 0 && (
-              <Typography variant="body1" sx={{ textAlign: 'center', py: 3 }}>
-                No sales found in the selected date range.
-              </Typography>
-            )}
           </Paper>
         </>
       )}

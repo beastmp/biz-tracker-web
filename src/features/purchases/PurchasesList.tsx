@@ -1,108 +1,58 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
+import {
+  Box,
+  Paper,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
   TableRow,
   Button,
   IconButton,
   TextField,
   InputAdornment,
-  CircularProgress,
   Chip
 } from '@mui/material';
 import { Add, Delete, Edit, Search, Visibility } from '@mui/icons-material';
-import { purchasesApi, Purchase } from '../../services/api';
+import { usePurchases, useDeletePurchase } from '@hooks/usePurchases';
+import { formatCurrency, formatDate } from '@utils/formatters';
+import LoadingScreen from '@components/ui/LoadingScreen';
+import ErrorFallback from '@components/ui/ErrorFallback';
+import StatusChip from '@components/ui/StatusChip';
 
 export default function PurchasesList() {
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [filteredPurchases, setFilteredPurchases] = useState<Purchase[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch purchases data
-  useEffect(() => {
-    const fetchPurchases = async () => {
-      try {
-        const data = await purchasesApi.getAll();
-        setPurchases(data);
-        setFilteredPurchases(data);
-      } catch (error) {
-        console.error('Failed to fetch purchases:', error);
-        setError('Failed to load purchases. Please check your connection.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPurchases();
-  }, []);
+  const { data: purchases = [], isLoading, error } = usePurchases();
+  const deletePurchase = useDeletePurchase();
 
   // Filter purchases when search query changes
-  useEffect(() => {
-    if (searchQuery) {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-      const filtered = purchases.filter(purchase => 
-        (purchase.supplier.name && purchase.supplier.name.toLowerCase().includes(lowerCaseQuery)) || 
-        (purchase.invoiceNumber && purchase.invoiceNumber.toLowerCase().includes(lowerCaseQuery))
-      );
-      setFilteredPurchases(filtered);
-    } else {
-      setFilteredPurchases(purchases);
-    }
-  }, [searchQuery, purchases]);
+  const filteredPurchases = searchQuery
+    ? purchases.filter(purchase =>
+        (purchase.supplier?.name && purchase.supplier.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (purchase.invoiceNumber && purchase.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : purchases;
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this purchase? This will update inventory quantities.')) {
       return;
     }
     try {
-      await purchasesApi.delete(id);
-      setPurchases(prevPurchases => prevPurchases.filter(purchase => purchase._id !== id));
+      await deletePurchase.mutateAsync(id);
     } catch (error) {
       console.error('Failed to delete purchase:', error);
-      setError('Failed to delete purchase. Please try again.');
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric'
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'received': return 'success';
-      case 'cancelled': return 'error';
-      case 'partially_received': return 'warning';
-      case 'pending': return 'info';
-      default: return 'default';
-    }
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
+  if (error) {
+    return <ErrorFallback error={error as Error} message="Failed to load purchases" />;
   }
 
   return (
@@ -111,9 +61,9 @@ export default function PurchasesList() {
         <Typography variant="h4" component="h1">
           Purchases
         </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
+        <Button
+          variant="contained"
+          color="primary"
           startIcon={<Add />}
           component={RouterLink}
           to="/purchases/new"
@@ -136,13 +86,8 @@ export default function PurchasesList() {
             </InputAdornment>
           ),
         }}
+        sx={{ mb: 3 }}
       />
-
-      {error && (
-        <Paper sx={{ p: 2, mb: 2, bgcolor: '#ffebee' }}>
-          <Typography color="error">{error}</Typography>
-        </Paper>
-      )}
 
       {filteredPurchases.length === 0 ? (
         <Paper sx={{ p: 4, textAlign: 'center' }}>
@@ -157,7 +102,7 @@ export default function PurchasesList() {
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
-              <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableRow>
                 <TableCell>Date</TableCell>
                 <TableCell>Supplier</TableCell>
                 <TableCell>Invoice #</TableCell>
@@ -174,20 +119,16 @@ export default function PurchasesList() {
                     <TableCell>
                       {purchase.purchaseDate && formatDate(purchase.purchaseDate)}
                     </TableCell>
-                    <TableCell>{purchase.supplier.name}</TableCell>
+                    <TableCell>{purchase.supplier.name || 'Unknown Supplier'}</TableCell>
                     <TableCell>{purchase.invoiceNumber || '-'}</TableCell>
                     <TableCell>{purchase.items.length}</TableCell>
                     <TableCell>{formatCurrency(purchase.total)}</TableCell>
                     <TableCell>
-                      <Chip 
-                        label={purchase.status.replace('_', ' ')} 
-                        color={getStatusColor(purchase.status) as any}
-                        size="small"
-                      />
+                      <StatusChip status={purchase.status} />
                     </TableCell>
                     <TableCell align="right">
-                      <IconButton 
-                        component={RouterLink} 
+                      <IconButton
+                        component={RouterLink}
                         to={`/purchases/${purchase._id}`}
                         color="info"
                         size="small"
@@ -195,8 +136,8 @@ export default function PurchasesList() {
                       >
                         <Visibility />
                       </IconButton>
-                      <IconButton 
-                        component={RouterLink} 
+                      <IconButton
+                        component={RouterLink}
                         to={`/purchases/${purchase._id}/edit`}
                         color="primary"
                         size="small"
@@ -204,7 +145,7 @@ export default function PurchasesList() {
                       >
                         <Edit />
                       </IconButton>
-                      <IconButton 
+                      <IconButton
                         color="error"
                         size="small"
                         onClick={() => purchase._id && handleDelete(purchase._id)}

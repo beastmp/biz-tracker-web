@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link as RouterLink, useLocation } from 'react-router-dom';
-import { 
-  Box, 
-  AppBar, 
-  Toolbar, 
-  Typography, 
-  Drawer, 
+import {
+  Box,
+  AppBar,
+  Toolbar,
+  Typography,
+  Drawer,
   List,
   ListItem,
   ListItemButton,
@@ -25,20 +25,18 @@ import {
   ShoppingBag as PurchasesIcon,
   Brightness4 as DarkModeIcon,
   Brightness7 as LightModeIcon,
-  Receipt as PurchaseReportsIcon, 
-  Settings as SettingsIcon 
+  Receipt as PurchaseReportsIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
+import { useAppContext } from '@context/AppContext';
 
 const drawerWidth = 240;
 
-interface LayoutProps {
-  toggleColorMode: () => void;
-}
-
-export default function Layout({ toggleColorMode }: LayoutProps) {
+export default function Layout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
   const theme = useTheme();
+  const { toggleColorMode } = useAppContext();
 
   // Close drawer when route changes
   useEffect(() => {

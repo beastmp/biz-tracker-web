@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -9,442 +8,417 @@ import {
   Card,
   CardContent,
   Button,
-  CircularProgress,
+  Divider,
   List,
   ListItem,
   ListItemText,
-  Divider,
-  Chip,
-  Tab,
-  Tabs
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import {
-  Inventory as InventoryIcon,
-  TrendingUp as SalesRevenueIcon,
-  Add as AddIcon,
-  ShoppingCart as InventoryValueIcon,
-  TrendingDown as PurchasesIcon
+  AddCircleOutline,
+  Inventory2Outlined,
+  ShoppingCartOutlined,
+  LocalShippingOutlined,
+  SearchOutlined,
+  TrendingUpOutlined,
+  ArrowForward
 } from '@mui/icons-material';
-import { itemsApi, Item, salesApi, Sale, purchasesApi, Purchase } from '../services/api';
+import { useItems } from '@hooks/useItems';
+import { useSales } from '@hooks/useSales';
+import { usePurchases } from '@hooks/usePurchases';
+import { formatCurrency, formatDate } from '@utils/formatters';
+import StatusChip from '@components/ui/StatusChip';
+import LoadingScreen from '@components/ui/LoadingScreen';
 
 export default function Dashboard() {
-  const [inventoryStats, setInventoryStats] = useState({
-    totalItems: 0,
-    totalValue: 0,
-    lowStockItems: [] as Item[],
-    categories: {} as Record<string, number>,
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch data using React Query hooks
+  const { data: items = [], isLoading: itemsLoading } = useItems();
+  const { data: sales = [], isLoading: salesLoading } = useSales();
+  const { data: purchases = [], isLoading: purchasesLoading } = usePurchases();
+
+  // Calculate stats
+  const lowStockItems = items.filter(item => {
+    if (item.trackingType === 'quantity' && item.quantity <= 5) return true;
+    if (item.trackingType === 'weight' && item.weight <= 2) return true;
+    return false;
   });
 
-  const [salesStats, setSalesStats] = useState({
-    totalSales: 0,
-    totalRevenue: 0,
-    recentSales: [] as Sale[]
-  });
-
-  const [purchasesStats, setPurchasesStats] = useState({
-    totalPurchases: 0,
-    totalCost: 0,
-    recentPurchases: [] as Purchase[]
-  });
-
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(0);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch inventory data
-        const items = await itemsApi.getAll();
-
-        const totalItems = items.length;
-        const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const lowStockItems = items.filter(item => item.quantity < 2).sort((a, b) => a.quantity - b.quantity);
-
-        const categories: Record<string, number> = {};
-        items.forEach(item => {
-          if (categories[item.category]) {
-            categories[item.category]++;
-          } else {
-            categories[item.category] = 1;
-          }
-        });
-
-        setInventoryStats({
-          totalItems,
-          totalValue,
-          lowStockItems,
-          categories
-        });
-
-        // Fetch sales data - last 30 days
-        const today = new Date();
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-
-        const startDate = thirtyDaysAgo.toISOString().split('T')[0];
-        const endDate = today.toISOString().split('T')[0];
-
-        const salesReport = await salesApi.getReport(startDate, endDate);
-        setSalesStats({
-          totalSales: salesReport.totalSales,
-          totalRevenue: salesReport.totalRevenue,
-          recentSales: salesReport.sales.slice(0, 5)
-        });
-
-        // Fetch purchases data - last 30 days
-        const purchasesReport = await purchasesApi.getReport(startDate, endDate);
-        setPurchasesStats({
-          totalPurchases: purchasesReport.totalPurchases || 0,
-          totalCost: purchasesReport.totalCost || 0,
-          recentPurchases: (purchasesReport.purchases || []).slice(0, 5)
-        });
-
-      } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
-      } finally {
-        setLoading(false);
+  const totalInventoryValue = items.reduce((total, item) => {
+    if (item.trackingType === 'quantity') {
+      return total + (item.price * item.quantity);
+    } else {
+      if (item.priceType === 'each') {
+        return total + (item.price * (item.quantity || 0));
       }
-    };
-
-    fetchData();
-  }, []);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-      case 'received':
-        return 'success';
-      case 'refunded':
-      case 'cancelled':
-        return 'error';
-      case 'partially_refunded':
-      case 'partially_received':
-        return 'warning';
-      case 'pending':
-        return 'info';
-      default:
-        return 'default';
+      return total + (item.price * item.weight);
     }
-  };
+  }, 0);
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
+  const recentSales = [...(sales || [])]
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .slice(0, 5);
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
+  const recentPurchases = [...(purchases || [])]
+    .sort((a, b) => new Date(b.purchaseDate || 0).getTime() - new Date(a.purchaseDate || 0).getTime())
+    .slice(0, 5);
+
+  // Filter items based on search
+  const filteredItems = items.filter(
+    item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.sku.toLowerCase().includes(searchQuery.toLowerCase())
+  ).slice(0, 10);
+
+  // Show loading if any data is still loading
+  if (itemsLoading || salesLoading || purchasesLoading) {
+    return <LoadingScreen message="Loading dashboard data..." />;
   }
 
   return (
     <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Dashboard
-      </Typography>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" component="h1">
+          Dashboard
+        </Typography>
+        <Typography color="text.secondary">
+          Welcome to your BizTracker dashboard
+        </Typography>
+      </Box>
 
+      {/* Quick Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography color="text.secondary" gutterBottom>
-                  Inventory Items
-                </Typography>
-                <InventoryIcon color="warning" />
-              </Box>
-              <Typography variant="h3" component="div">
-                {inventoryStats.totalItems}
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Total Inventory
               </Typography>
+              <Typography variant="h4" component="div" sx={{ mb: 1 }}>
+                {items.length} items
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {lowStockItems.length} items low in stock
+              </Typography>
+              <Typography variant="h6" color="primary">
+                {formatCurrency(totalInventoryValue)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Recent Sales
+              </Typography>
+              <Typography variant="h4" component="div" sx={{ mb: 1 }}>
+                {sales.length} orders
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {sales.filter(s => s.status === 'completed').length} completed
+              </Typography>
+              <Typography variant="h6" color="primary">
+                {formatCurrency(sales.reduce((total, sale) => total + sale.total, 0))}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Recent Purchases
+              </Typography>
+              <Typography variant="h4" component="div" sx={{ mb: 1 }}>
+                {purchases.length} orders
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {purchases.filter(p => p.status === 'received').length} received
+              </Typography>
+              <Typography variant="h6" color="primary">
+                {formatCurrency(purchases.reduce((total, purchase) => total + purchase.total, 0))}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Button
+                variant="contained"
+                startIcon={<AddCircleOutline />}
                 component={RouterLink}
-                to="/inventory"
-                size="small"
-                sx={{ mt: 2 }}
+                to="/inventory/new"
+                fullWidth
               >
-                View inventory
+                Add Inventory
               </Button>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} lg={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography color="text.secondary" gutterBottom>
-                  Inventory Value
-                </Typography>
-                <InventoryValueIcon color="primary" />
-              </Box>
-              <Typography variant="h3" component="div">
-                {formatCurrency(inventoryStats.totalValue)}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} lg={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography color="text.secondary" gutterBottom>
-                  Revenue (30 days)
-                </Typography>
-                <SalesRevenueIcon color="success" />
-              </Box>
-              <Typography variant="h3" component="div">
-                {formatCurrency(salesStats.totalRevenue)}
-              </Typography>
               <Button
+                variant="outlined"
+                startIcon={<ShoppingCartOutlined />}
                 component={RouterLink}
-                to="/sales"
-                size="small"
-                sx={{ mt: 2 }}
+                to="/sales/new"
+                fullWidth
               >
-                View sales
+                New Sale
               </Button>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} lg={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography color="text.secondary" gutterBottom>
-                  Purchase Costs (30 days)
-                </Typography>
-                <PurchasesIcon color="error" />
-              </Box>
-              <Typography variant="h3" component="div">
-                {formatCurrency(purchasesStats.totalCost)}
-              </Typography>
               <Button
+                variant="outlined"
+                startIcon={<LocalShippingOutlined />}
                 component={RouterLink}
-                to="/purchases"
-                size="small"
-                sx={{ mt: 2 }}
+                to="/purchases/new"
+                fullWidth
               >
-                View purchases
+                New Purchase
               </Button>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
+      {/* Search and Low Stock */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
-              Low Stock Items
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6">
+                Search Inventory
+              </Typography>
+              <Button
+                endIcon={<ArrowForward />}
+                component={RouterLink}
+                to="/inventory"
+                size="small"
+              >
+                View All
+              </Button>
+            </Box>
+            <TextField
+              fullWidth
+              placeholder="Search by name or SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchOutlined />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ mb: 2 }}
+              size="small"
+            />
+
             <Divider sx={{ mb: 2 }} />
 
-            {inventoryStats.lowStockItems.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No items are low in stock.
-              </Typography>
-            ) : (
-              <List>
-                {inventoryStats.lowStockItems.slice(0, 5).map((item) => (
+            <List disablePadding sx={{ maxHeight: 350, overflow: 'auto' }}>
+              {filteredItems.length > 0 ? (
+                filteredItems.map((item) => (
                   <ListItem
                     key={item._id}
+                    divider
                     component={RouterLink}
                     to={`/inventory/${item._id}`}
                     sx={{
                       textDecoration: 'none',
-                      color: 'text.primary',
-                      '&:hover': { bgcolor: 'action.hover' }
+                      color: 'inherit',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      }
                     }}
                   >
                     <ListItemText
                       primary={item.name}
-                      secondary={`SKU: ${item.sku} | ${item.quantity} in stock`}
-                      primaryTypographyProps={{
-                        color: item.quantity === 0 ? 'error' : 'text.primary',
-                        fontWeight: item.quantity === 0 ? 'bold' : 'normal',
-                      }}
+                      secondary={`SKU: ${item.sku} | ${
+                        item.trackingType === 'quantity'
+                          ? `${item.quantity} in stock`
+                          : `${item.weight} ${item.weightUnit} in stock`
+                      } | ${formatCurrency(item.price)}`}
                     />
                   </ListItem>
-                ))}
-                {inventoryStats.lowStockItems.length > 5 && (
-                  <Box sx={{ textAlign: 'center', mt: 2 }}>
-                    <Button
-                      component={RouterLink}
-                      to="/inventory"
-                      size="small"
-                    >
-                      View all low stock items
-                    </Button>
-                  </Box>
-                )}
-              </List>
-            )}
+                ))
+              ) : (
+                <ListItem>
+                  <ListItemText primary={searchQuery ? "No matching items found" : "No items available"} />
+                </ListItem>
+              )}
+            </List>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6">
+                Low Stock Alert
+              </Typography>
+              <Inventory2Outlined color="warning" />
+            </Box>
+
+            <Divider sx={{ mb: 2 }} />
+
+            <List disablePadding sx={{ maxHeight: 350, overflow: 'auto' }}>
+              {lowStockItems.length > 0 ? (
+                lowStockItems.map((item) => (
+                  <ListItem
+                    key={item._id}
+                    divider
+                    component={RouterLink}
+                    to={`/inventory/${item._id}`}
+                    sx={{
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      }
+                    }}
+                  >
+                    <ListItemText
+                      primary={item.name}
+                      secondary={
+                        item.trackingType === 'quantity'
+                          ? `Only ${item.quantity} left in stock`
+                          : `Only ${item.weight} ${item.weightUnit} left in stock`
+                      }
+                    />
+                  </ListItem>
+                ))
+              ) : (
+                <ListItem>
+                  <ListItemText primary="No items low in stock" />
+                </ListItem>
+              )}
+            </List>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* Recent Activity */}
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6">
+                Recent Sales
+              </Typography>
+              <Button
+                endIcon={<ArrowForward />}
+                component={RouterLink}
+                to="/sales"
+                size="small"
+              >
+                View All
+              </Button>
+            </Box>
+
+            <Divider sx={{ mb: 2 }} />
+
+            <List disablePadding sx={{ maxHeight: 350, overflow: 'auto' }}>
+              {recentSales.length > 0 ? (
+                recentSales.map((sale) => (
+                  <ListItem
+                    key={sale._id}
+                    divider
+                    component={RouterLink}
+                    to={`/sales/${sale._id}`}
+                    sx={{
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      }
+                    }}
+                  >
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography>{sale.customerName || 'Walk-in Customer'}</Typography>
+                          <Typography color="primary">{formatCurrency(sale.total)}</Typography>
+                        </Box>
+                      }
+                      secondary={
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                          <Typography variant="body2">
+                            {sale.createdAt && formatDate(sale.createdAt)}
+                          </Typography>
+                          <StatusChip status={sale.status} />
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                ))
+              ) : (
+                <ListItem>
+                  <ListItemText primary="No recent sales" />
+                </ListItem>
+              )}
+            </List>
           </Paper>
         </Grid>
 
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%' }}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs value={activeTab} onChange={handleTabChange} aria-label="transactions tabs">
-                <Tab label="Recent Sales" />
-                <Tab label="Recent Purchases" />
-              </Tabs>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6">
+                Recent Purchases
+              </Typography>
+              <Button
+                endIcon={<ArrowForward />}
+                component={RouterLink}
+                to="/purchases"
+                size="small"
+              >
+                View All
+              </Button>
             </Box>
 
-            {activeTab === 0 && (
-              <Box sx={{ pt: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-                  <Button
-                    startIcon={<AddIcon />}
-                    variant="contained"
-                    size="small"
+            <Divider sx={{ mb: 2 }} />
+
+            <List disablePadding sx={{ maxHeight: 350, overflow: 'auto' }}>
+              {recentPurchases.length > 0 ? (
+                recentPurchases.map((purchase) => (
+                  <ListItem
+                    key={purchase._id}
+                    divider
                     component={RouterLink}
-                    to="/sales/new"
+                    to={`/purchases/${purchase._id}`}
+                    sx={{
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      }
+                    }}
                   >
-                    New Sale
-                  </Button>
-                </Box>
-
-                {salesStats.recentSales.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                    No recent sales found. Create your first sale to start tracking.
-                  </Typography>
-                ) : (
-                  <List>
-                    {salesStats.recentSales.map((sale) => (
-                      <ListItem
-                        key={sale._id}
-                        component={RouterLink}
-                        to={`/sales/${sale._id}`}
-                        sx={{
-                          textDecoration: 'none',
-                          color: 'text.primary',
-                          '&:hover': { bgcolor: 'action.hover' }
-                        }}
-                      >
-                        <ListItemText
-                          primary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span>{sale.customerName || 'Guest Customer'}</span>
-                              <Typography variant="body2" color="primary">
-                                {formatCurrency(sale.total)}
-                              </Typography>
-                            </Box>
-                          }
-                          secondary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span>{sale.createdAt && formatDate(sale.createdAt)}</span>
-                              <Chip
-                                label={sale.status.replace('_', ' ')}
-                                color={getStatusColor(sale.status) as any}
-                                size="small"
-                                sx={{ height: 20, fontSize: '0.7rem' }}
-                              />
-                            </Box>
-                          }
-                        />
-                      </ListItem>
-                    ))}
-                    <Box sx={{ textAlign: 'center', mt: 2 }}>
-                      <Button
-                        component={RouterLink}
-                        to="/sales"
-                        size="small"
-                      >
-                        View all sales
-                      </Button>
-                    </Box>
-                  </List>
-                )}
-              </Box>
-            )}
-
-            {activeTab === 1 && (
-              <Box sx={{ pt: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-                  <Button
-                    startIcon={<AddIcon />}
-                    variant="contained"
-                    size="small"
-                    component={RouterLink}
-                    to="/purchases/new"
-                  >
-                    New Purchase
-                  </Button>
-                </Box>
-
-                {purchasesStats.recentPurchases.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                    No recent purchases found. Create your first purchase to start tracking.
-                  </Typography>
-                ) : (
-                  <List>
-                    {purchasesStats.recentPurchases.map((purchase) => (
-                      <ListItem
-                        key={purchase._id}
-                        component={RouterLink}
-                        to={`/purchases/${purchase._id}`}
-                        sx={{
-                          textDecoration: 'none',
-                          color: 'text.primary',
-                          '&:hover': { bgcolor: 'action.hover' }
-                        }}
-                      >
-                        <ListItemText
-                          primary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span>{purchase.supplier?.name || 'Unknown Supplier'}</span>
-                              <Typography variant="body2" color="error">
-                                {formatCurrency(purchase.total)}
-                              </Typography>
-                            </Box>
-                          }
-                          secondary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span>{purchase.purchaseDate && formatDate(purchase.purchaseDate)}</span>
-                              <Chip
-                                label={purchase.status.replace('_', ' ')}
-                                color={getStatusColor(purchase.status) as any}
-                                size="small"
-                                sx={{ height: 20, fontSize: '0.7rem' }}
-                              />
-                            </Box>
-                          }
-                        />
-                      </ListItem>
-                    ))}
-                    <Box sx={{ textAlign: 'center', mt: 2 }}>
-                      <Button
-                        component={RouterLink}
-                        to="/purchases"
-                        size="small"
-                      >
-                        View all purchases
-                      </Button>
-                    </Box>
-                  </List>
-                )}
-              </Box>
-            )}
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography>{purchase.supplier?.name || 'Unknown Supplier'}</Typography>
+                          <Typography color="primary">{formatCurrency(purchase.total)}</Typography>
+                        </Box>
+                      }
+                      secondary={
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                          <Typography variant="body2">
+                            {purchase.purchaseDate && formatDate(purchase.purchaseDate)}
+                          </Typography>
+                          <StatusChip status={purchase.status} />
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                ))
+              ) : (
+                <ListItem>
+                  <ListItemText primary="No recent purchases" />
+                </ListItem>
+              )}
+            </List>
           </Paper>
         </Grid>
       </Grid>

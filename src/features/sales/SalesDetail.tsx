@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Button, 
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
   Grid,
-  CircularProgress,
   Divider,
   Chip,
   Stack,
@@ -22,42 +20,26 @@ import {
   Avatar
 } from '@mui/material';
 import { ArrowBack, Edit, Delete, Print, Image as ImageIcon } from '@mui/icons-material';
-import { salesApi, Sale } from '../../services/api';
+import { useSale, useDeleteSale } from '@hooks/useSales';
+import { formatCurrency, formatDate, getStatusColor, formatPaymentMethod } from '@utils/formatters';
+import LoadingScreen from '@components/ui/LoadingScreen';
+import ErrorFallback from '@components/ui/ErrorFallback';
+import StatusChip from '@components/ui/StatusChip';
 
 export default function SaleDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [sale, setSale] = useState<Sale | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchSale = async () => {
-      if (!id) return;
-      
-      try {
-        const data = await salesApi.getById(id);
-        setSale(data);
-      } catch (error) {
-        console.error('Failed to fetch sale:', error);
-        setError('Failed to load sale details. The sale may have been deleted.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSale();
-  }, [id]);
+  const { data: sale, isLoading, error } = useSale(id);
+  const deleteSale = useDeleteSale();
 
   const handleDelete = async () => {
     if (!id || !window.confirm('Are you sure you want to delete this sale? This will restore inventory quantities.')) return;
-    
+
     try {
-      await salesApi.delete(id);
+      await deleteSale.mutateAsync(id);
       navigate('/sales');
     } catch (error) {
       console.error('Failed to delete sale:', error);
-      setError('Failed to delete sale. Please try again.');
     }
   };
 
@@ -65,48 +47,8 @@ export default function SaleDetail() {
     window.print();
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'success';
-      case 'refunded': return 'error';
-      case 'partially_refunded': return 'warning';
-      default: return 'default';
-    }
-  };
-
-  const getPaymentMethodLabel = (method: string) => {
-    switch (method) {
-      case 'cash': return 'Cash';
-      case 'credit': return 'Credit Card';
-      case 'debit': return 'Debit Card';
-      case 'check': return 'Check';
-      default: return 'Other';
-    }
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
+  if (isLoading) {
+    return <LoadingScreen />;
   }
 
   if (error || !sale) {
@@ -116,8 +58,8 @@ export default function SaleDetail() {
           <Typography variant="h4" component="h1">
             Sale Not Found
           </Typography>
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             startIcon={<ArrowBack />}
             component={RouterLink}
             to="/sales"
@@ -125,11 +67,7 @@ export default function SaleDetail() {
             Back to Sales
           </Button>
         </Box>
-        <Paper sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="body1" color="error">
-            {error || "The requested sale could not be found."}
-          </Typography>
-        </Paper>
+        <ErrorFallback error={error as Error} message="The requested sale could not be found." />
       </Box>
     );
   }
@@ -146,23 +84,23 @@ export default function SaleDetail() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={2}>
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             startIcon={<ArrowBack />}
             component={RouterLink}
             to="/sales"
           >
             Back to Sales
           </Button>
-          <Button 
+          <Button
             variant="outlined"
             startIcon={<Print />}
             onClick={handlePrint}
           >
             Print
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             color="primary"
             startIcon={<Edit />}
             component={RouterLink}
@@ -170,8 +108,8 @@ export default function SaleDetail() {
           >
             Edit
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             color="error"
             startIcon={<Delete />}
             onClick={handleDelete}
@@ -188,37 +126,30 @@ export default function SaleDetail() {
               Sale Information
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <List disablePadding>
               <ListItem disablePadding sx={{ pb: 1 }}>
-                <ListItemText 
-                  primary="Date" 
+                <ListItemText
+                  primary="Date"
                   secondary={sale.createdAt ? formatDate(sale.createdAt) : 'Unknown'}
                 />
               </ListItem>
               <ListItem disablePadding sx={{ pb: 1 }}>
-                <ListItemText 
-                  primary="Status" 
-                  secondary={
-                    <Chip 
-                      label={sale.status.replace('_', ' ')} 
-                      color={getStatusColor(sale.status) as any}
-                      size="small"
-                      sx={{ mt: 0.5 }}
-                    />
-                  }
+                <ListItemText
+                  primary="Status"
+                  secondary={<StatusChip status={sale.status} sx={{ mt: 0.5 }} />}
                 />
               </ListItem>
               <ListItem disablePadding sx={{ pb: 1 }}>
-                <ListItemText 
-                  primary="Payment Method" 
-                  secondary={getPaymentMethodLabel(sale.paymentMethod)}
+                <ListItemText
+                  primary="Payment Method"
+                  secondary={formatPaymentMethod(sale.paymentMethod)}
                 />
               </ListItem>
               {sale.notes && (
                 <ListItem disablePadding sx={{ pb: 1 }}>
-                  <ListItemText 
-                    primary="Notes" 
+                  <ListItemText
+                    primary="Notes"
                     secondary={sale.notes}
                   />
                 </ListItem>
@@ -226,14 +157,14 @@ export default function SaleDetail() {
             </List>
           </Paper>
         </Grid>
-        
+
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Customer Information
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             {!sale.customerName && !sale.customerEmail && !sale.customerPhone ? (
               <Typography variant="body2" color="text.secondary">
                 No customer information provided
@@ -259,29 +190,29 @@ export default function SaleDetail() {
             )}
           </Paper>
         </Grid>
-        
+
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Sale Summary
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <List disablePadding>
               <ListItem disablePadding sx={{ pb: 1 }}>
                 <ListItemText primary="Subtotal" secondary={formatCurrency(sale.subtotal)} />
               </ListItem>
               <ListItem disablePadding sx={{ pb: 1 }}>
-                <ListItemText 
-                  primary="Tax" 
-                  secondary={`${formatCurrency(sale.taxAmount)} (${sale.taxRate}%)`} 
+                <ListItemText
+                  primary="Tax"
+                  secondary={`${formatCurrency(sale.taxAmount)} (${sale.taxRate}%)`}
                 />
               </ListItem>
               {sale.discountAmount > 0 && (
                 <ListItem disablePadding sx={{ pb: 1 }}>
-                  <ListItemText 
-                    primary="Discount" 
-                    secondary={formatCurrency(sale.discountAmount)} 
+                  <ListItemText
+                    primary="Discount"
+                    secondary={formatCurrency(sale.discountAmount)}
                   />
                 </ListItem>
               )}
@@ -295,14 +226,14 @@ export default function SaleDetail() {
             </Box>
           </Paper>
         </Grid>
-        
+
         <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Sale Items
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <TableContainer>
               <Table>
                 <TableHead>
@@ -319,7 +250,7 @@ export default function SaleDetail() {
                     const itemDetails = typeof item.item === 'object' ? item.item : null;
                     const itemName = itemDetails?.name || 'Unknown Item';
                     const isWeightBased = itemDetails?.trackingType === 'weight';
-                    
+
                     return (
                       <TableRow key={index}>
                         <TableCell>
@@ -354,18 +285,18 @@ export default function SaleDetail() {
                         </TableCell>
                         <TableCell align="right">
                           {formatCurrency(item.priceAtSale)}
-                          {isWeightBased && itemDetails?.priceType === 'per_weight_unit' && 
+                          {isWeightBased && itemDetails?.priceType === 'per_weight_unit' &&
                             `/${item.weightUnit || itemDetails.weightUnit}`
                           }
                         </TableCell>
                         <TableCell align="right">
-                          {isWeightBased 
+                          {isWeightBased
                             ? `${item.weight} ${item.weightUnit || itemDetails?.weightUnit || 'lb'}`
                             : item.quantity
                           }
                         </TableCell>
                         <TableCell align="right">
-                          {formatCurrency(isWeightBased 
+                          {formatCurrency(isWeightBased
                             ? item.priceAtSale * (item.weight || 0)
                             : item.priceAtSale * item.quantity
                           )}
