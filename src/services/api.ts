@@ -93,7 +93,7 @@ const api = axios.create({
 export const itemsApi = {
   getAll: async (): Promise<Item[]> => {
     try {
-      const response = await api.get('/items');
+      const response = await api.get('/api/items');
       return response.data;
     } catch (error) {
       console.error('Error fetching items:', error);
@@ -103,7 +103,7 @@ export const itemsApi = {
 
   getById: async (id: string): Promise<Item> => {
     try {
-      const response = await api.get(`/items/${id}`);
+      const response = await api.get(`/api/items/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching item ${id}:`, error);
@@ -115,13 +115,13 @@ export const itemsApi = {
     try {
       let response;
       if (item instanceof FormData) {
-        response = await api.post('/items', item, {
+        response = await api.post('/api/items', item, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         });
       } else {
-        response = await api.post('/items', item);
+        response = await api.post('/api/items', item);
       }
       return response.data;
     } catch (error) {
@@ -134,13 +134,13 @@ export const itemsApi = {
     try {
       let response;
       if (item instanceof FormData) {
-        response = await api.patch(`/items/${id}`, item, {
+        response = await api.patch(`/api/items/${id}`, item, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         });
       } else {
-        response = await api.patch(`/items/${id}`, item);
+        response = await api.patch(`/api/items/${id}`, item);
       }
       return response.data;
     } catch (error) {
@@ -151,7 +151,7 @@ export const itemsApi = {
 
   delete: async (id: string): Promise<void> => {
     try {
-      await api.delete(`/items/${id}`);
+      await api.delete(`/api/items/${id}`);
     } catch (error) {
       console.error(`Error deleting item ${id}:`, error);
       throw error;
@@ -160,7 +160,7 @@ export const itemsApi = {
 
   getNextSku: async (): Promise<string> => {
     try {
-      const response = await api.get('/items/nextsku');
+      const response = await api.get('/api/items/nextsku');
       return response.data.nextSku;
     } catch (error) {
       console.error('Error in getNextSku:', error);
@@ -171,7 +171,7 @@ export const itemsApi = {
 
   getCategories: async (): Promise<string[]> => {
     try {
-      const response = await api.get('/items/categories');
+      const response = await api.get('/api/items/categories');
       return response.data;
     } catch (error) {
       console.error('Error in getCategories:', error);
@@ -182,7 +182,7 @@ export const itemsApi = {
 
   getTags: async (): Promise<string[]> => {
     try {
-      const response = await api.get('/items/tags');
+      const response = await api.get('/api/items/tags');
       return response.data;
     } catch (error) {
       console.error('Error in getTags:', error);
@@ -196,7 +196,7 @@ export const itemsApi = {
 export const salesApi = {
   getAll: async (): Promise<Sale[]> => {
     try {
-      const response = await api.get('/sales');
+      const response = await api.get('/api/sales');
       return response.data;
     } catch (error) {
       console.error('Error fetching sales:', error);
@@ -206,7 +206,7 @@ export const salesApi = {
 
   getById: async (id: string): Promise<Sale> => {
     try {
-      const response = await api.get(`/sales/${id}`);
+      const response = await api.get(`/api/sales/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching sale ${id}:`, error);
@@ -216,7 +216,7 @@ export const salesApi = {
 
   create: async (sale: Sale): Promise<Sale> => {
     try {
-      const response = await api.post('/sales', sale);
+      const response = await api.post('/api/sales', sale);
       return response.data;
     } catch (error) {
       console.error('Error creating sale:', error);
@@ -226,7 +226,7 @@ export const salesApi = {
 
   update: async (id: string, sale: Partial<Sale>): Promise<Sale> => {
     try {
-      const response = await api.patch(`/sales/${id}`, sale);
+      const response = await api.patch(`/api/sales/${id}`, sale);
       return response.data;
     } catch (error) {
       console.error(`Error updating sale ${id}:`, error);
@@ -236,7 +236,7 @@ export const salesApi = {
 
   delete: async (id: string): Promise<void> => {
     try {
-      await api.delete(`/sales/${id}`);
+      await api.delete(`/api/sales/${id}`);
     } catch (error) {
       console.error(`Error deleting sale ${id}:`, error);
       throw error;
@@ -249,7 +249,7 @@ export const salesApi = {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      const response = await api.get(`/sales/reports/by-date?${params.toString()}`);
+      const response = await api.get(`/api/sales/reports/by-date?${params.toString()}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching sales report:', error);
@@ -262,7 +262,7 @@ export const salesApi = {
 export const purchasesApi = {
   getAll: async (): Promise<Purchase[]> => {
     try {
-      const response = await api.get('/purchases');
+      const response = await api.get('/api/purchases');
       return response.data;
     } catch (error) {
       console.error('Error fetching purchases:', error);
@@ -272,7 +272,7 @@ export const purchasesApi = {
 
   getById: async (id: string): Promise<Purchase> => {
     try {
-      const response = await api.get(`/purchases/${id}`);
+      const response = await api.get(`/api/purchases/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching purchase ${id}:`, error);
@@ -282,7 +282,7 @@ export const purchasesApi = {
 
   create: async (purchase: Purchase): Promise<Purchase> => {
     try {
-      const response = await api.post('/purchases', purchase);
+      const response = await api.post('/api/purchases', purchase);
       return response.data;
     } catch (error) {
       console.error('Error creating purchase:', error);
@@ -292,7 +292,7 @@ export const purchasesApi = {
 
   update: async (id: string, purchase: Partial<Purchase>): Promise<Purchase> => {
     try {
-      const response = await api.patch(`/purchases/${id}`, purchase);
+      const response = await api.patch(`/api/purchases/${id}`, purchase);
       return response.data;
     } catch (error) {
       console.error(`Error updating purchase ${id}:`, error);
@@ -302,7 +302,7 @@ export const purchasesApi = {
 
   delete: async (id: string): Promise<void> => {
     try {
-      await api.delete(`/purchases/${id}`);
+      await api.delete(`/api/purchases/${id}`);
     } catch (error) {
       console.error(`Error deleting purchase ${id}:`, error);
       throw error;
@@ -315,7 +315,7 @@ export const purchasesApi = {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      const response = await api.get(`/purchases/reports/by-date?${params.toString()}`);
+      const response = await api.get(`/api/purchases/reports/by-date?${params.toString()}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching purchases report:', error);
