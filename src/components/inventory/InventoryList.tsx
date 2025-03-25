@@ -272,7 +272,7 @@ export default function InventoryList() {
                   <TableCell>{item.sku}</TableCell>
                   <TableCell>{item.category || '-'}</TableCell>
                   <TableCell>
-                    {item.tags && item.tags.length > 0 ? (
+                    {item.tags && Array.isArray(item.tags) && item.tags.length > 0 ? (
                       <Box display="flex" gap={0.5} flexWrap="wrap">
                         {item.tags.map(tag => (
                           <Chip
