@@ -70,19 +70,19 @@ export default function InventoryDetail() {
 
   const getStockStatusColor = (item: Item) => {
     if (item.trackingType === 'quantity') {
-      if (item.quantity === 0) return 'error.main';
-      if (item.quantity < 5) return 'warning.main';
-      return 'success.main';
+      if (item.quantity === 0) return 'error';
+      if (item.quantity < 5) return 'warning';
+      return 'success';
     } else {
       // For weight-tracked items
       if (item.priceType === 'each') {
         // Base status on quantity when pricing is per item
-        if (!item.quantity || item.quantity === 0) return 'error.main';
-        if (item.quantity < 3) return 'warning.main';
-        return 'success.main';
+        if (!item.quantity || item.quantity === 0) return 'error';
+        if (item.quantity < 3) return 'warning';
+        return 'success';
       } else {
         // Base status on weight when pricing is per weight
-        if (!item.weight || item.weight === 0) return 'error.main';
+        if (!item.weight || item.weight === 0) return 'error';
 
         // Different thresholds based on weight unit
         const lowThreshold =
@@ -91,8 +91,8 @@ export default function InventoryDetail() {
           item.weightUnit === 'lb' ? 2 :
           item.weightUnit === 'oz' ? 16 : 5;
 
-        if (item.weight < lowThreshold) return 'warning.main';
-        return 'success.main';
+        if (item.weight < lowThreshold) return 'warning';
+        return 'success';
       }
     }
   };
@@ -262,20 +262,12 @@ export default function InventoryDetail() {
                   <ListItemText
                     primary="Stock Level"
                     secondary={
-                      <Box display="flex" alignItems="center" mt={0.5}>
-                        <Box
-                          sx={{
-                            width: 16,
-                            height: 16,
-                            borderRadius: '50%',
-                            bgcolor: getStockStatusColor(item),
-                            mr: 1.5
-                          }}
-                        />
-                        <Typography variant="body2">
-                          {item.quantity} in stock
-                        </Typography>
-                      </Box>
+                      <Chip
+                        label={`${item.quantity} in stock`}
+                        color={getStockStatusColor(item) as any}
+                        size="small"
+                        sx={{ mt: 0.5 }}
+                      />
                     }
                   />
                 </ListItem>
@@ -285,20 +277,12 @@ export default function InventoryDetail() {
                     <ListItemText
                       primary="Stock Level"
                       secondary={
-                        <Box display="flex" alignItems="center" mt={0.5}>
-                          <Box
-                            sx={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: '50%',
-                              bgcolor: getStockStatusColor(item),
-                              mr: 1.5
-                            }}
-                          />
-                          <Typography variant="body2">
-                            {`${item.weight} ${item.weightUnit} in stock`}
-                          </Typography>
-                        </Box>
+                        <Chip
+                          label={`${item.weight} ${item.weightUnit} in stock`}
+                          color={getStockStatusColor(item) as any}
+                          size="small"
+                          sx={{ mt: 0.5 }}
+                        />
                       }
                     />
                   </ListItem>
@@ -308,20 +292,12 @@ export default function InventoryDetail() {
                       <ListItemText
                         primary="Item Quantity"
                         secondary={
-                          <Box display="flex" alignItems="center" mt={0.5}>
-                            <Box
-                              sx={{
-                                width: 16,
-                                height: 16,
-                                borderRadius: '50%',
-                                bgcolor: (item.quantity || 0) > 0 ? 'success.main' : 'error.main',
-                                mr: 1.5
-                              }}
-                            />
-                            <Typography variant="body2">
-                              {`${item.quantity || 0} items`}
-                            </Typography>
-                          </Box>
+                          <Chip
+                            label={`${item.quantity || 0} items`}
+                            color={(item.quantity || 0) > 0 ? 'success' : 'error'}
+                            size="small"
+                            sx={{ mt: 0.5 }}
+                          />
                         }
                       />
                     </ListItem>

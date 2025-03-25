@@ -131,26 +131,53 @@ export default function InventoryList() {
   // Determine stock status color based on item tracking type and quantity/weight
   const getStockStatusColor = (item: Item): string => {
     if (item.trackingType === 'quantity') {
-      if (item.quantity <= 0) return 'error.main';
-      if (item.quantity <= 5) return 'warning.main';
-      return 'success.main';
+      if (item.quantity <= 0) return 'error';
+      if (item.quantity <= 5) return 'warning';
+      return 'success';
     } else {
       // Weight tracking
       if (item.priceType === 'each') {
-        if (item.quantity <= 0) return 'error.main';
-        if (item.quantity <= 3) return 'warning.main';
-        return 'success.main';
+        if (item.quantity <= 0) return 'error';
+        if (item.quantity <= 3) return 'warning';
+        return 'success';
       } else {
         // Price per weight unit
-        if (item.weight <= 0) return 'error.main';
+        if (item.weight <= 0) return 'error';
         const threshold =
           item.weightUnit === 'kg' ? 1 :
           item.weightUnit === 'g' ? 500 :
           item.weightUnit === 'lb' ? 2 :
           item.weightUnit === 'oz' ? 16 : 5;
 
-        if (item.weight <= threshold) return 'warning.main';
-        return 'success.main';
+        if (item.weight <= threshold) return 'warning';
+        return 'success';
+      }
+    }
+  };
+
+  // Helper function to generate appropriate stock status label
+  const getStockStatusLabel = (item: Item): string => {
+    if (item.trackingType === 'quantity') {
+      if (item.quantity <= 0) return 'Out of Stock';
+      if (item.quantity <= 5) return 'Low Stock';
+      return 'In Stock';
+    } else {
+      // Weight tracking
+      if (item.priceType === 'each') {
+        if (item.quantity <= 0) return 'Out of Stock';
+        if (item.quantity <= 3) return 'Low Stock';
+        return 'In Stock';
+      } else {
+        // Price per weight unit
+        if (item.weight <= 0) return 'Out of Stock';
+        const threshold =
+          item.weightUnit === 'kg' ? 1 :
+          item.weightUnit === 'g' ? 500 :
+          item.weightUnit === 'lb' ? 2 :
+          item.weightUnit === 'oz' ? 16 : 5;
+
+        if (item.weight <= threshold) return 'Low Stock';
+        return 'In Stock';
       }
     }
   };
@@ -281,14 +308,13 @@ export default function InventoryList() {
                   </IconButton>
                 </Box>
               </TableCell>
-              <TableCell>Stock</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} align="center">
+                <TableCell colSpan={8} align="center">
                   No items found.
                 </TableCell>
               </TableRow>
@@ -334,30 +360,43 @@ export default function InventoryList() {
                   <TableCell>{formatPrice(item.price)}</TableCell>
                   <TableCell>
                     {item.trackingType === 'quantity' ? (
-                      // Regular quantity tracking - without status chip
-                      item.quantity
+                      // Regular quantity tracking with status chip
+                      <Chip
+                        label={`${item.quantity}`}
+                        color={getStockStatusColor(item) as any}
+                        size="small"
+                      />
                     ) : (
-                      // Weight tracking - without status chips
+                      // Weight tracking with status chip
                       item.priceType === 'each' ? (
                         // Display both weight per item and quantity for "price per item"
-                        item.quantity > 0 ?
-                          `${item.quantity} ${item.quantity === 1 ? 'item' : 'items'} × ${item.weight}${item.weightUnit}` :
-                          '0'
+                        item.quantity > 0 ? (
+                          <Box display="flex" flexDirection="column" gap={1}>
+                            <Chip
+                              label={`${item.quantity} ${item.quantity === 1 ? 'item' : 'items'}`}
+                              color={getStockStatusColor(item) as any}
+                              size="small"
+                            />
+                            <Typography variant="body2">
+                              × {item.weight}{item.weightUnit} each
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Chip
+                            label="Out of Stock"
+                            color="error"
+                            size="small"
+                          />
+                        )
                       ) : (
                         // Display total weight for "price per weight unit"
-                        `${item.weight}${item.weightUnit}`
+                        <Chip
+                          label={`${item.weight}${item.weightUnit}`}
+                          color={getStockStatusColor(item) as any}
+                          size="small"
+                        />
                       )
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <Box
-                      sx={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        bgcolor: getStockStatusColor(item),
-                      }}
-                    />
                   </TableCell>
                   <TableCell align="right">
                     <IconButton
