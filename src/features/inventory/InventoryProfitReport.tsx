@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box, Typography, Paper, TableContainer, Table, TableHead,
   TableBody, TableRow, TableCell, TableSortLabel, Chip, Card,
@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell
+  ResponsiveContainer
 } from 'recharts';
 import { useItems } from '@hooks/useItems';
 import { formatCurrency } from '@utils/formatters';

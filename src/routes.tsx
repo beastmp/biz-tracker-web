@@ -11,7 +11,7 @@ import LoadingScreen from '@components/ui/LoadingScreen';
 const InventoryList = lazy(() => import('@features/inventory/InventoryList'));
 const InventoryDetail = lazy(() => import('@features/inventory/InventoryDetail'));
 const InventoryForm = lazy(() => import('@features/inventory/InventoryForm'));
-import InventoryProfitReport from '@features/inventory/InventoryProfitReport';
+const InventoryProfitReport = lazy(() => import('@features/inventory/InventoryProfitReport'));
 
 // Sales components
 const SalesList = lazy(() => import('@features/sales/SalesList'));
