@@ -4,6 +4,9 @@ export type WeightUnit = 'oz' | 'lb' | 'g' | 'kg';
 // Define tracking types
 export type TrackingType = 'quantity' | 'weight';
 
+// Define item types
+export type ItemType = 'material' | 'product' | 'both';
+
 // Define price types
 export type PriceType = 'each' | 'per_weight_unit';
 
@@ -23,6 +26,7 @@ export interface Item {
   sku: string;
   category: string;
   trackingType: TrackingType;
+  itemType: ItemType;
   quantity: number;
   weight: number;
   weightUnit: WeightUnit;
@@ -32,6 +36,21 @@ export interface Item {
   imageUrl?: string;
   tags?: string[];
   lastUpdated?: Date;
+  cost?: number;
+  packInfo?: {
+    isPack: boolean;
+    unitsPerPack: number;
+    costPerUnit: number;
+  };
+  components?: ItemComponent[];
+  usedInProducts?: (string | Item)[];
+}
+
+export interface ItemComponent {
+  item: string | Item;
+  quantity: number;
+  weight?: number;
+  weightUnit?: WeightUnit;
 }
 
 // Define sale item interface

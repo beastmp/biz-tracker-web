@@ -104,12 +104,15 @@ export const useCreateItem = () => {
 };
 
 // Hook to update an item
-export const useUpdateItem = (id: string | undefined) => {
+export const useUpdateItem = (initialId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (itemData: FormData | Item) => {
-      if (!id) throw new Error('Item ID is required');
+    mutationFn: async (itemData: FormData | Item, id?: string) => {
+      // Use the provided ID, or the initial ID, or try to get it from the item data
+      const effectiveId = id || initialId || (itemData as any)._id;
+
+      if (!effectiveId) throw new Error('Item ID is required');
 
       // Check if we're dealing with FormData with an actual image file
       if (itemData instanceof FormData) {
@@ -183,12 +186,12 @@ export const useUpdateItem = (id: string | undefined) => {
         }
       } else {
         // Regular JSON data
-        return await patch<Item>(`/api/items/${id}`, itemData);
+        return await patch<Item>(`/api/items/${effectiveId}`, itemData);
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, __, id) => {
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
-      queryClient.invalidateQueries({ queryKey: [ITEM_KEY, id] });
+      queryClient.invalidateQueries({ queryKey: [ITEM_KEY, id || initialId] });
     },
   });
 };

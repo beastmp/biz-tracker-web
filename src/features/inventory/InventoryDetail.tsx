@@ -226,18 +226,18 @@ export default function InventoryDetail() {
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <AttachMoney sx={{ mr: 1 }} />
-                    <Typography variant="h6">Price</Typography>
+                    <Typography variant="h6">Pricing</Typography>
                   </Box>
-                  <Typography variant="h4">
-                    {formatCurrency(data.price)}
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>
-                    {data.trackingType === 'quantity'
-                      ? 'per item'
-                      : data.priceType === 'each'
-                        ? 'per package'
-                        : `per ${data.weightUnit}`}
-                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" sx={{ opacity: 0.8 }}>Cost:</Typography>
+                      <Typography variant="h6">{formatCurrency(data.cost || 0)}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" sx={{ opacity: 0.8 }}>Sale:</Typography>
+                      <Typography variant="h6">{formatCurrency(data.price)}</Typography>
+                    </Box>
+                  </Box>
                 </CardContent>
               </Card>
             </Grid2>
@@ -413,6 +413,36 @@ export default function InventoryDetail() {
                 </Typography>
               </Box>
 
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Item Type
+                </Typography>
+                <Typography variant="body1">
+                  {data.itemType === 'material' ? (
+                    <Chip
+                      icon={<Category fontSize="small" />}
+                      label="Raw Material"
+                      size="small"
+                      variant="outlined"
+                    />
+                  ) : data.itemType === 'product' ? (
+                    <Chip
+                      icon={<Inventory fontSize="small" />}
+                      label="Finished Product"
+                      size="small"
+                      variant="outlined"
+                    />
+                  ) : (
+                    <Chip
+                      icon={<Category fontSize="small" />}
+                      label="Material & Product"
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                </Typography>
+              </Box>
+
               <Divider />
 
               <Box>
@@ -447,7 +477,7 @@ export default function InventoryDetail() {
 
               <Box>
                 <Typography variant="subtitle2" color="text.secondary">
-                  Price Details
+                  Sale Price
                 </Typography>
                 <Typography variant="h5" color="primary" sx={{ mt: 1, fontWeight: 'bold' }}>
                   {formatCurrency(data.price)}
@@ -460,6 +490,69 @@ export default function InventoryDetail() {
                   </Typography>
                 </Typography>
               </Box>
+
+              <Divider />
+
+              {/* Cost Information */}
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Cost Information
+                </Typography>
+                <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">Purchase Cost:</Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {formatCurrency(data.cost || 0)}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary">Markup:</Typography>
+                    <Typography variant="body1" fontWeight="medium" color={data.price > (data.cost || 0) ? 'success.main' : 'error.main'}>
+                      {data.cost ? `${Math.round((data.price / data.cost - 1) * 100)}%` : 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary">Profit per Unit:</Typography>
+                    <Typography variant="body1" fontWeight="medium" color={data.price > (data.cost || 0) ? 'success.main' : 'error.main'}>
+                      {formatCurrency(data.price - (data.cost || 0))}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Pack Information for Materials */}
+              {(data.itemType === 'material' || data.itemType === 'both') && data.packInfo?.isPack && (
+                <>
+                  <Divider />
+                  <Box>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Pack Information
+                    </Typography>
+                    <Box sx={{ mt: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Units per Pack:</Typography>
+                        <Typography variant="body1">{data.packInfo.unitsPerPack}</Typography>
+                      </Box>
+
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                        <Typography variant="body2" color="text.secondary">Cost per Unit:</Typography>
+                        <Typography variant="body1">
+                          {formatCurrency(data.packInfo.costPerUnit || 0)}
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                        <Typography variant="body2" color="text.secondary">Pack Cost:</Typography>
+                        <Typography variant="body1">
+                          {formatCurrency((data.packInfo.costPerUnit || 0) * (data.packInfo.unitsPerPack || 1))}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                </>
+              )}
             </Stack>
           </Paper>
 
@@ -494,6 +587,119 @@ export default function InventoryDetail() {
               </Button>
             </Stack>
           </Paper>
+
+          {/* Materials & Products Relationships */}
+          {(data.itemType === 'product' || data.itemType === 'both') && (
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Materials Used
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              {data.components && data.components.length > 0 ? (
+                <Stack spacing={2}>
+                  {data.components.map((component) => {
+                    const material = component.item;
+                    return (
+                      <Box
+                        // Fix the key prop to handle both string and object types
+                        key={typeof material === 'object' ? material._id : material}
+                        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Box
+                            component="img"
+                            // Fix the image source
+                            src={(typeof material === 'object' ? material.imageUrl : '') || '/placeholder.png'}
+                            alt={typeof material === 'object' ? material.name : 'Material'}
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 1,
+                              mr: 2,
+                              objectFit: 'cover',
+                              background: '#f5f5f5'
+                            }}
+                          />
+                          <Box>
+                            <RouterLink
+                              to={`/inventory/${typeof material === 'object' ? material._id : material}`}
+                              style={{ textDecoration: 'none', color: 'inherit' }}
+                            >
+                              <Typography variant="subtitle1">
+                                {typeof material === 'object' ? material.name : 'Unknown Material'}
+                              </Typography>
+                            </RouterLink>
+                            <Typography variant="body2" color="text.secondary">
+                              {component.quantity} × {component.weight ? `${component.weight} ${component.weightUnit}` : 'units'} used
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Typography variant="subtitle1" color="primary">
+                          {formatCurrency(
+                            typeof material === 'object' ?
+                            (component.quantity * (material.cost || 0)) : 0
+                          )}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No materials are linked to this product.
+                </Typography>
+              )}
+            </Paper>
+          )}
+
+          {(data.itemType === 'material' || data.itemType === 'both') && (
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Used In Products
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              {data.usedInProducts && data.usedInProducts.length > 0 ? (
+                <Stack spacing={2}>
+                  {data.usedInProducts.map((product) => (
+                    <Box
+                    key={typeof product === 'object' ? product._id : product}
+                      sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box
+                          component="img"
+                          src={typeof product === 'object' ? product.imageUrl : '/placeholder.png'}
+                          alt={typeof product === 'object' ? product.name : 'Unknown Product'}
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 1,
+                            mr: 2,
+                            objectFit: 'cover',
+                            background: '#f5f5f5'
+                          }}
+                        />
+                        <RouterLink
+                          to={`/inventory/${typeof product === 'object' ? product._id : product}`}
+                          style={{ textDecoration: 'none', color: 'inherit' }}
+                        >
+                          <Typography variant="subtitle1">
+                            {typeof product === 'object' ? product.name : 'Unknown Product'}
+                          </Typography>
+                        </RouterLink>
+                      </Box>
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  This material is not used in any products yet.
+                </Typography>
+              )}
+            </Paper>
+          )}
         </Grid2>
       </Grid2>
     </Box>

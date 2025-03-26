@@ -174,10 +174,10 @@ export default function SalesList() {
                     <TableCell>
                       {sale.items.length > 0 && (
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          {typeof sale.items[0].item === 'object' && sale.items[0].item.imageUrl ? (
+                          {sale.items[0].item && typeof sale.items[0].item === 'object' && sale.items[0].item.imageUrl ? (
                             <Avatar
                               src={sale.items[0].item.imageUrl}
-                              alt="Item"
+                              alt={typeof sale.items[0].item === 'object' ? sale.items[0].item.name : 'Item'}
                               variant="rounded"
                               sx={{ width: 40, height: 40, mr: 1 }}
                             />

@@ -640,6 +640,24 @@ export default function PurchaseForm() {
               </ListItemButton>
             ))}
           </List>
+          {selectedItem && (selectedItem.itemType === 'material' || selectedItem.itemType === 'both') &&
+            selectedItem.packInfo?.isPack && (
+            <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
+              <AlertTitle>Pack Information</AlertTitle>
+              <Typography variant="body2">
+                This material is purchased in packs of <strong>{selectedItem.packInfo.unitsPerPack}</strong> units.
+              </Typography>
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="body2">
+                  Ordering <strong>{quantity}</strong> packs will add <strong>{quantity * selectedItem.packInfo.unitsPerPack}</strong> individual units to inventory.
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  Pack cost: {formatCurrency(selectedItem.packInfo.costPerUnit * selectedItem.packInfo.unitsPerPack)} |
+                  Cost per unit: {formatCurrency(selectedItem.packInfo.costPerUnit)}
+                </Typography>
+              </Box>
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setItemSelectDialogOpen(false)} color="primary">

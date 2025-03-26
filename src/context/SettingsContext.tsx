@@ -9,6 +9,9 @@ type WeightThresholds = {
 
 type ViewMode = 'grid' | 'list';
 
+// Add a type for possible grouping options
+export type GroupByOption = 'none' | 'itemType' | 'category';
+
 interface SettingsContextType {
   lowStockAlertsEnabled: boolean;
   quantityThreshold: number;
@@ -19,6 +22,10 @@ interface SettingsContextType {
   updateWeightThreshold: (unit: keyof WeightThresholds, value: number) => void;
   defaultViewMode: ViewMode;
   setDefaultViewMode: (mode: ViewMode) => void;
+
+  // Add new settings for default grouping
+  defaultGroupBy: GroupByOption;
+  setDefaultGroupBy: (groupBy: GroupByOption) => void;
 }
 
 const defaultWeightThresholds = {
@@ -37,7 +44,11 @@ const defaultSettings: SettingsContextType = {
   setWeightThresholds: () => {},
   updateWeightThreshold: () => {},
   defaultViewMode: 'grid',
-  setDefaultViewMode: () => {}
+  setDefaultViewMode: () => {},
+
+  // Add default for grouping
+  defaultGroupBy: 'itemType',
+  setDefaultGroupBy: () => {}
 };
 
 const SettingsContext = createContext<SettingsContextType>(defaultSettings);
@@ -65,6 +76,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return (saved as ViewMode) || defaultSettings.defaultViewMode;
   });
 
+  // Add new state for default grouping with localStorage persistence
+  const [defaultGroupBy, setDefaultGroupBy] = useState<GroupByOption>(() => {
+    const saved = localStorage.getItem('defaultGroupBy');
+    return (saved as GroupByOption) || defaultSettings.defaultGroupBy;
+  });
+
   const updateWeightThreshold = (unit: keyof WeightThresholds, value: number) => {
     setWeightThresholds(prev => ({
       ...prev,
@@ -88,6 +105,11 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem('defaultViewMode', defaultViewMode);
   }, [defaultViewMode]);
 
+  // Update localStorage when defaultGroupBy changes
+  useEffect(() => {
+    localStorage.setItem('defaultGroupBy', defaultGroupBy);
+  }, [defaultGroupBy]);
+
   return (
     <SettingsContext.Provider value={{
       lowStockAlertsEnabled,
@@ -98,7 +120,11 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setWeightThresholds,
       updateWeightThreshold,
       defaultViewMode,
-      setDefaultViewMode
+      setDefaultViewMode,
+
+      // Add new values
+      defaultGroupBy,
+      setDefaultGroupBy
     }}>
       {children}
     </SettingsContext.Provider>

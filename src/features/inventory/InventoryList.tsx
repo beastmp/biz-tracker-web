@@ -23,7 +23,8 @@ import {
   FormControl,
   InputLabel,
   Grid2,
-  OutlinedInput
+  OutlinedInput,
+  Alert
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -38,10 +39,15 @@ import {
   GridView as GridViewIcon,
   List as ListViewIcon,
   TrendingDown as LowStockIcon,
-  TrendingUp as HighStockIcon
+  TrendingUp as HighStockIcon,
+  Construction,
+  Link as LinkIcon,
+  BarChart as BarChartIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
-import { useItems, useDeleteItem, useCategories } from '@hooks/useItems';
-import { Item } from '@custTypes/models';
+import { useItems, useDeleteItem, useCategories, useUpdateItem } from '@hooks/useItems';
+import { Item, ItemType } from '@custTypes/models';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
@@ -51,22 +57,37 @@ export default function InventoryList() {
   const { data: items = [], isLoading, error } = useItems();
   const { data: categories = [] } = useCategories();
   const deleteItem = useDeleteItem();
-  const { lowStockAlertsEnabled, quantityThreshold, weightThresholds, defaultViewMode } = useSettings();
+  const { lowStockAlertsEnabled, quantityThreshold, weightThresholds, defaultViewMode, defaultGroupBy } = useSettings();
 
   // Initialize view mode from settings
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(defaultViewMode);
+
+  // Initialize groupBy from settings default
+  const [groupBy, setGroupBy] = useState<'none' | 'itemType' | 'category'>(defaultGroupBy);
 
   // Update view mode if settings change
   useEffect(() => {
     setViewMode(defaultViewMode);
   }, [defaultViewMode]);
 
+  // Update groupBy if default setting changes
+  useEffect(() => {
+    setGroupBy(defaultGroupBy);
+  }, [defaultGroupBy]);
+
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedType, setSelectedType] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('name');
-  //const [filterMenuAnchor, setFilterMenuAnchor] = useState<null | HTMLElement>(null);
   const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null);
+
+  // Add new state variables and hooks
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [newQuantity, setNewQuantity] = useState<string>('');
+  const [newWeight, setNewWeight] = useState<string>('');
+  const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+  const updateItem = useUpdateItem(editingItem || undefined);
 
   // Filter and sort items
   const filteredItems = useMemo(() => {
@@ -83,6 +104,11 @@ export default function InventoryList() {
 
         // Category filter
         if (selectedCategory !== 'all' && item.category !== selectedCategory) {
+          return false;
+        }
+
+        // Item type filter
+        if (selectedType !== 'all' && item.itemType !== selectedType) {
           return false;
         }
 
@@ -110,7 +136,36 @@ export default function InventoryList() {
             return 0;
         }
       });
-  }, [items, searchQuery, selectedCategory, sortBy]);
+  }, [items, searchQuery, selectedCategory, selectedType, sortBy]);
+
+  const groupedItems = useMemo(() => {
+    if (groupBy === 'none') {
+      return { ungrouped: filteredItems };
+    }
+
+    // Group items by the selected property
+    return filteredItems.reduce((groups, item) => {
+      let key;
+
+      if (groupBy === 'itemType') {
+        // Get a nice display name for item types
+        switch (item.itemType) {
+          case 'material': key = 'Materials'; break;
+          case 'product': key = 'Products'; break;
+          case 'both': key = 'Materials & Products'; break;
+          default: key = 'Other Items';
+        }
+      } else {
+        key = item.category || 'Uncategorized';
+      }
+
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(item);
+      return groups;
+    }, {} as Record<string, Item[]>);
+  }, [filteredItems, groupBy]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
@@ -120,6 +175,62 @@ export default function InventoryList() {
         console.error('Error deleting item:', err);
       }
     }
+  };
+
+  // Add handler for updating inventory
+  const handleUpdateInventory = async (itemId: string) => {
+    if (!itemId || itemId.trim() === '') {
+      console.error('Invalid item ID');
+      return;
+    }
+
+    const item = items.find(i => i._id === itemId);
+    if (!item) return;
+
+    try {
+      // Set editingItem first (which will cause the updateItem hook to reinitialize)
+      setEditingItem(itemId);
+
+      // Create update data without the spread of the entire item
+      // Just include the specific fields we want to update
+      const updateData: Partial<Item> = {
+        _id: itemId, // Make sure this is included
+        lastUpdated: new Date(),
+        ...(item.trackingType === 'quantity'
+            ? { quantity: parseFloat(newQuantity) || 0 }
+            : { weight: parseFloat(newWeight) || 0 })
+      };
+
+      // Use the hook after it has the correct ID
+      await updateItem.mutateAsync(updateData as Item);
+
+      // Show success message and reset state
+      setUpdateSuccess(`Updated ${item.name}`);
+      setTimeout(() => setUpdateSuccess(null), 3000);
+
+      setEditingItem(null);
+      setNewQuantity('');
+      setNewWeight('');
+    } catch (err) {
+      console.error('Failed to update inventory:', err);
+    }
+  };
+
+  // Add function to begin editing an item
+  const startEditing = (item: Item) => {
+    setEditingItem(item._id || null);
+    if (item.trackingType === 'quantity') {
+      setNewQuantity(item.quantity.toString());
+    } else {
+      setNewWeight(item.weight.toString());
+    }
+  };
+
+  // Add cancel editing function
+  const cancelEditing = () => {
+    setEditingItem(null);
+    setNewQuantity('');
+    setNewWeight('');
   };
 
   // Memoize helper functions
@@ -192,6 +303,20 @@ export default function InventoryList() {
     }
   };
 
+  // Add item type chip to your table row or card view
+  const getItemTypeChip = (itemType: ItemType) => {
+    switch(itemType) {
+      case 'material':
+        return <Chip size="small" label="Material" color="primary" variant="outlined" />;
+      case 'product':
+        return <Chip size="small" label="Product" color="success" variant="outlined" />;
+      case 'both':
+        return <Chip size="small" label="Material & Product" color="secondary" variant="outlined" />;
+      default:
+        return <Chip size="small" label="Product" color="success" variant="outlined" />;
+    }
+  };
+
   if (isLoading) {
     return <LoadingScreen />;
   }
@@ -202,6 +327,15 @@ export default function InventoryList() {
 
   return (
     <Box>
+      {updateSuccess && (
+        <Alert
+          severity="success"
+          sx={{ mb: 2 }}
+          onClose={() => setUpdateSuccess(null)}
+        >
+          {updateSuccess}
+        </Alert>
+      )}
       {/* Header with title and actions */}
       <Box sx={{ mb: 3 }}>
         <Grid2 container spacing={2} alignItems="center">
@@ -216,15 +350,26 @@ export default function InventoryList() {
             </Typography>
           </Grid2>
           <Grid2>
-            <Button
-              component={RouterLink}
-              to="/inventory/new"
-              variant="contained"
-              startIcon={<AddIcon />}
-              size="large"
-            >
-              Add Item
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button
+                component={RouterLink}
+                to="/inventory/profit-analysis"
+                variant="outlined"
+                startIcon={<BarChartIcon />}
+                sx={{ mr: 1 }}
+              >
+                Profit Analysis
+              </Button>
+              <Button
+                component={RouterLink}
+                to="/inventory/new"
+                variant="contained"
+                startIcon={<AddIcon />}
+                size="large"
+              >
+                Add Item
+              </Button>
+            </Stack>
           </Grid2>
         </Grid2>
       </Box>
@@ -232,7 +377,7 @@ export default function InventoryList() {
       {/* Search and Filters Bar */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid2 container spacing={2} alignItems="center">
-          <Grid2 size= {{ xs: 12, md: 4 }}>
+          <Grid2 size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
               placeholder="Search items..."
@@ -256,7 +401,7 @@ export default function InventoryList() {
             />
           </Grid2>
 
-          <Grid2 size= {{ xs: 12, md: 3 }}>
+          <Grid2 size={{ xs: 12, md: 3 }}>
             <FormControl fullWidth size="small">
               <InputLabel id="category-filter-label">Category</InputLabel>
               <Select
@@ -273,7 +418,7 @@ export default function InventoryList() {
             </FormControl>
           </Grid2>
 
-          <Grid2 size= {{ xs: 12, md: 3 }}>
+          <Grid2 size={{ xs: 12, md: 3 }}>
             <Button
               fullWidth
               variant="outlined"
@@ -310,9 +455,9 @@ export default function InventoryList() {
             </Menu>
           </Grid2>
 
-          <Grid2 size= {{ xs: 12, md: 2 }}>
+          <Grid2 size={{ xs: 12, md: 2 }}>
             <Stack direction="row" spacing={1} justifyContent="flex-end">
-              <Tooltip title="Grid2 View">
+              <Tooltip title="Grid View">
                 <IconButton
                   color={viewMode === 'grid' ? 'primary' : 'default'}
                   onClick={() => setViewMode('grid')}
@@ -331,6 +476,31 @@ export default function InventoryList() {
             </Stack>
           </Grid2>
         </Grid2>
+        <FormControl size="small" sx={{ minWidth: 150, mr: 2 }}>
+          <InputLabel>Item Type</InputLabel>
+          <Select
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            label="Item Type"
+          >
+            <MenuItem value="all">All Types</MenuItem>
+            <MenuItem value="material">Materials</MenuItem>
+            <MenuItem value="product">Products</MenuItem>
+            <MenuItem value="both">Dual Purpose</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 150, mr: 2 }}>
+          <InputLabel>Group By</InputLabel>
+          <Select
+            value={groupBy}
+            onChange={(e) => setGroupBy(e.target.value as 'none' | 'itemType' | 'category')}
+            label="Group By"
+          >
+            <MenuItem value="none">No Grouping</MenuItem>
+            <MenuItem value="itemType">Item Type</MenuItem>
+            <MenuItem value="category">Category</MenuItem>
+          </Select>
+        </FormControl>
       </Paper>
 
       {/* Results Count and Active Filters */}
@@ -382,266 +552,413 @@ export default function InventoryList() {
 
       {/* Grid View */}
       {viewMode === 'grid' && filteredItems.length > 0 && (
-        <Grid2 container spacing={3}>
-          {filteredItems.map((item) => (
-            <Grid2 size= {{ xs: 12, sm: 6, md: 4, lg: 3}} key={item._id}>
-              <Card sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: 4
-                }
-              }}>
-                {/* Card Header - Image */}
-                <Box sx={{ position: 'relative' }}>
-                  <CardMedia
-                    component="div"
-                    sx={{
-                      height: 140,
-                      backgroundColor: 'action.hover',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    image={item.imageUrl}
-                  >
-                    {!item.imageUrl && (
-                      <Typography variant="body2" color="text.secondary">
-                        No image
-                      </Typography>
-                    )}
-                  </CardMedia>
-
-                  {/* Stock Status Badge */}
-                  <Chip
-                    label={getStockStatusLabel(item)}
-                    color={getStockStatusColor(item)}
-                    size="small"
-                    sx={{
-                      position: 'absolute',
-                      bottom: 8,
-                      right: 8,
-                      fontSize: '0.75rem'
-                    }}
-                  />
+        <>
+          {Object.entries(groupedItems).map(([group, items]) => (
+            <Box key={group} sx={{ mb: 4 }}>
+              {group !== 'ungrouped' && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="h5" component="h2">
+                    {group}
+                  </Typography>
+                  <Divider sx={{ mt: 1 }} />
                 </Box>
+              )}
+              <Grid2 container spacing={3}>
+                {items.map((item) => (
+                  // Existing item card code
+                  <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3}} key={item._id}>
+                    <Card sx={{
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: 4
+                      }
+                    }}>
+                      {/* Card Header - Image */}
+                      <Box sx={{ position: 'relative' }}>
+                        <CardMedia
+                          component="div"
+                          sx={{
+                            height: 140,
+                            backgroundColor: 'action.hover',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          image={item.imageUrl}
+                        >
+                          {!item.imageUrl && (
+                            <Typography variant="body2" color="text.secondary">
+                              No image
+                            </Typography>
+                          )}
+                        </CardMedia>
 
-                <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-                  {/* Category */}
-                  {item.category && (
-                    <Typography variant="caption" color="text.secondary" gutterBottom>
-                      {item.category}
-                    </Typography>
-                  )}
+                        {/* Stock Status Badge */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+                          {item._id === editingItem ? (
+                            // Editing mode
+                            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={item.trackingType === 'quantity' ? newQuantity : newWeight}
+                                onChange={(e) => item.trackingType === 'quantity'
+                                  ? setNewQuantity(e.target.value)
+                                  : setNewWeight(e.target.value)
+                                }
+                                InputProps={{
+                                  endAdornment: item.trackingType === 'weight' && (
+                                    <InputAdornment position="end">{item.weightUnit}</InputAdornment>
+                                  ),
+                                }}
+                                sx={{ width: '100px' }}
+                                autoFocus
+                              />
+                              <IconButton
+                                color="primary"
+                                size="small"
+                                onClick={() => handleUpdateInventory(item._id || '')}
+                                sx={{ ml: 1 }}
+                              >
+                                <SaveIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                color="error"
+                                size="small"
+                                onClick={cancelEditing}
+                                sx={{ ml: 0.5 }}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          ) : (
+                            // Display mode
+                            <>
+                              <Chip
+                                label={getStockStatusLabel(item)}
+                                color={getStockStatusColor(item)}
+                                size="small"
+                              />
+                              <IconButton
+                                size="small"
+                                onClick={() => startEditing(item)}
+                                sx={{ ml: 1 }}
+                                title="Edit Quantity"
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </>
+                          )}
+                        </Box>
+                      </Box>
 
-                  {/* Item Name */}
-                  <Typography variant="h6" component="h2" gutterBottom noWrap title={item.name}>
-                    {item.name}
-                  </Typography>
+                      <CardContent sx={{ flexGrow: 1, pb: 1 }}>
+                        {/* Category */}
+                        {item.category && (
+                          <Typography variant="caption" color="text.secondary" gutterBottom>
+                            {item.category}
+                          </Typography>
+                        )}
 
-                  {/* SKU */}
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    SKU: {item.sku}
-                  </Typography>
+                        {/* Item Name */}
+                        <Typography variant="h6" component="h2" gutterBottom noWrap title={item.name}>
+                          {item.name}
+                        </Typography>
 
-                  {/* Price */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-                    <Typography variant="h6" color="primary">
-                      {formatCurrency(item.price)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'flex-end' }}>
-                      {formatCurrency(calculateTotalValue(item))} total
-                    </Typography>
-                  </Box>
+                        {/* SKU */}
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          SKU: {item.sku}
+                        </Typography>
 
-                  {/* Tags */}
-                  {item.tags && item.tags.length > 0 && (
-                    <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {item.tags.slice(0, 3).map(tag => (
-                        <Chip
-                          key={tag}
-                          label={tag}
+                        {/* Price */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+                          <Typography variant="h6" color="primary">
+                            {formatCurrency(item.price)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'flex-end' }}>
+                            {formatCurrency(calculateTotalValue(item))} total
+                          </Typography>
+                        </Box>
+
+                        {/* Tags */}
+                        {item.tags && item.tags.length > 0 && (
+                          <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {item.tags.slice(0, 3).map(tag => (
+                              <Chip
+                                key={tag}
+                                label={tag}
+                                size="small"
+                                variant="outlined"
+                                sx={{ fontSize: '0.7rem' }}
+                              />
+                            ))}
+                            {item.tags.length > 3 && (
+                              <Chip
+                                label={`+${item.tags.length - 3}`}
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                sx={{ fontSize: '0.7rem' }}
+                              />
+                            )}
+                          </Box>
+                        )}
+                        <Box sx={{ display: 'flex', mb: 1 }}>
+                          {getItemTypeChip(item.itemType)}
+                        </Box>
+                        {/* Component relationship badges */}
+                        {item.components && item.components.length > 0 && (
+                          <Tooltip title={`Contains ${item.components.length} materials`}>
+                            <Chip
+                              size="small"
+                              icon={<Construction fontSize="small" />}
+                              label={`${item.components.length}`}
+                              color="secondary"
+                              variant="outlined"
+                              sx={{ ml: 1 }}
+                            />
+                          </Tooltip>
+                        )}
+
+                        {item.usedInProducts && item.usedInProducts.length > 0 && (
+                          <Tooltip title={`Used in ${item.usedInProducts.length} products`}>
+                            <Chip
+                              size="small"
+                              icon={<LinkIcon fontSize="small" />}
+                              label={`${item.usedInProducts.length}`}
+                              color="info"
+                              variant="outlined"
+                              sx={{ ml: 1 }}
+                            />
+                          </Tooltip>
+                        )}
+                      </CardContent>
+
+                      <Divider />
+
+                      {/* Actions */}
+                      <CardActions>
+                        <Button
+                          component={RouterLink}
+                          to={`/inventory/${item._id}`}
                           size="small"
-                          variant="outlined"
-                          sx={{ fontSize: '0.7rem' }}
-                        />
-                      ))}
-                      {item.tags.length > 3 && (
-                        <Chip
-                          label={`+${item.tags.length - 3}`}
+                          startIcon={<ViewIcon />}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          component={RouterLink}
+                          to={`/inventory/${item._id}/edit`}
                           size="small"
-                          variant="outlined"
-                          color="primary"
-                          sx={{ fontSize: '0.7rem' }}
-                        />
-                      )}
-                    </Box>
-                  )}
-                </CardContent>
-
-                <Divider />
-
-                {/* Actions */}
-                <CardActions>
-                  <Button
-                    component={RouterLink}
-                    to={`/inventory/${item._id}`}
-                    size="small"
-                    startIcon={<ViewIcon />}
-                  >
-                    View
-                  </Button>
-                  <Button
-                    component={RouterLink}
-                    to={`/inventory/${item._id}/edit`}
-                    size="small"
-                    startIcon={<EditIcon />}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="small"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    onClick={() => item._id && handleDelete(item._id)}
-                    sx={{ marginLeft: 'auto' }}
-                  >
-                    Delete
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid2>
+                          startIcon={<EditIcon />}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="small"
+                          color="error"
+                          startIcon={<DeleteIcon />}
+                          onClick={() => item._id && handleDelete(item._id)}
+                          sx={{ marginLeft: 'auto' }}
+                        >
+                          Delete
+                        </Button>
+                      </CardActions>
+                    </Card>
+                  </Grid2>
+                ))}
+              </Grid2>
+            </Box>
           ))}
-        </Grid2>
+        </>
       )}
 
       {/* List View */}
       {viewMode === 'list' && filteredItems.length > 0 && (
-        <Paper>
-          {filteredItems.map((item, index) => (
-            <Box key={item._id}>
-              {index > 0 && <Divider />}
-              <Box sx={{
-                p: 2,
-                '&:hover': { bgcolor: 'action.hover' }
-              }}>
-                <Grid2 container spacing={2} alignItems="center">
-                  {/* Image */}
-                  <Grid2 size= {{ xs: 12, sm: 2, md: 1 }}>
-                    <Box
-                      sx={{
-                        width: '60px',
-                        height: '60px',
-                        backgroundColor: 'action.hover',
-                        backgroundImage: item.imageUrl ? `url(${item.imageUrl})` : 'none',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        borderRadius: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      {!item.imageUrl && (
-                        <Typography variant="caption" color="text.secondary">
-                          No image
-                        </Typography>
-                      )}
+        <>
+          {Object.entries(groupedItems).map(([group, items]) => (
+            <Box key={group} sx={{ mb: 4 }}>
+              {group !== 'ungrouped' && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="h5" component="h2">
+                    {group}
+                  </Typography>
+                </Box>
+              )}
+              <Paper>
+                {items.map((item, index) => (
+                  <Box key={item._id}>
+                    {index > 0 && <Divider />}
+                    <Box sx={{
+                      p: 2,
+                      '&:hover': { bgcolor: 'action.hover' }
+                    }}>
+                      <Grid2 container spacing={2} alignItems="center">
+                        {/* Image */}
+                        <Grid2 size={{ xs: 12, sm: 2, md: 1 }}>
+                          <Box
+                            sx={{
+                              width: '60px',
+                              height: '60px',
+                              backgroundColor: 'action.hover',
+                              backgroundImage: item.imageUrl ? `url(${item.imageUrl})` : 'none',
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              borderRadius: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            {!item.imageUrl && (
+                              <Typography variant="caption" color="text.secondary">
+                                No image
+                              </Typography>
+                            )}
+                          </Box>
+                        </Grid2>
+
+                        {/* Item Details */}
+                        <Grid2 size={{ xs: 12, sm: 5, md: 6 }}>
+                          <Box>
+                            <Typography variant="h6">{item.name}</Typography>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                              <Typography variant="caption" color="text.secondary">
+                                SKU: {item.sku}
+                              </Typography>
+                              {item.category && (
+                                <Chip
+                                  label={item.category}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ height: 20, fontSize: '0.7rem' }}
+                                />
+                              )}
+                              {item.tags && item.tags.slice(0, 2).map(tag => (
+                                <Chip
+                                  key={tag}
+                                  label={tag}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ height: 20, fontSize: '0.7rem' }}
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        </Grid2>
+
+                        {/* Stock */}
+                        <Grid2 size={{ xs: 6, sm: 2 }}>
+                          {item._id === editingItem ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={item.trackingType === 'quantity' ? newQuantity : newWeight}
+                                onChange={(e) => item.trackingType === 'quantity'
+                                  ? setNewQuantity(e.target.value)
+                                  : setNewWeight(e.target.value)
+                                }
+                                InputProps={{
+                                  endAdornment: item.trackingType === 'weight' && (
+                                    <InputAdornment position="end">{item.weightUnit}</InputAdornment>
+                                  ),
+                                }}
+                                sx={{ width: '100px' }}
+                                autoFocus
+                              />
+                              <IconButton
+                                color="primary"
+                                size="small"
+                                onClick={() => handleUpdateInventory(item._id || '')}
+                              >
+                                <SaveIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                color="error"
+                                size="small"
+                                onClick={cancelEditing}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Chip
+                                icon={getStockStatusColor(item) === 'error' || getStockStatusColor(item) === 'warning' ?
+                                  <LowStockIcon fontSize="small" /> : <HighStockIcon fontSize="small" />}
+                                label={getStockStatusLabel(item)}
+                                color={getStockStatusColor(item)}
+                                size="small"
+                              />
+                              <IconButton
+                                size="small"
+                                onClick={() => startEditing(item)}
+                                sx={{ ml: 1 }}
+                                title="Edit Quantity"
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
+                        </Grid2>
+
+                        {/* Price */}
+                        <Grid2 size={{ xs: 6, sm: 2, md: 1.5 }}>
+                          <Typography variant="h6" color="primary">
+                            {formatCurrency(item.price)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Total: {formatCurrency(calculateTotalValue(item))}
+                          </Typography>
+                        </Grid2>
+
+                        {/* Actions */}
+                        <Grid2 size={{ xs: 12, sm: 3, md: 1.5 }}>
+                          <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
+                            <Tooltip title="View Details">
+                              <IconButton
+                                component={RouterLink}
+                                to={`/inventory/${item._id}`}
+                                size="small"
+                                color="info"
+                              >
+                                <ViewIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Edit Item">
+                              <IconButton
+                                component={RouterLink}
+                                to={`/inventory/${item._id}/edit`}
+                                size="small"
+                                color="primary"
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete Item">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => item._id && handleDelete(item._id)}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </Grid2>
+                      </Grid2>
                     </Box>
-                  </Grid2>
-
-                  {/* Item Details */}
-                  <Grid2 size= {{ xs: 12, sm: 5, md: 6 }}>
-                    <Box>
-                      <Typography variant="h6">{item.name}</Typography>
-                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography variant="caption" color="text.secondary">
-                          SKU: {item.sku}
-                        </Typography>
-                        {item.category && (
-                          <Chip
-                            label={item.category}
-                            size="small"
-                            variant="outlined"
-                            sx={{ height: 20, fontSize: '0.7rem' }}
-                          />
-                        )}
-                        {item.tags && item.tags.slice(0, 2).map(tag => (
-                          <Chip
-                            key={tag}
-                            label={tag}
-                            size="small"
-                            variant="outlined"
-                            sx={{ height: 20, fontSize: '0.7rem' }}
-                          />
-                        ))}
-                      </Box>
-                    </Box>
-                  </Grid2>
-
-                  {/* Stock */}
-                  <Grid2 size= {{ xs: 6, sm: 2 }}>
-                    <Chip
-                      icon={getStockStatusColor(item) === 'error' || getStockStatusColor(item) === 'warning' ?
-                        <LowStockIcon fontSize="small" /> : <HighStockIcon fontSize="small" />}
-                      label={getStockStatusLabel(item)}
-                      color={getStockStatusColor(item)}
-                      size="small"
-                    />
-                  </Grid2>
-
-                  {/* Price */}
-                  <Grid2 size= {{ xs: 6, sm: 2, md: 1.5 }}>
-                    <Typography variant="h6" color="primary">
-                      {formatCurrency(item.price)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Total: {formatCurrency(calculateTotalValue(item))}
-                    </Typography>
-                  </Grid2>
-
-                  {/* Actions */}
-                  <Grid2 size= {{ xs: 12, sm: 3, md: 1.5 }}>
-                    <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
-                      <Tooltip title="View Details">
-                        <IconButton
-                          component={RouterLink}
-                          to={`/inventory/${item._id}`}
-                          size="small"
-                          color="info"
-                        >
-                          <ViewIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Edit Item">
-                        <IconButton
-                          component={RouterLink}
-                          to={`/inventory/${item._id}/edit`}
-                          size="small"
-                          color="primary"
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete Item">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => item._id && handleDelete(item._id)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </Grid2>
-                </Grid2>
-              </Box>
+                  </Box>
+                ))}
+              </Paper>
             </Box>
           ))}
-        </Paper>
+        </>
       )}
     </Box>
   );

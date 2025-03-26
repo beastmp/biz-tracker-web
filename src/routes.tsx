@@ -11,6 +11,7 @@ import LoadingScreen from '@components/ui/LoadingScreen';
 const InventoryList = lazy(() => import('@features/inventory/InventoryList'));
 const InventoryDetail = lazy(() => import('@features/inventory/InventoryDetail'));
 const InventoryForm = lazy(() => import('@features/inventory/InventoryForm'));
+import InventoryProfitReport from '@features/inventory/InventoryProfitReport';
 
 // Sales components
 const SalesList = lazy(() => import('@features/sales/SalesList'));
@@ -53,7 +54,8 @@ export const routes: RouteObject[] = [
           { index: true, element: withSuspense(InventoryList) },
           { path: 'new', element: withSuspense(InventoryForm) },
           { path: ':id', element: withSuspense(InventoryDetail) },
-          { path: ':id/edit', element: withSuspense(InventoryForm) }
+          { path: ':id/edit', element: withSuspense(InventoryForm) },
+          { path: 'profit-analysis', element: withSuspense(InventoryProfitReport) }
         ]
       },
 

@@ -32,7 +32,8 @@ import {
   Inventory,
   Scale,
   GridView as GridViewIcon,
-  List as ListViewIcon
+  List as ListViewIcon,
+  ViewModule
 } from '@mui/icons-material';
 import { useAppContext } from '@context/AppContext';
 import { useSettings } from '@context/SettingsContext';
@@ -52,7 +53,9 @@ export default function Settings() {
     setLowStockAlertsEnabled,
     setQuantityThreshold,
     updateWeightThreshold,
-    setDefaultViewMode
+    setDefaultViewMode,
+    defaultGroupBy,
+    setDefaultGroupBy
   } = useSettings();
 
   const [selectedWeightUnit, setSelectedWeightUnit] = useState('lb');
@@ -101,6 +104,14 @@ export default function Settings() {
       setDefaultViewMode(newMode);
       setSuccessMessage(`Default view set to ${newMode} mode`);
     }
+  };
+
+  const handleGroupByChange = (event: SelectChangeEvent) => {
+    setDefaultGroupBy(event.target.value as 'none' | 'itemType' | 'category');
+    setSuccessMessage(`Default grouping set to ${
+      event.target.value === 'none' ? 'None' :
+      event.target.value === 'itemType' ? 'Item Type' : 'Category'
+    }`);
   };
 
   return (
@@ -304,6 +315,30 @@ export default function Settings() {
                       <ListViewIcon fontSize="small" sx={{ mr: 0.5 }} /> List
                     </ToggleButton>
                   </ToggleButtonGroup>
+                </ListItemSecondaryAction>
+              </ListItem>
+
+              <Divider component="li" />
+
+              <ListItem>
+                <ListItemIcon>
+                  <ViewModule />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Default Grouping"
+                  secondary="How items are grouped in inventory lists"
+                />
+                <ListItemSecondaryAction>
+                  <FormControl size="small" sx={{ width: 160 }}>
+                    <Select
+                      value={defaultGroupBy}
+                      onChange={handleGroupByChange}
+                    >
+                      <MenuItem value="none">No Grouping</MenuItem>
+                      <MenuItem value="itemType">By Item Type</MenuItem>
+                      <MenuItem value="category">By Category</MenuItem>
+                    </Select>
+                  </FormControl>
                 </ListItemSecondaryAction>
               </ListItem>
             </List>
