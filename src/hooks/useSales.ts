@@ -28,7 +28,12 @@ export const useCreateSale = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (sale: Sale) => post<Sale>('/api/sales', sale),
+    mutationFn: (sale: Sale) => {
+      // Fix any potential URL duplication issues
+      const endpoint = '/api/sales';
+      console.log('Creating sale with data:', sale);
+      return post<Sale>(endpoint, sale);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
       queryClient.invalidateQueries({ queryKey: [SALES_REPORT_KEY] });

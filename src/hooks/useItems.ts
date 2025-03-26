@@ -33,20 +33,73 @@ export const useCreateItem = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: Item | FormData) => {
-      // If FormData, don't stringify
-      if (data instanceof FormData) {
-        return post<Item>('/api/items', data, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
+    mutationFn: async (itemData: FormData | Item) => {
+      try {
+        // Check if we're dealing with FormData with an actual image file
+        if (itemData instanceof FormData) {
+          // Check if there's an actual new image file being uploaded
+          let hasImageFile = false;
+          for (const pair of itemData.entries()) {
+            if (pair[0] === 'image' && pair[1] instanceof File) {
+              hasImageFile = true;
+              break;
+            }
           }
-        });
+
+          // If no actual file is being uploaded, convert to regular JSON
+          if (!hasImageFile) {
+            const jsonData: Record<string, any> = {};
+            for (const [key, value] of itemData.entries()) {
+              // Parse special fields as needed
+              if (key === 'tags') {
+                try {
+                  jsonData[key] = JSON.parse(value as string);
+                } catch {
+                  // If not valid JSON, use as-is
+                  jsonData[key] = value;
+                }
+              } else if (['quantity', 'weight', 'price'].includes(key)) {
+                jsonData[key] = parseFloat(value as string) || 0;
+              } else {
+                jsonData[key] = value;
+              }
+            }
+            return await post<Item>('/api/items', jsonData);
+          }
+
+          // Using FormData for file upload
+          console.log('Form data contents:');
+          for (const pair of itemData.entries()) {
+            const value = pair[1];
+            const valueDisplay = value instanceof File
+              ? `File: ${value.name} (${value.type}, ${value.size} bytes)`
+              : value;
+            console.log(`${pair[0]}: ${valueDisplay}`);
+          }
+
+          const response = await axios({
+            method: 'post',
+            url: `${config.API_URL.replace(/\/+$/, '')}/api/items`,
+            data: itemData,
+            // Let browser set the content type with boundary
+            headers: {},
+            timeout: 60000,
+            maxContentLength: 10 * 1024 * 1024,
+            maxBodyLength: 10 * 1024 * 1024,
+          });
+          return response.data;
+        } else {
+          // Regular JSON data
+          return await post<Item>('/api/items', itemData);
+        }
+      } catch (error: any) {
+        console.error('Failed to create item:', error.response?.data || error.message);
+        throw error;
       }
-      return post<Item>('/api/items', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
-    }
+    },
   });
 };
 
@@ -58,36 +111,82 @@ export const useUpdateItem = (id: string | undefined) => {
     mutationFn: async (itemData: FormData | Item) => {
       if (!id) throw new Error('Item ID is required');
 
-      // Check if we're dealing with FormData
+      // Check if we're dealing with FormData with an actual image file
       if (itemData instanceof FormData) {
-        // Fix the double slash in URL by ensuring baseURL doesn't end with slash
-        const baseUrl = config.API_URL.endsWith('/')
-          ? config.API_URL.slice(0, -1)
-          : config.API_URL;
-
-        // Log for debugging
-        console.log(`Making PATCH request to: ${baseUrl}/api/items/${id}`);
-
-        const response = await axios({
-          method: 'patch',
-          url: `${baseUrl}/api/items/${id}`,
-          data: itemData,
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          // Add detailed logging
-          onUploadProgress: (progressEvent) => {
-            console.log('Upload progress:', progressEvent);
+        // Check if there's an actual new image file being uploaded
+        let hasImageFile = false;
+        for (const pair of itemData.entries()) {
+          if (pair[0] === 'image' && pair[1] instanceof File) {
+            hasImageFile = true;
+            break;
           }
-        });
-        return response.data;
+        }
+
+        // If no actual file is being uploaded, convert to regular JSON
+        if (!hasImageFile) {
+          const jsonData: Record<string, any> = {};
+          for (const [key, value] of itemData.entries()) {
+            // Parse special fields as needed
+            if (key === 'tags') {
+              jsonData[key] = JSON.parse(value as string);
+            } else if (['quantity', 'weight', 'price'].includes(key)) {
+              jsonData[key] = parseFloat(value as string);
+            } else {
+              jsonData[key] = value;
+            }
+          }
+          return await patch<Item>(`/api/items/${id}`, jsonData);
+        }
+
+        try {
+          // Fix the URL - remove duplicate /api/ segment
+          const baseUrl = config.API_URL.replace(/\/+$/, '');
+          const apiPath = `/api/items/${id}`;
+
+          // Parse URL to ensure no duplicate path segments
+          const url = new URL(baseUrl);
+          // Make sure there's only one /api in the path
+          if (url.pathname.endsWith('/api')) {
+            url.pathname = url.pathname;
+          }
+
+          const requestUrl = url.toString() + apiPath;
+
+          console.log(`Making PATCH request to: ${requestUrl}`);
+          console.log('FormData entries:');
+          for (const pair of itemData.entries()) {
+            const value = pair[1];
+            const valueDisplay = value instanceof File
+              ? `File: ${value.name} (${value.type}, ${value.size} bytes)`
+              : value;
+            console.log(`- ${pair[0]}: ${valueDisplay}`);
+          }
+
+          const response = await axios({
+            method: 'patch',
+            url: requestUrl,
+            data: itemData,
+            // Let browser set the correct content-type with boundary
+            headers: {},
+            timeout: 60000,
+            maxContentLength: 10 * 1024 * 1024,
+            maxBodyLength: 10 * 1024 * 1024,
+            onUploadProgress: (progressEvent) => {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+              console.log(`Upload progress: ${percentCompleted}%`);
+            }
+          });
+          return response.data;
+        } catch (error: any) {
+          console.error('Upload error details:', error.response?.data || error.message);
+          throw error;
+        }
       } else {
         // Regular JSON data
         return await patch<Item>(`/api/items/${id}`, itemData);
       }
     },
     onSuccess: () => {
-      // Invalidate both the list and the specific item
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
       queryClient.invalidateQueries({ queryKey: [ITEM_KEY, id] });
     },

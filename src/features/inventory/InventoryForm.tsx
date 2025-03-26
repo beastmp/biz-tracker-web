@@ -164,48 +164,84 @@ export default function InventoryForm() {
     setError(null);
 
     try {
-      // Use FormData to handle file uploads
-      const formDataToSend = new FormData();
+      // Validate required fields
+      if (!formData.name?.trim()) {
+        setError('Item name is required');
+        return;
+      }
 
-      // Add all form fields
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value !== undefined && key !== 'tags' && key !== '_id' && key !== 'lastUpdated' && key !== 'imageUrl') {
-          if (typeof value === 'number') {
-            formDataToSend.append(key, String(value));
+      if (!formData.sku?.trim()) {
+        setError('SKU is required');
+        return;
+      }
+
+      // Only use FormData if we actually have an image file to upload
+      if (imageFile) {
+        // Use FormData when uploading a new image
+        const formDataToSend = new FormData();
+
+        // Add all form fields
+        formDataToSend.append('name', formData.name || '');
+        formDataToSend.append('sku', formData.sku || '');
+        formDataToSend.append('category', formData.category || '');
+        formDataToSend.append('trackingType', formData.trackingType || 'quantity');
+        formDataToSend.append('quantity', String(formData.quantity || 0));
+        formDataToSend.append('weight', String(formData.weight || 0));
+        formDataToSend.append('weightUnit', formData.weightUnit || 'lb');
+        formDataToSend.append('price', String(formData.price || 0));
+        formDataToSend.append('priceType', formData.priceType || 'each');
+
+        if (formData.description) {
+          formDataToSend.append('description', formData.description);
+        }
+
+        // Add tags as JSON string
+        formDataToSend.append('tags', JSON.stringify(tags || []));
+
+        // Check file size
+        if (imageFile.size > 5 * 1024 * 1024) {
+          setError('Image file size should be less than 5MB');
+          return;
+        }
+
+        // Append image
+        formDataToSend.append('image', imageFile, imageFile.name);
+
+        // Log form data for debugging
+        console.log('Form data contents:');
+        for (const pair of formDataToSend.entries()) {
+          if (pair[1] instanceof File) {
+            console.log(`${pair[0]}: File: ${pair[1].name} (${pair[1].type}, ${pair[1].size} bytes)`);
           } else {
-            formDataToSend.append(key, String(value));
+            console.log(`${pair[0]}: ${pair[1]}`);
           }
         }
-      });
 
-      // Add tags as JSON string
-      formDataToSend.append('tags', JSON.stringify(tags));
-
-      // Add image file if selected
-      if (imageFile) {
-        formDataToSend.append('image', imageFile);
-      } else if (imagePreview && imagePreview === formData.imageUrl) {
-        // If using existing image, send the URL
-        formDataToSend.append('imageUrl', formData.imageUrl || '');
-      }
-
-      // Debug what's in the form data
-      console.log('Form data contents:');
-      for (const [key, value] of formDataToSend.entries()) {
-        console.log(`${key}: ${value instanceof File ? 'File: ' + value.name : value}`);
-      }
-
-      console.log('Submitting form data');
-
-      if (isEditMode && id) {
-        await updateItem.mutateAsync(formDataToSend);
+        if (isEditMode && id) {
+          await updateItem.mutateAsync(formDataToSend);
+        } else {
+          await createItem.mutateAsync(formDataToSend);
+        }
       } else {
-        await createItem.mutateAsync(formDataToSend);
+        // Without an image file, just send a regular JSON object
+        const itemData = {
+          ...formData,
+          tags,
+          // Include existing imageUrl if there is one
+          ...(imagePreview && formData.imageUrl ? { imageUrl: formData.imageUrl } : {})
+        };
+
+        if (isEditMode && id) {
+          await updateItem.mutateAsync(itemData);
+        } else {
+          await createItem.mutateAsync(itemData);
+        }
       }
+
       navigate('/inventory');
     } catch (err) {
       console.error('Failed to save item:', err);
-      const errorMessage = 'Failed to save item. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save item. Please try again.';
       setError(errorMessage);
     }
   };

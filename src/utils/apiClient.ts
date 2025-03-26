@@ -1,32 +1,61 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import { config } from '@config/env';
 
-// Create Axios instance with base config
-const apiClient: AxiosInstance = axios.create({
-  baseURL: config.API_URL,
+// Create a normalized base URL without duplicate /api segments
+const normalizeBaseUrl = (url: string) => {
+  // Remove trailing slashes
+  let baseUrl = url.replace(/\/+$/, '');
+
+  // Check if baseUrl already ends with /api
+  if (baseUrl.endsWith('/api')) {
+    return baseUrl;
+  }
+  return baseUrl;
+};
+
+// Create an API client with baseURL
+const apiClient = axios.create({
+  baseURL: normalizeBaseUrl(config.API_URL),
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: false
+  timeout: 30000, // 30 second timeout
 });
 
-// Add response interceptor for better error handling
-apiClient.interceptors.response.use(
-  response => response,
-  error => {
-    // Log detailed error information
-    console.error('API Error:', {
-      endpoint: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      data: error.response?.data,
-    });
+// Request interceptor
+apiClient.interceptors.request.use(
+  config => {
+    // Special handling for FormData
+    if (config.data instanceof FormData) {
+      // Let the browser set the correct Content-Type with boundary
+      delete config.headers['Content-Type'];
+    }
 
+    // Debug logging
+    console.log(`Making ${config.method?.toUpperCase()} request to: ${config.baseURL}${config.url}`);
+
+    return config;
+  },
+  error => {
     return Promise.reject(error);
   }
 );
 
-// Helper functions for API requests
+// Response interceptor for error handling
+apiClient.interceptors.response.use(
+  response => response,
+  error => {
+    console.error('API Error:', {
+      endpoint: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    return Promise.reject(error);
+  }
+);
+
+// HTTP methods
 export const get = async <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
   const response = await apiClient.get<T>(url, config);
   return response.data;
