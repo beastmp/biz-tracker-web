@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -14,20 +14,45 @@ import {
   IconButton,
   TextField,
   InputAdornment,
-  Avatar//,
-  //Chip
+  Avatar,
+  Card,
+  CardContent,
+  CardActions,
+  Grid2,
+  Stack,
+  Tooltip,
+  Divider
 } from '@mui/material';
-import { Add, Delete, Edit, Search, Visibility, Image as ImageIcon } from '@mui/icons-material';
+import {
+  Add,
+  Delete,
+  Edit,
+  Search,
+  Visibility,
+  Image as ImageIcon,
+  GridView as GridViewIcon,
+  List as ListViewIcon,
+} from '@mui/icons-material';
 import { useSales, useDeleteSale } from '@hooks/useSales';
 import { formatCurrency, formatDate } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import StatusChip from '@components/ui/StatusChip';
+import { useSettings } from '@context/SettingsContext';
 
 export default function SalesList() {
   const [searchQuery, setSearchQuery] = useState('');
   const { data: sales = [], isLoading, error } = useSales();
   const deleteSale = useDeleteSale();
+  const { defaultViewMode } = useSettings();
+
+  // Initialize view mode from settings
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(defaultViewMode);
+
+  // Update view mode if settings change
+  useEffect(() => {
+    setViewMode(defaultViewMode);
+  }, [defaultViewMode]);
 
   // Filter sales when search query changes
   const filteredSales = searchQuery
@@ -61,15 +86,36 @@ export default function SalesList() {
         <Typography variant="h4" component="h1">
           Sales
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<Add />}
-          component={RouterLink}
-          to="/sales/new"
-        >
-          New Sale
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          {/* View Mode Toggles */}
+          <Stack direction="row" spacing={1}>
+            <Tooltip title="Grid View">
+              <IconButton
+                color={viewMode === 'grid' ? 'primary' : 'default'}
+                onClick={() => setViewMode('grid')}
+              >
+                <GridViewIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="List View">
+              <IconButton
+                color={viewMode === 'list' ? 'primary' : 'default'}
+                onClick={() => setViewMode('list')}
+              >
+                <ListViewIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<Add />}
+            component={RouterLink}
+            to="/sales/new"
+          >
+            New Sale
+          </Button>
+        </Box>
       </Box>
 
       <TextField
@@ -95,7 +141,7 @@ export default function SalesList() {
             No sales found. Click "New Sale" to record your first sale.
           </Typography>
         </Paper>
-      ) : (
+      ) : viewMode === 'list' ? (
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
@@ -112,8 +158,6 @@ export default function SalesList() {
               {filteredSales.map((sale) => {
                 // Calculate total items, accounting for both quantity and weight-based items
                 const totalItems = sale.items.reduce((total, item) => {
-                  // For quantity-based items, add the quantity
-                  // For weight-based items, we count them as 1 item each
                   return total + item.quantity;
                 }, 0);
 
@@ -187,6 +231,74 @@ export default function SalesList() {
             </TableBody>
           </Table>
         </TableContainer>
+      ) : (
+        // Grid View
+        <Grid2 container spacing={3}>
+          {filteredSales.map((sale) => (
+            <Grid2 size= {{ xs: 12, sm: 6, md: 4, lg: 3 }} key={sale._id}>
+              <Card sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4
+                }
+              }}>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <Typography variant="h6" component="h2" noWrap>
+                      {sale.customerName || 'Walk-in Customer'}
+                    </Typography>
+                    <StatusChip status={sale.status} />
+                  </Box>
+
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    {sale.createdAt ? formatDate(sale.createdAt) : 'Unknown date'}
+                  </Typography>
+
+                  <Divider sx={{ my: 1.5 }} />
+
+                  <Typography variant="body2">
+                    {sale.items.length} unique items ({sale.items.reduce((total, item) => total + item.quantity, 0)} total)
+                  </Typography>
+
+                  <Typography variant="h5" color="primary" sx={{ mt: 2 }}>
+                    {formatCurrency(sale.total)}
+                  </Typography>
+                </CardContent>
+                <CardActions>
+                  <Button
+                    component={RouterLink}
+                    to={`/sales/${sale._id}`}
+                    size="small"
+                    startIcon={<Visibility />}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    component={RouterLink}
+                    to={`/sales/${sale._id}/edit`}
+                    size="small"
+                    startIcon={<Edit />}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    startIcon={<Delete />}
+                    onClick={() => sale._id && handleDelete(sale._id)}
+                    sx={{ marginLeft: 'auto' }}
+                  >
+                    Delete
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid2>
+          ))}
+        </Grid2>
       )}
     </Box>
   );

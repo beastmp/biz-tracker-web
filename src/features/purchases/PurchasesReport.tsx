@@ -4,7 +4,7 @@ import {
   Box,
   Paper,
   Typography,
-  Grid,
+  Grid2,
   Divider,
   Button,
   TextField,
@@ -79,8 +79,8 @@ export default function PurchasesReport() {
       </Box>
 
       <Paper sx={{ p: 3, mb: 4 }}>
-        <Grid container spacing={3} alignItems="center" component="form" onSubmit={handleSubmit}>
-          <Grid item xs={12} sm={4}>
+        <Grid2 container spacing={3} alignItems="center" component="form" onSubmit={handleSubmit}>
+          <Grid2 size= {{ xs: 12, sm: 4 }}>
             <TextField
               fullWidth
               label="Start Date"
@@ -89,8 +89,8 @@ export default function PurchasesReport() {
               onChange={(e) => setStartDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
-          </Grid>
-          <Grid item xs={12} sm={4}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, sm: 4 }}>
             <TextField
               fullWidth
               label="End Date"
@@ -99,8 +99,8 @@ export default function PurchasesReport() {
               onChange={(e) => setEndDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
-          </Grid>
-          <Grid item xs={12} sm={4}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, sm: 4 }}>
             <Button
               variant="contained"
               color="primary"
@@ -112,8 +112,8 @@ export default function PurchasesReport() {
             >
               Generate Report
             </Button>
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
 
         {error && (
           <Alert severity="error" sx={{ mt: 2 }}>
@@ -124,8 +124,8 @@ export default function PurchasesReport() {
 
       {reportData && (
         <>
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} sm={4}>
+          <Grid2 container spacing={3} sx={{ mb: 4 }}>
+            <Grid2 size= {{ xs: 12, sm: 4 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -142,9 +142,9 @@ export default function PurchasesReport() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+            </Grid2>
 
-            <Grid item xs={12} sm={4}>
+            <Grid2 size= {{ xs: 12, sm: 4 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -161,9 +161,9 @@ export default function PurchasesReport() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+            </Grid2>
 
-            <Grid item xs={12} sm={4}>
+            <Grid2 size= {{ xs: 12, sm: 4 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -180,8 +180,8 @@ export default function PurchasesReport() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
-          </Grid>
+            </Grid2>
+          </Grid2>
 
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>Purchase Details</Typography>

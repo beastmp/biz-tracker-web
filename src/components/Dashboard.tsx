@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
-  Grid,
   Paper,
   Typography,
   Card,
@@ -13,7 +12,9 @@ import {
   ListItem,
   ListItemText,
   TextField,
-  InputAdornment
+  InputAdornment,
+  Grid2,
+  CardActionArea
 } from '@mui/material';
 import {
   AddCircleOutline,
@@ -30,6 +31,7 @@ import { usePurchases } from '@hooks/usePurchases';
 import { formatCurrency, formatDate } from '@utils/formatters';
 import StatusChip from '@components/ui/StatusChip';
 import LoadingScreen from '@components/ui/LoadingScreen';
+import { useSettings } from '@context/SettingsContext';
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,10 +41,28 @@ export default function Dashboard() {
   const { data: sales = [], isLoading: salesLoading } = useSales();
   const { data: purchases = [], isLoading: purchasesLoading } = usePurchases();
 
+  // Get low stock threshold settings
+  const { lowStockAlertsEnabled, quantityThreshold, weightThresholds } = useSettings();
+
   // Calculate stats
   const lowStockItems = items.filter(item => {
-    if (item.trackingType === 'quantity' && item.quantity <= 5) return true;
-    if (item.trackingType === 'weight' && item.weight <= 2) return true;
+    // If alerts are disabled, don't consider anything low stock
+    if (!lowStockAlertsEnabled) return false;
+
+    if (item.trackingType === 'quantity' && item.quantity <= quantityThreshold) return true;
+
+    if (item.trackingType === 'weight') {
+      if (item.priceType === 'each' && (item.quantity || 0) <= 3) return true;
+
+      const threshold =
+        item.weightUnit === 'kg' ? weightThresholds.kg :
+        item.weightUnit === 'g' ? weightThresholds.g :
+        item.weightUnit === 'lb' ? weightThresholds.lb :
+        item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+
+      if (item.weight <= threshold) return true;
+    }
+
     return false;
   });
 
@@ -88,65 +108,83 @@ export default function Dashboard() {
       </Box>
 
       {/* Quick Stats */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+      <Grid2 container spacing={3} sx={{ mb: 4 }}>
+        <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
           <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Total Inventory
-              </Typography>
-              <Typography variant="h4" component="div" sx={{ mb: 1 }}>
-                {items.length} items
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                {lowStockItems.length} items low in stock
-              </Typography>
-              <Typography variant="h6" color="primary">
-                {formatCurrency(totalInventoryValue)}
-              </Typography>
-            </CardContent>
+            <CardActionArea
+              component={RouterLink}
+              to="/inventory"
+              sx={{ height: '100%' }}
+            >
+              <CardContent>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Total Inventory
+                </Typography>
+                <Typography variant="h4" component="div" sx={{ mb: 1 }}>
+                  {items.length} items
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {lowStockItems.length} items low in stock
+                </Typography>
+                <Typography variant="h6" color="primary">
+                  {formatCurrency(totalInventoryValue)}
+                </Typography>
+              </CardContent>
+            </CardActionArea>
           </Card>
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
           <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Recent Sales
-              </Typography>
-              <Typography variant="h4" component="div" sx={{ mb: 1 }}>
-                {sales.length} orders
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                {sales.filter(s => s.status === 'completed').length} completed
-              </Typography>
-              <Typography variant="h6" color="primary">
-                {formatCurrency(sales.reduce((total, sale) => total + sale.total, 0))}
-              </Typography>
-            </CardContent>
+            <CardActionArea
+              component={RouterLink}
+              to="/sales"
+              sx={{ height: '100%' }}
+            >
+              <CardContent>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Recent Sales
+                </Typography>
+                <Typography variant="h4" component="div" sx={{ mb: 1 }}>
+                  {sales.length} orders
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {sales.filter(s => s.status === 'completed').length} completed
+                </Typography>
+                <Typography variant="h6" color="primary">
+                  {formatCurrency(sales.reduce((total, sale) => total + sale.total, 0))}
+                </Typography>
+              </CardContent>
+            </CardActionArea>
           </Card>
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
           <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Recent Purchases
-              </Typography>
-              <Typography variant="h4" component="div" sx={{ mb: 1 }}>
-                {purchases.length} orders
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                {purchases.filter(p => p.status === 'received').length} received
-              </Typography>
-              <Typography variant="h6" color="primary">
-                {formatCurrency(purchases.reduce((total, purchase) => total + purchase.total, 0))}
-              </Typography>
-            </CardContent>
+            <CardActionArea
+              component={RouterLink}
+              to="/purchases"
+              sx={{ height: '100%' }}
+            >
+              <CardContent>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Recent Purchases
+                </Typography>
+                <Typography variant="h4" component="div" sx={{ mb: 1 }}>
+                  {purchases.length} orders
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {purchases.filter(p => p.status === 'received').length} received
+                </Typography>
+                <Typography variant="h6" color="primary">
+                  {formatCurrency(purchases.reduce((total, purchase) => total + purchase.total, 0))}
+                </Typography>
+              </CardContent>
+            </CardActionArea>
           </Card>
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
           <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Button
@@ -178,12 +216,12 @@ export default function Dashboard() {
               </Button>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
 
       {/* Search and Low Stock */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={8}>
+      <Grid2 container spacing={3} sx={{ mb: 4 }}>
+        <Grid2 size={{ xs: 12, md: 8 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="h6">
@@ -249,9 +287,9 @@ export default function Dashboard() {
               )}
             </List>
           </Paper>
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={12} md={4}>
+        <Grid2 size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="h6">
@@ -295,12 +333,12 @@ export default function Dashboard() {
               )}
             </List>
           </Paper>
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
 
       {/* Recent Activity */}
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
+      <Grid2 container spacing={3}>
+        <Grid2 size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="h6">
@@ -359,9 +397,9 @@ export default function Dashboard() {
               )}
             </List>
           </Paper>
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={12} md={6}>
+        <Grid2 size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="h6">
@@ -420,8 +458,8 @@ export default function Dashboard() {
               )}
             </List>
           </Paper>
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
     </Box>
   );
 }

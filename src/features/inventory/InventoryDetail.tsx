@@ -4,15 +4,12 @@ import {
   Paper,
   Typography,
   Button,
-  Grid,
+  Grid2,
   Divider,
   Chip,
   Card,
   CardContent,
-  Stack//,
-  //IconButton,
-  //Tooltip,
-  //Avatar
+  Stack
 } from '@mui/material';
 import {
   ArrowBack,
@@ -33,12 +30,14 @@ import { useItem, useDeleteItem } from '@hooks/useItems';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
+import { useSettings } from '@context/SettingsContext';
 
 export default function InventoryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: item, isLoading, error } = useItem(id);
   const deleteItem = useDeleteItem();
+  const { lowStockAlertsEnabled, quantityThreshold, weightThresholds } = useSettings();
 
   const handleDelete = async () => {
     if (!id || !window.confirm('Are you sure you want to delete this item?')) {
@@ -61,25 +60,28 @@ export default function InventoryDetail() {
   const getStockStatusColor = (item: typeof data): 'success' | 'warning' | 'error' => {
     if (item.trackingType === 'quantity') {
       if (item.quantity === 0) return 'error';
-      if (item.quantity < 5) return 'warning';
+      if (!lowStockAlertsEnabled) return 'success';
+      if (item.quantity < quantityThreshold) return 'warning';
       return 'success';
     } else {
       // For weight-tracked items
       if (item.priceType === 'each') {
         // Base status on quantity when pricing is per item
         if (!item.quantity || item.quantity === 0) return 'error';
-        if (item.quantity < 3) return 'warning';
+        if (!lowStockAlertsEnabled) return 'success';
+        if (item.quantity < 3) return 'warning'; // Consider adding a separate threshold for packages
         return 'success';
       } else {
         // Base status on weight when pricing is per weight
         if (!item.weight || item.weight === 0) return 'error';
+        if (!lowStockAlertsEnabled) return 'success';
 
         // Different thresholds based on weight unit
         const lowThreshold =
-          item.weightUnit === 'kg' ? 1 :
-          item.weightUnit === 'g' ? 500 :
-          item.weightUnit === 'lb' ? 2 :
-          item.weightUnit === 'oz' ? 16 : 5;
+          item.weightUnit === 'kg' ? weightThresholds.kg :
+          item.weightUnit === 'g' ? weightThresholds.g :
+          item.weightUnit === 'lb' ? weightThresholds.lb :
+          item.weightUnit === 'oz' ? weightThresholds.oz : 5;
 
         if (item.weight < lowThreshold) return 'warning';
         return 'success';
@@ -125,8 +127,8 @@ export default function InventoryDetail() {
     <Box>
       {/* Header with navigation and actions */}
       <Box sx={{ mb: 3 }}>
-        <Grid container alignItems="center" spacing={2}>
-          <Grid item xs>
+        <Grid2 container alignItems="center" spacing={2}>
+          <Grid2 size="grow">
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Button
                 component={RouterLink}
@@ -138,7 +140,7 @@ export default function InventoryDetail() {
               >
                 Back
               </Button>
-              <Typography variant="h4" component="h1">
+              <Typography variant="h4" component="div">
                 {data.name}
               </Typography>
               {data.category && (
@@ -154,8 +156,8 @@ export default function InventoryDetail() {
             <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
               SKU: {data.sku}
             </Typography>
-          </Grid>
-          <Grid item>
+          </Grid2>
+          <Grid2>
             <Stack direction="row" spacing={1}>
               <Button
                 component={RouterLink}
@@ -175,16 +177,16 @@ export default function InventoryDetail() {
                 Delete
               </Button>
             </Stack>
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid2 container spacing={3}>
         {/* Left column */}
-        <Grid item xs={12} md={8}>
-          <Grid container spacing={3}>
+        <Grid2 size= {{ xs: 12, md: 8 }}>
+          <Grid2 container spacing={3}>
             {/* Item Image */}
-            <Grid item xs={12}>
+            <Grid2 size= {{ xs: 12 }}>
               <Paper sx={{ p: 3, height: '100%', overflow: 'hidden', borderRadius: 2 }}>
                 {data.imageUrl ? (
                   <Box
@@ -216,10 +218,10 @@ export default function InventoryDetail() {
                   </Box>
                 )}
               </Paper>
-            </Grid>
+            </Grid2>
 
             {/* Key Metrics */}
-            <Grid item xs={12} sm={6} lg={3}>
+            <Grid2 size= {{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -238,9 +240,9 @@ export default function InventoryDetail() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+            </Grid2>
 
-            <Grid item xs={12} sm={6} lg={3}>
+            <Grid2 size= {{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{
                 bgcolor:
                   getStockStatusColor(data) === 'success' ? 'success.light' :
@@ -268,9 +270,9 @@ export default function InventoryDetail() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+            </Grid2>
 
-            <Grid item xs={12} sm={6} lg={3}>
+            <Grid2 size= {{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{ bgcolor: 'info.light', color: 'info.contrastText' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -285,9 +287,9 @@ export default function InventoryDetail() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+            </Grid2>
 
-            <Grid item xs={12} sm={6} lg={3}>
+            <Grid2 size= {{ xs: 12, sm: 6, lg: 3 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -299,11 +301,11 @@ export default function InventoryDetail() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+            </Grid2>
 
             {/* Item Description */}
             {data.description && (
-              <Grid item xs={12}>
+              <Grid2 size= {{ xs: 12 }}>
                 <Paper sx={{ p: 3 }}>
                   <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                     <Category sx={{ mr: 1, fontSize: 20 }} />
@@ -314,11 +316,11 @@ export default function InventoryDetail() {
                     {data.description}
                   </Typography>
                 </Paper>
-              </Grid>
+              </Grid2>
             )}
 
             {/* Tags */}
-            <Grid item xs={12}>
+            <Grid2 size= {{ xs: 12 }}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                   <LocalOffer sx={{ mr: 1, fontSize: 20 }} />
@@ -344,12 +346,12 @@ export default function InventoryDetail() {
                   </Typography>
                 )}
               </Paper>
-            </Grid>
-          </Grid>
-        </Grid>
+            </Grid2>
+          </Grid2>
+        </Grid2>
 
         {/* Right Column */}
-        <Grid item xs={12} md={4}>
+        <Grid2 size= {{ xs: 12, md: 4 }}>
           {/* Item Details */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -492,8 +494,8 @@ export default function InventoryDetail() {
               </Button>
             </Stack>
           </Paper>
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
     </Box>
   );
 }

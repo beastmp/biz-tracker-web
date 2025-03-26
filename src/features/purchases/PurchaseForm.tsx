@@ -6,7 +6,7 @@ import {
   Typography,
   TextField,
   Button,
-  Grid,
+  Grid2,
   Alert,
   InputAdornment,
   MenuItem,
@@ -251,8 +251,8 @@ export default function PurchaseForm() {
         <Typography variant="h6" gutterBottom>Supplier Information</Typography>
         <Divider sx={{ mb: 2 }} />
 
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
+        <Grid2 container spacing={2}>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Supplier Name"
@@ -262,8 +262,8 @@ export default function PurchaseForm() {
               required
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Contact Name"
@@ -272,8 +272,8 @@ export default function PurchaseForm() {
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Email"
@@ -283,8 +283,8 @@ export default function PurchaseForm() {
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Phone"
@@ -293,8 +293,8 @@ export default function PurchaseForm() {
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Invoice Number"
@@ -303,8 +303,8 @@ export default function PurchaseForm() {
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Purchase Date"
@@ -315,8 +315,8 @@ export default function PurchaseForm() {
               InputLabelProps={{ shrink: true }}
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -339,10 +339,10 @@ export default function PurchaseForm() {
               {selectedItem.name} - {formatCurrency(selectedItem.price)}
             </Typography>
 
-            <Grid container spacing={2} alignItems="center">
+            <Grid2 container spacing={2} alignItems="center">
               {selectedItem.trackingType === 'weight' ? (
                 <>
-                  <Grid item xs={4}>
+                  <Grid2 size= {{ xs: 4 }}>
                     <TextField
                       fullWidth
                       label="Weight"
@@ -368,10 +368,10 @@ export default function PurchaseForm() {
                         ),
                       }}
                     />
-                  </Grid>
+                  </Grid2>
                 </>
               ) : (
-                <Grid item xs={4}>
+                <Grid2 size= {{ xs: 4 }}>
                   <TextField
                     fullWidth
                     label="Quantity"
@@ -380,10 +380,10 @@ export default function PurchaseForm() {
                     onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
                     disabled={createPurchase.isPending || updatePurchase.isPending}
                   />
-                </Grid>
+                </Grid2>
               )}
 
-              <Grid item xs={4}>
+              <Grid2 size= {{ xs: 4 }}>
                 <TextField
                   fullWidth
                   label="Cost Per Unit"
@@ -395,9 +395,9 @@ export default function PurchaseForm() {
                     startAdornment: <InputAdornment position="start">$</InputAdornment>,
                   }}
                 />
-              </Grid>
+              </Grid2>
 
-              <Grid item xs={4}>
+              <Grid2 size= {{ xs: 4 }}>
                 <TextField
                   fullWidth
                   label="Total Cost"
@@ -409,8 +409,8 @@ export default function PurchaseForm() {
                     startAdornment: <InputAdornment position="start">$</InputAdornment>,
                   }}
                 />
-              </Grid>
-            </Grid>
+              </Grid2>
+            </Grid2>
 
             <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
               <Button
@@ -473,8 +473,8 @@ export default function PurchaseForm() {
         <Typography variant="h6" gutterBottom>Payment Details</Typography>
         <Divider sx={{ mb: 2 }} />
 
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
+        <Grid2 container spacing={2}>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <FormControl fullWidth margin="normal">
               <InputLabel>Payment Method</InputLabel>
               <Select
@@ -492,8 +492,8 @@ export default function PurchaseForm() {
                 <MenuItem value="other">Other</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <FormControl fullWidth margin="normal">
               <InputLabel>Status</InputLabel>
               <Select
@@ -509,8 +509,8 @@ export default function PurchaseForm() {
                 <MenuItem value="cancelled">Cancelled</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
-          <Grid item xs={12}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12 }}>
             <TextField
               fullWidth
               label="Notes"
@@ -522,16 +522,16 @@ export default function PurchaseForm() {
               rows={3}
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Purchase Summary</Typography>
         <Divider sx={{ mb: 2 }} />
 
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
+        <Grid2 container spacing={2}>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Subtotal"
@@ -543,8 +543,8 @@ export default function PurchaseForm() {
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Tax Rate (%)"
@@ -555,8 +555,8 @@ export default function PurchaseForm() {
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Tax Amount"
@@ -568,8 +568,8 @@ export default function PurchaseForm() {
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Shipping Cost"
@@ -583,8 +583,8 @@ export default function PurchaseForm() {
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Total"
@@ -596,8 +596,8 @@ export default function PurchaseForm() {
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
             />
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
       </Paper>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>

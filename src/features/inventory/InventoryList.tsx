@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Typography,
-  Grid,
   Card,
   CardContent,
   CardMedia,
@@ -17,13 +16,13 @@ import {
   Divider,
   Menu,
   MenuItem,
-  //ListItemIcon,
   ListItemText,
   Tooltip,
   Stack,
   Select,
   FormControl,
   InputLabel,
+  Grid2,
   OutlinedInput
 } from '@mui/material';
 import {
@@ -46,14 +45,21 @@ import { Item } from '@custTypes/models';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
+import { useSettings } from '@context/SettingsContext';
 
 export default function InventoryList() {
   const { data: items = [], isLoading, error } = useItems();
   const { data: categories = [] } = useCategories();
   const deleteItem = useDeleteItem();
+  const { lowStockAlertsEnabled, quantityThreshold, weightThresholds, defaultViewMode } = useSettings();
 
-  // View state (grid vs list)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  // Initialize view mode from settings
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(defaultViewMode);
+
+  // Update view mode if settings change
+  useEffect(() => {
+    setViewMode(defaultViewMode);
+  }, [defaultViewMode]);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,44 +69,48 @@ export default function InventoryList() {
   const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null);
 
   // Filter and sort items
-  const filteredItems = items.filter(item => {
-    // Search query filter
-    if (searchQuery && !(
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
-    )) {
-      return false;
-    }
-
-    // Category filter
-    if (selectedCategory !== 'all' && item.category !== selectedCategory) {
-      return false;
-    }
-
-    return true;
-  }).sort((a, b) => {
-    switch (sortBy) {
-      case 'name':
-        return a.name.localeCompare(b.name);
-      case 'price-asc':
-        return a.price - b.price;
-      case 'price-desc':
-        return b.price - a.price;
-      case 'stock-asc':
-        if (a.trackingType === 'quantity' && b.trackingType === 'quantity') {
-          return a.quantity - b.quantity;
+  const filteredItems = useMemo(() => {
+    return items
+      .filter(item => {
+        // Search query filter
+        if (searchQuery && !(
+          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
+        )) {
+          return false;
         }
-        return 0;
-      case 'stock-desc':
-        if (a.trackingType === 'quantity' && b.trackingType === 'quantity') {
-          return b.quantity - a.quantity;
+
+        // Category filter
+        if (selectedCategory !== 'all' && item.category !== selectedCategory) {
+          return false;
         }
-        return 0;
-      default:
-        return 0;
-    }
-  });
+
+        return true;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'name':
+            return a.name.localeCompare(b.name);
+          case 'price-asc':
+            return a.price - b.price;
+          case 'price-desc':
+            return b.price - a.price;
+          case 'stock-asc':
+            if (a.trackingType === 'quantity' && b.trackingType === 'quantity') {
+              return a.quantity - b.quantity;
+            }
+            return 0;
+          case 'stock-desc':
+            if (a.trackingType === 'quantity' && b.trackingType === 'quantity') {
+              return b.quantity - a.quantity;
+            }
+            return 0;
+          default:
+            return 0;
+        }
+      });
+  }, [items, searchQuery, selectedCategory, sortBy]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
@@ -112,44 +122,57 @@ export default function InventoryList() {
     }
   };
 
-  // Determine stock status color based on item tracking type and quantity/weight
-  const getStockStatusColor = (item: Item): 'success' | 'warning' | 'error' => {
+  // Memoize helper functions
+  const getStockStatusColor = useCallback((item: Item): 'success' | 'warning' | 'error' => {
     if (item.trackingType === 'quantity') {
       if (item.quantity <= 0) return 'error';
-      if (item.quantity <= 5) return 'warning';
+      if (!lowStockAlertsEnabled) return 'success';
+      if (item.quantity <= quantityThreshold) return 'warning';
       return 'success';
     } else {
       // Weight tracking
       if (item.priceType === 'each') {
         if (item.quantity <= 0) return 'error';
-        if (item.quantity <= 3) return 'warning';
+        if (!lowStockAlertsEnabled) return 'success';
+        if (item.quantity <= 3) return 'warning'; // Consider adding a separate threshold for packages
         return 'success';
       } else {
         // Price per weight unit
         if (item.weight <= 0) return 'error';
+        if (!lowStockAlertsEnabled) return 'success';
+
+        // Use configured thresholds based on weight unit
         const threshold =
-          item.weightUnit === 'kg' ? 1 :
-          item.weightUnit === 'g' ? 500 :
-          item.weightUnit === 'lb' ? 2 :
-          item.weightUnit === 'oz' ? 16 : 5;
+          item.weightUnit === 'kg' ? weightThresholds.kg :
+          item.weightUnit === 'g' ? weightThresholds.g :
+          item.weightUnit === 'lb' ? weightThresholds.lb :
+          item.weightUnit === 'oz' ? weightThresholds.oz : 5;
 
         if (item.weight <= threshold) return 'warning';
         return 'success';
       }
     }
-  };
+  }, [lowStockAlertsEnabled, quantityThreshold, weightThresholds]);
 
   // Get stock status label
   const getStockStatusLabel = (item: Item): string => {
     if (item.trackingType === 'quantity') {
       if (item.quantity <= 0) return 'Out of stock';
-      if (item.quantity <= 5) return `Low stock: ${item.quantity} left`;
+      if (lowStockAlertsEnabled && item.quantity <= quantityThreshold) return `Low stock: ${item.quantity} left`;
       return `${item.quantity} in stock`;
     } else {
       if (item.priceType === 'each') {
         if (item.quantity <= 0) return 'Out of stock';
         return `${item.quantity} × ${item.weight}${item.weightUnit}`;
       } else {
+        const threshold =
+          item.weightUnit === 'kg' ? weightThresholds.kg :
+          item.weightUnit === 'g' ? weightThresholds.g :
+          item.weightUnit === 'lb' ? weightThresholds.lb :
+          item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+
+        if (item.weight <= 0) return 'Out of stock';
+        if (lowStockAlertsEnabled && item.weight <= threshold) return `Low: ${item.weight}${item.weightUnit}`;
         return `${item.weight}${item.weightUnit} in stock`;
       }
     }
@@ -181,8 +204,8 @@ export default function InventoryList() {
     <Box>
       {/* Header with title and actions */}
       <Box sx={{ mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs>
+        <Grid2 container spacing={2} alignItems="center">
+          <Grid2 size="grow">
             <Typography variant="h4" component="h1">
               Inventory
             </Typography>
@@ -191,8 +214,8 @@ export default function InventoryList() {
                 filteredItems.reduce((total, item) => total + calculateTotalValue(item), 0)
               )}
             </Typography>
-          </Grid>
-          <Grid item>
+          </Grid2>
+          <Grid2>
             <Button
               component={RouterLink}
               to="/inventory/new"
@@ -202,14 +225,14 @@ export default function InventoryList() {
             >
               Add Item
             </Button>
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
       </Box>
 
       {/* Search and Filters Bar */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={4}>
+        <Grid2 container spacing={2} alignItems="center">
+          <Grid2 size= {{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
               placeholder="Search items..."
@@ -231,9 +254,9 @@ export default function InventoryList() {
               }}
               size="small"
             />
-          </Grid>
+          </Grid2>
 
-          <Grid item xs={12} md={3}>
+          <Grid2 size= {{ xs: 12, md: 3 }}>
             <FormControl fullWidth size="small">
               <InputLabel id="category-filter-label">Category</InputLabel>
               <Select
@@ -248,9 +271,9 @@ export default function InventoryList() {
                 ))}
               </Select>
             </FormControl>
-          </Grid>
+          </Grid2>
 
-          <Grid item xs={12} md={3}>
+          <Grid2 size= {{ xs: 12, md: 3 }}>
             <Button
               fullWidth
               variant="outlined"
@@ -285,11 +308,11 @@ export default function InventoryList() {
                 <ListItemText>Stock: High to Low</ListItemText>
               </MenuItem>
             </Menu>
-          </Grid>
+          </Grid2>
 
-          <Grid item xs={12} md={2}>
+          <Grid2 size= {{ xs: 12, md: 2 }}>
             <Stack direction="row" spacing={1} justifyContent="flex-end">
-              <Tooltip title="Grid View">
+              <Tooltip title="Grid2 View">
                 <IconButton
                   color={viewMode === 'grid' ? 'primary' : 'default'}
                   onClick={() => setViewMode('grid')}
@@ -306,8 +329,8 @@ export default function InventoryList() {
                 </IconButton>
               </Tooltip>
             </Stack>
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
       </Paper>
 
       {/* Results Count and Active Filters */}
@@ -359,9 +382,9 @@ export default function InventoryList() {
 
       {/* Grid View */}
       {viewMode === 'grid' && filteredItems.length > 0 && (
-        <Grid container spacing={3}>
+        <Grid2 container spacing={3}>
           {filteredItems.map((item) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={item._id}>
+            <Grid2 size= {{ xs: 12, sm: 6, md: 4, lg: 3}} key={item._id}>
               <Card sx={{
                 height: '100%',
                 display: 'flex',
@@ -490,9 +513,9 @@ export default function InventoryList() {
                   </Button>
                 </CardActions>
               </Card>
-            </Grid>
+            </Grid2>
           ))}
-        </Grid>
+        </Grid2>
       )}
 
       {/* List View */}
@@ -505,9 +528,9 @@ export default function InventoryList() {
                 p: 2,
                 '&:hover': { bgcolor: 'action.hover' }
               }}>
-                <Grid container spacing={2} alignItems="center">
+                <Grid2 container spacing={2} alignItems="center">
                   {/* Image */}
-                  <Grid item xs={12} sm={2} md={1}>
+                  <Grid2 size= {{ xs: 12, sm: 2, md: 1 }}>
                     <Box
                       sx={{
                         width: '60px',
@@ -528,10 +551,10 @@ export default function InventoryList() {
                         </Typography>
                       )}
                     </Box>
-                  </Grid>
+                  </Grid2>
 
                   {/* Item Details */}
-                  <Grid item xs={12} sm={5} md={6}>
+                  <Grid2 size= {{ xs: 12, sm: 5, md: 6 }}>
                     <Box>
                       <Typography variant="h6">{item.name}</Typography>
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -557,10 +580,10 @@ export default function InventoryList() {
                         ))}
                       </Box>
                     </Box>
-                  </Grid>
+                  </Grid2>
 
                   {/* Stock */}
-                  <Grid item xs={6} sm={2}>
+                  <Grid2 size= {{ xs: 6, sm: 2 }}>
                     <Chip
                       icon={getStockStatusColor(item) === 'error' || getStockStatusColor(item) === 'warning' ?
                         <LowStockIcon fontSize="small" /> : <HighStockIcon fontSize="small" />}
@@ -568,20 +591,20 @@ export default function InventoryList() {
                       color={getStockStatusColor(item)}
                       size="small"
                     />
-                  </Grid>
+                  </Grid2>
 
                   {/* Price */}
-                  <Grid item xs={6} sm={2} md={1.5}>
+                  <Grid2 size= {{ xs: 6, sm: 2, md: 1.5 }}>
                     <Typography variant="h6" color="primary">
                       {formatCurrency(item.price)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       Total: {formatCurrency(calculateTotalValue(item))}
                     </Typography>
-                  </Grid>
+                  </Grid2>
 
                   {/* Actions */}
-                  <Grid item xs={12} sm={3} md={1.5}>
+                  <Grid2 size= {{ xs: 12, sm: 3, md: 1.5 }}>
                     <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
                       <Tooltip title="View Details">
                         <IconButton
@@ -613,8 +636,8 @@ export default function InventoryList() {
                         </IconButton>
                       </Tooltip>
                     </Stack>
-                  </Grid>
-                </Grid>
+                  </Grid2>
+                </Grid2>
               </Box>
             </Box>
           ))}

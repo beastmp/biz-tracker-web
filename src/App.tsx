@@ -1,5 +1,6 @@
 import { BrowserRouter, useRoutes } from 'react-router-dom';
 import { AppProvider } from '@context/AppContext';
+import { SettingsProvider } from '@context/SettingsContext';
 import ErrorBoundary from '@components/ErrorBoundary';
 
 // Import route objects
@@ -14,9 +15,11 @@ function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <SettingsProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </SettingsProvider>
       </AppProvider>
     </ErrorBoundary>
   );

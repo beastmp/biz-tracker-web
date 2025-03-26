@@ -3,7 +3,7 @@ import {
   Box,
   Paper,
   Typography,
-  Grid,
+  Grid2,
   Card,
   CardContent,
   TextField,
@@ -111,8 +111,8 @@ export default function SalesReport() {
       </Typography>
 
       <Paper sx={{ p: 3, mb: 4 }}>
-        <Grid container spacing={3} alignItems="center" component="form" onSubmit={handleSubmit}>
-          <Grid item xs={12} sm={4}>
+        <Grid2 container spacing={3} alignItems="center" component="form" onSubmit={handleSubmit}>
+          <Grid2 size={{ xs: 12, sm: 4 }}>
             <TextField
               fullWidth
               label="Start Date"
@@ -121,8 +121,8 @@ export default function SalesReport() {
               onChange={(e) => setStartDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
-          </Grid>
-          <Grid item xs={12} sm={4}>
+          </Grid2>
+          <Grid2 size={{ xs: 12, sm: 4 }}>
             <TextField
               fullWidth
               label="End Date"
@@ -131,8 +131,8 @@ export default function SalesReport() {
               onChange={(e) => setEndDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
-          </Grid>
-          <Grid item xs={12} sm={4}>
+          </Grid2>
+          <Grid2 size={{ xs: 12, sm: 4 }}>
             <Button
               variant="contained"
               color="primary"
@@ -144,8 +144,8 @@ export default function SalesReport() {
             >
               Generate Report
             </Button>
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
 
         {error && (
           <Alert severity="error" sx={{ mt: 2 }}>
@@ -156,8 +156,8 @@ export default function SalesReport() {
 
       {reportData && (
         <>
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} sm={4}>
+          <Grid2 container spacing={3} sx={{ mb: 4 }}>
+            <Grid2 size={{ xs: 12, sm: 4 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -174,9 +174,9 @@ export default function SalesReport() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+            </Grid2>
 
-            <Grid item xs={12} sm={4}>
+            <Grid2 size={{ xs: 12, sm: 4 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -193,9 +193,9 @@ export default function SalesReport() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+            </Grid2>
 
-            <Grid item xs={12} sm={4}>
+            <Grid2 size={{ xs: 12, sm: 4 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -212,11 +212,11 @@ export default function SalesReport() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
-          </Grid>
+            </Grid2>
+          </Grid2>
 
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} md={6}>
+          <Grid2 container spacing={3} sx={{ mb: 4 }}>
+            <Grid2 size={{ xs: 12, md: 6 }}>
               <Paper sx={{ p: 3, height: '100%' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6">
@@ -254,9 +254,9 @@ export default function SalesReport() {
                   </Table>
                 </TableContainer>
               </Paper>
-            </Grid>
+            </Grid2>
 
-            <Grid item xs={12} md={6}>
+            <Grid2 size={{ xs: 12, md: 6 }}>
               <Paper sx={{ p: 3, height: '100%' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6">
@@ -294,11 +294,11 @@ export default function SalesReport() {
                   </Table>
                 </TableContainer>
               </Paper>
-            </Grid>
-          </Grid>
+            </Grid2>
+          </Grid2>
 
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+          <Grid2 container spacing={3}>
+            <Grid2 size={{ xs: 12, md: 6 }}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
                   Top Products by Quantity
@@ -306,24 +306,24 @@ export default function SalesReport() {
                 <Divider sx={{ mb: 2 }} />
 
                 <List>
-                  {reportData?.topProductsByQuantity.map(([name, quantity], index) => (
-                    <ListItem key={index} divider={index < reportData.topProductsByQuantity.length - 1}>
+                  {reportData?.topProductsByQuantity?.map(([name, quantity], index) => (
+                    <ListItem key={index} divider={index < (reportData.topProductsByQuantity?.length || 0) - 1}>
                       <ListItemText
                         primary={name}
                         secondary={`${quantity} units sold`}
                       />
                     </ListItem>
                   ))}
-                  {(!reportData?.topProductsByQuantity.length) && (
+                  {(!reportData?.topProductsByQuantity || reportData.topProductsByQuantity.length === 0) && (
                     <ListItem>
                       <ListItemText primary="No data available" />
                     </ListItem>
                   )}
                 </List>
               </Paper>
-            </Grid>
+            </Grid2>
 
-            <Grid item xs={12} md={6}>
+            <Grid2 size={{ xs: 12, md: 6 }}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
                   Top Products by Weight
@@ -331,23 +331,23 @@ export default function SalesReport() {
                 <Divider sx={{ mb: 2 }} />
 
                 <List>
-                  {reportData?.topProductsByWeight.map(([name, data], index) => (
-                    <ListItem key={index} divider={index < reportData.topProductsByWeight.length - 1}>
+                  {reportData?.topProductsByWeight?.map(([name, data], index) => (
+                    <ListItem key={index} divider={index < (reportData.topProductsByWeight?.length || 0) - 1}>
                       <ListItemText
                         primary={name}
                         secondary={`${data.weight.toFixed(2)} ${data.unit} sold`}
                       />
                     </ListItem>
                   ))}
-                  {(!reportData?.topProductsByWeight.length) && (
+                  {(!reportData?.topProductsByWeight || reportData.topProductsByWeight.length === 0) && (
                     <ListItem>
                       <ListItemText primary="No data available" />
                     </ListItem>
                   )}
                 </List>
               </Paper>
-            </Grid>
-          </Grid>
+            </Grid2>
+          </Grid2>
 
           <Paper sx={{ p: 3, mt: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -368,7 +368,7 @@ export default function SalesReport() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {reportData.sales.slice(0, 10).map((sale) => (
+                  {reportData?.sales?.slice(0, 10).map((sale) => (
                     <TableRow key={sale._id}>
                       <TableCell>
                         {sale.createdAt && formatDate(sale.createdAt)}
@@ -376,17 +376,17 @@ export default function SalesReport() {
                       <TableCell>
                         {sale.customerName || 'Guest Customer'}
                       </TableCell>
-                      <TableCell>{sale.items.length} item(s)</TableCell>
+                      <TableCell>{sale.items?.length || 0} item(s)</TableCell>
                       <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
                       <TableCell>
                         <StatusChip status={sale.status} />
                       </TableCell>
                       <TableCell>
-                        {sale.paymentMethod.charAt(0).toUpperCase() + sale.paymentMethod.slice(1)}
+                        {sale.paymentMethod?.charAt(0).toUpperCase() + sale.paymentMethod?.slice(1) || ''}
                       </TableCell>
                     </TableRow>
                   ))}
-                  {reportData.sales.length === 0 && (
+                  {(!reportData?.sales || reportData.sales.length === 0) && (
                     <TableRow>
                       <TableCell colSpan={6} align="center">No sales found in the selected date range.</TableCell>
                     </TableRow>

@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Paper,
-  Grid,
   Switch,
   List,
   ListItem,
@@ -12,7 +11,16 @@ import {
   ListItemSecondaryAction,
   Divider,
   Alert,
-  Snackbar
+  Snackbar,
+  TextField,
+  FormControl,
+  Select,
+  SelectChangeEvent,
+  MenuItem,
+  InputAdornment,
+  ToggleButtonGroup,
+  Grid2,
+  ToggleButton
 } from '@mui/material';
 import {
   DarkMode,
@@ -20,15 +28,34 @@ import {
   Notifications,
   Storage,
   Security,
-  Backup
+  Backup,
+  Inventory,
+  Scale,
+  GridView as GridViewIcon,
+  List as ListViewIcon
 } from '@mui/icons-material';
 import { useAppContext } from '@context/AppContext';
+import { useSettings } from '@context/SettingsContext';
 
 export default function Settings() {
   const { mode, toggleColorMode } = useAppContext();
   const [notifications, setNotifications] = useState(false);
   const [dataBackup, setDataBackup] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Use settings context instead of local state
+  const {
+    lowStockAlertsEnabled,
+    quantityThreshold,
+    weightThresholds,
+    defaultViewMode,
+    setLowStockAlertsEnabled,
+    setQuantityThreshold,
+    updateWeightThreshold,
+    setDefaultViewMode
+  } = useSettings();
+
+  const [selectedWeightUnit, setSelectedWeightUnit] = useState('lb');
 
   const handleToggleNotifications = () => {
     setNotifications(!notifications);
@@ -40,6 +67,42 @@ export default function Settings() {
     setSuccessMessage('Data backup settings updated');
   };
 
+  const handleToggleLowStockAlerts = () => {
+    setLowStockAlertsEnabled(!lowStockAlertsEnabled);
+    setSuccessMessage('Low stock alert settings updated');
+  };
+
+  const handleQuantityThresholdChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(event.target.value);
+    if (!isNaN(value) && value >= 0) {
+      setQuantityThreshold(value);
+      setSuccessMessage('Quantity threshold updated');
+    }
+  };
+
+  // Update the type annotation to use SelectChangeEvent
+  const handleWeightUnitChange = (event: SelectChangeEvent) => {
+    setSelectedWeightUnit(event.target.value);
+  };
+
+  const handleWeightThresholdChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(event.target.value);
+    if (!isNaN(value) && value >= 0) {
+      updateWeightThreshold(selectedWeightUnit as keyof typeof weightThresholds, value);
+      setSuccessMessage(`${selectedWeightUnit} threshold updated`);
+    }
+  };
+
+  const handleViewModeChange = (
+    _: React.MouseEvent<HTMLElement>,
+    newMode: 'grid' | 'list' | null
+  ) => {
+    if (newMode !== null) {
+      setDefaultViewMode(newMode);
+      setSuccessMessage(`Default view set to ${newMode} mode`);
+    }
+  };
+
   return (
     <Box>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -49,9 +112,9 @@ export default function Settings() {
         Manage your application preferences and settings
       </Typography>
 
-      <Grid container spacing={3}>
+      <Grid2 container spacing={3}>
         {/* Theme Settings */}
-        <Grid item xs={12} md={6}>
+        <Grid2 size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Appearance
@@ -77,10 +140,10 @@ export default function Settings() {
               </ListItem>
             </List>
           </Paper>
-        </Grid>
+        </Grid2>
 
         {/* Notifications Settings */}
-        <Grid item xs={12} md={6}>
+        <Grid2 size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Notifications
@@ -106,10 +169,149 @@ export default function Settings() {
               </ListItem>
             </List>
           </Paper>
-        </Grid>
+        </Grid2>
+
+        {/* Low Stock Settings */}
+        <Grid2 size={{ xs: 12, md: 6 }}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Inventory Settings
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+
+            <List disablePadding>
+              <ListItem>
+                <ListItemIcon>
+                  <Inventory />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Low Stock Alerts"
+                  secondary="Enable warnings for items with low inventory"
+                />
+                <ListItemSecondaryAction>
+                  <Switch
+                    edge="end"
+                    checked={lowStockAlertsEnabled}
+                    onChange={handleToggleLowStockAlerts}
+                  />
+                </ListItemSecondaryAction>
+              </ListItem>
+
+              <Divider component="li" />
+
+              {lowStockAlertsEnabled && (
+                <>
+                  <ListItem>
+                    <ListItemText
+                      primary="Quantity-Based Items"
+                      secondary="Alert when quantity falls below threshold"
+                      sx={{ ml: 2 }}
+                    />
+                    <ListItemSecondaryAction>
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={quantityThreshold}
+                        onChange={handleQuantityThresholdChange}
+                        InputProps={{
+                          inputProps: { min: 0 },
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Inventory fontSize="small" />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{ width: '100px' }}
+                      />
+                    </ListItemSecondaryAction>
+                  </ListItem>
+
+                  <Divider component="li" />
+
+                  <ListItem>
+                    <ListItemText
+                      primary="Weight-Based Items"
+                      secondary="Alert when weight falls below threshold"
+                      sx={{ ml: 2 }}
+                    />
+                    <ListItemSecondaryAction sx={{ display: 'flex', alignItems: 'center' }}>
+                      <FormControl size="small" sx={{ width: '70px', mr: 1 }}>
+                        <Select
+                          value={selectedWeightUnit}
+                          onChange={handleWeightUnitChange}
+                          displayEmpty
+                        >
+                          <MenuItem value="kg">kg</MenuItem>
+                          <MenuItem value="g">g</MenuItem>
+                          <MenuItem value="lb">lb</MenuItem>
+                          <MenuItem value="oz">oz</MenuItem>
+                        </Select>
+                      </FormControl>
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={weightThresholds[selectedWeightUnit as keyof typeof weightThresholds]}
+                        onChange={handleWeightThresholdChange}
+                        InputProps={{
+                          inputProps: {
+                            min: 0,
+                            step: selectedWeightUnit === 'g' ? 10 : 0.1
+                          },
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Scale fontSize="small" />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{ width: '100px' }}
+                      />
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                </>
+              )}
+            </List>
+          </Paper>
+        </Grid2>
+
+        {/* Display Settings */}
+        <Grid2 size={{ xs: 12, md: 6 }}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Display Settings
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+
+            <List disablePadding>
+              <ListItem>
+                <ListItemIcon>
+                  {defaultViewMode === 'grid' ? <GridViewIcon /> : <ListViewIcon />}
+                </ListItemIcon>
+                <ListItemText
+                  primary="Default View Mode"
+                  secondary="Choose how items are displayed in list screens"
+                />
+                <ListItemSecondaryAction>
+                  <ToggleButtonGroup
+                    value={defaultViewMode}
+                    exclusive
+                    onChange={handleViewModeChange}
+                    size="small"
+                  >
+                    <ToggleButton value="grid">
+                      <GridViewIcon fontSize="small" sx={{ mr: 0.5 }} /> Grid
+                    </ToggleButton>
+                    <ToggleButton value="list">
+                      <ListViewIcon fontSize="small" sx={{ mr: 0.5 }} /> List
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </ListItemSecondaryAction>
+              </ListItem>
+            </List>
+          </Paper>
+        </Grid2>
 
         {/* Data Settings */}
-        <Grid item xs={12} md={6}>
+        <Grid2 size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Data Management
@@ -154,10 +356,10 @@ export default function Settings() {
               </ListItem>
             </List>
           </Paper>
-        </Grid>
+        </Grid2>
 
         {/* Security Settings */}
-        <Grid item xs={12} md={6}>
+        <Grid2 size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Security & Privacy
@@ -181,10 +383,10 @@ export default function Settings() {
               </ListItem>
             </List>
           </Paper>
-        </Grid>
+        </Grid2>
 
         {/* Version Info */}
-        <Grid item xs={12}>
+        <Grid2 size={{ xs: 12 }}>
           <Paper sx={{ p: 3, textAlign: 'center' }}>
             <Typography variant="subtitle1" gutterBottom>
               BizTracker v1.0.0
@@ -193,8 +395,8 @@ export default function Settings() {
               © 2023 BizTracker. All rights reserved.
             </Typography>
           </Paper>
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
 
       <Snackbar
         open={!!successMessage}

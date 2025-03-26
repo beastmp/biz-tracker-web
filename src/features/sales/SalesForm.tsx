@@ -6,7 +6,7 @@ import {
   Typography,
   TextField,
   Button,
-  Grid,
+  Grid2,
   Alert,
   InputAdornment,
   MenuItem,
@@ -258,16 +258,16 @@ export default function SaleForm() {
       )}
 
       {/* Form content (identical to original) */}
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={8}>
+      <Grid2 container spacing={3}>
+        <Grid2 size= {{ xs: 12, md: 8 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>
               Customer Information
             </Typography>
             <Divider sx={{ mb: 2 }} />
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={12}>
+            <Grid2 container spacing={2}>
+              <Grid2 size= {{ xs: 12, sm: 12 }}>
                 <TextField
                   fullWidth
                   label="Customer Name"
@@ -277,8 +277,8 @@ export default function SaleForm() {
                   disabled={createSale.isPending || updateSale.isPending}
                   placeholder="Optional"
                 />
-              </Grid>
-              <Grid item xs={12} sm={6}>
+              </Grid2>
+              <Grid2 size= {{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   label="Email"
@@ -288,8 +288,8 @@ export default function SaleForm() {
                   disabled={createSale.isPending || updateSale.isPending}
                   placeholder="Optional"
                 />
-              </Grid>
-              <Grid item xs={12} sm={6}>
+              </Grid2>
+              <Grid2 size= {{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   label="Phone"
@@ -299,8 +299,8 @@ export default function SaleForm() {
                   disabled={createSale.isPending || updateSale.isPending}
                   placeholder="Optional"
                 />
-              </Grid>
-            </Grid>
+              </Grid2>
+            </Grid2>
           </Paper>
 
           <Paper sx={{ p: 3, mb: 3 }}>
@@ -403,8 +403,8 @@ export default function SaleForm() {
             </Typography>
             <Divider sx={{ mb: 2 }} />
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+            <Grid2 container spacing={2}>
+              <Grid2 size= {{ xs: 12, sm: 6 }}>
                 <FormControl fullWidth>
                   <InputLabel>Payment Method</InputLabel>
                   <Select
@@ -421,8 +421,8 @@ export default function SaleForm() {
                     <MenuItem value="other">Other</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
+              </Grid2>
+              <Grid2 size= {{ xs: 12, sm: 6 }}>
                 <FormControl fullWidth>
                   <InputLabel>Status</InputLabel>
                   <Select
@@ -437,8 +437,8 @@ export default function SaleForm() {
                     <MenuItem value="partially_refunded">Partially Refunded</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid item xs={12}>
+              </Grid2>
+              <Grid2 size= {{ xs: 12 }}>
                 <TextField
                   fullWidth
                   multiline
@@ -450,12 +450,12 @@ export default function SaleForm() {
                   disabled={createSale.isPending || updateSale.isPending}
                   placeholder="Optional notes about this sale"
                 />
-              </Grid>
-            </Grid>
+              </Grid2>
+            </Grid2>
           </Paper>
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={12} md={4}>
+        <Grid2 size= {{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 3, position: 'sticky', top: 20 }}>
             <Typography variant="h6" gutterBottom>
               Sale Summary
@@ -463,17 +463,17 @@ export default function SaleForm() {
             <Divider sx={{ mb: 2 }} />
 
             <Box sx={{ mb: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={7}>
+              <Grid2 container spacing={2}>
+                <Grid2 size= {{ xs: 7 }}>
                   <Typography variant="body1">Subtotal:</Typography>
-                </Grid>
-                <Grid item xs={5}>
+                </Grid2>
+                <Grid2 size= {{ xs: 5 }}>
                   <Typography variant="body1" align="right">
                     {formatCurrency(formData.subtotal || 0)}
                   </Typography>
-                </Grid>
+                </Grid2>
 
-                <Grid item xs={7} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Grid2 size= {{ xs: 7 }} sx={{ display: 'flex', alignItems: 'center' }}>
                   <Typography variant="body1" sx={{ mr: 1 }}>Tax Rate:</Typography>
                   <TextField
                     size="small"
@@ -488,14 +488,14 @@ export default function SaleForm() {
                     }}
                     sx={{ width: 80 }}
                   />
-                </Grid>
-                <Grid item xs={5}>
+                </Grid2>
+                <Grid2 size= {{ xs: 5 }}>
                   <Typography variant="body1" align="right">
                     {formatCurrency(formData.taxAmount || 0)}
                   </Typography>
-                </Grid>
+                </Grid2>
 
-                <Grid item xs={7} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Grid2 size= {{ xs: 7 }} sx={{ display: 'flex', alignItems: 'center' }}>
                   <Typography variant="body1" sx={{ mr: 1 }}>Discount:</Typography>
                   <TextField
                     size="small"
@@ -510,28 +510,28 @@ export default function SaleForm() {
                     }}
                     sx={{ width: 100 }}
                   />
-                </Grid>
-                <Grid item xs={5}>
+                </Grid2>
+                <Grid2 size= {{ xs: 5 }}>
                   <Typography variant="body1" align="right" color="error">
                     -{formatCurrency(formData.discountAmount || 0)}
                   </Typography>
-                </Grid>
-              </Grid>
+                </Grid2>
+              </Grid2>
             </Box>
 
             <Divider sx={{ my: 2 }} />
 
             <Box sx={{ mb: 3 }}>
-              <Grid container spacing={1}>
-                <Grid item xs={6}>
+              <Grid2 container spacing={1}>
+                <Grid2 size= {{ xs: 6 }}>
                   <Typography variant="h6">Total:</Typography>
-                </Grid>
-                <Grid item xs={6}>
+                </Grid2>
+                <Grid2 size= {{ xs: 6 }}>
                   <Typography variant="h6" align="right" color="primary">
                     {formatCurrency(formData.total || 0)}
                   </Typography>
-                </Grid>
-              </Grid>
+                </Grid2>
+              </Grid2>
             </Box>
 
             <Button
@@ -546,8 +546,8 @@ export default function SaleForm() {
               {createSale.isPending || updateSale.isPending ? 'Saving...' : isEditMode ? 'Update Sale' : 'Complete Sale'}
             </Button>
           </Paper>
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
 
       {/* Item Selection Dialog */}
       <Dialog open={itemDialogOpen} onClose={() => setItemDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -558,26 +558,26 @@ export default function SaleForm() {
           ) : selectedItem ? (
             <Box sx={{ mb: 2 }}>
               <Typography variant="h6" gutterBottom>{selectedItem.name}</Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
+              <Grid2 container spacing={2}>
+                <Grid2 size= {{ xs: 12 }}>
                   <Typography variant="body2" color="text.secondary">
                     SKU: {selectedItem.sku} | Category: {selectedItem.category}
                   </Typography>
-                </Grid>
-                <Grid item xs={12}>
+                </Grid2>
+                <Grid2 size= {{ xs: 12 }}>
                   <Typography variant="body1">
                     {selectedItem.trackingType === 'quantity'
                       ? `Available: ${selectedItem.quantity} in stock`
                       : `Available: ${selectedItem.weight} ${selectedItem.weightUnit} in stock`}
                   </Typography>
-                </Grid>
-                <Grid item xs={12}>
+                </Grid2>
+                <Grid2 size= {{ xs: 12 }}>
                   <Typography variant="body1">
                     Price: {formatCurrency(selectedItem.price)}
                     {selectedItem.priceType === 'per_weight_unit' && `/${selectedItem.weightUnit}`}
                   </Typography>
-                </Grid>
-                <Grid item xs={12}>
+                </Grid2>
+                <Grid2 size= {{ xs: 12 }}>
                   {selectedItem.trackingType === 'quantity' ? (
                     <TextField
                       fullWidth
@@ -603,8 +603,8 @@ export default function SaleForm() {
                       helperText={`Maximum available: ${selectedItem.weight} ${selectedItem.weightUnit}`}
                     />
                   )}
-                </Grid>
-              </Grid>
+                </Grid2>
+              </Grid2>
             </Box>
           ) : (
             <List sx={{ pt: 0 }}>
