@@ -31,6 +31,8 @@ import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import { useSettings } from '@context/SettingsContext';
+import { isPopulatedItem, Item } from '@custTypes/models';
+import { JSX } from 'react';
 
 export default function InventoryDetail() {
   const { id } = useParams();
@@ -87,6 +89,53 @@ export default function InventoryDetail() {
         return 'success';
       }
     }
+  };
+
+  // Shared function to render related items (used for both materials and products)
+  const renderRelatedItem = (
+    item: string | Item | null | undefined,
+    index: number,
+    extraContent?: JSX.Element
+  ) => {
+    const isPopulated = isPopulatedItem(item);
+    const itemId = isPopulated ? item._id : (typeof item === 'string' ? item : '');
+    const itemName = isPopulated ? item.name : 'Unknown Item';
+    const itemImage = isPopulated && item.imageUrl ? item.imageUrl : '/placeholder.png';
+
+    return (
+      <Box
+        key={itemId?.toString() || index.toString()}
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <img
+            src={itemImage}
+            alt={itemName}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 4,
+              marginRight: 16,
+              objectFit: 'cover',
+              background: '#f5f5f5'
+            }}
+          />
+          <Box>
+            {itemId ? (
+              <RouterLink
+                to={`/inventory/${itemId}`}
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
+                <Typography variant="subtitle1">{itemName}</Typography>
+              </RouterLink>
+            ) : (
+              <Typography variant="subtitle1">{itemName}</Typography>
+            )}
+            {extraContent}
+          </Box>
+        </Box>
+      </Box>
+    );
   };
 
   if (isLoading) {
@@ -598,48 +647,27 @@ export default function InventoryDetail() {
 
               {data.components && data.components.length > 0 ? (
                 <Stack spacing={2}>
-                  {data.components.map((component) => {
-                    const material = component.item;
+                  {data.components.map((component, index) => {
+                    const material = component.item || null;
+                    const isPopulated = isPopulatedItem(material);
+                    const materialCost = isPopulated && material.cost ? material.cost : 0;
+
                     return (
                       <Box
-                        // Fix the key prop to handle both string and object types
-                        key={typeof material === 'object' ? material._id : material}
-                        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                        key={index}
+                        sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
                       >
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Box
-                            component="img"
-                            // Fix the image source
-                            src={(typeof material === 'object' ? material.imageUrl : '') || '/placeholder.png'}
-                            alt={typeof material === 'object' ? material.name : 'Material'}
-                            sx={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 1,
-                              mr: 2,
-                              objectFit: 'cover',
-                              background: '#f5f5f5'
-                            }}
-                          />
-                          <Box>
-                            <RouterLink
-                              to={`/inventory/${typeof material === 'object' ? material._id : material}`}
-                              style={{ textDecoration: 'none', color: 'inherit' }}
-                            >
-                              <Typography variant="subtitle1">
-                                {typeof material === 'object' ? material.name : 'Unknown Material'}
-                              </Typography>
-                            </RouterLink>
-                            <Typography variant="body2" color="text.secondary">
-                              {component.quantity} × {component.weight ? `${component.weight} ${component.weightUnit}` : 'units'} used
-                            </Typography>
-                          </Box>
-                        </Box>
+                        {renderRelatedItem(
+                          material,
+                          index,
+                          <Typography variant="body2" color="text.secondary">
+                            {component.quantity || 0} × {component.weight
+                              ? `${component.weight} ${component.weightUnit || ''}`
+                              : 'units'} used
+                          </Typography>
+                        )}
                         <Typography variant="subtitle1" color="primary">
-                          {formatCurrency(
-                            typeof material === 'object' ?
-                            (component.quantity * (material.cost || 0)) : 0
-                          )}
+                          {formatCurrency((component.quantity || 0) * materialCost)}
                         </Typography>
                       </Box>
                     );
@@ -662,36 +690,9 @@ export default function InventoryDetail() {
 
               {data.usedInProducts && data.usedInProducts.length > 0 ? (
                 <Stack spacing={2}>
-                  {data.usedInProducts.map((product) => (
-                    <Box
-                    key={typeof product === 'object' ? product._id : product}
-                      sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Box
-                          component="img"
-                          src={typeof product === 'object' ? product.imageUrl : '/placeholder.png'}
-                          alt={typeof product === 'object' ? product.name : 'Unknown Product'}
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 1,
-                            mr: 2,
-                            objectFit: 'cover',
-                            background: '#f5f5f5'
-                          }}
-                        />
-                        <RouterLink
-                          to={`/inventory/${typeof product === 'object' ? product._id : product}`}
-                          style={{ textDecoration: 'none', color: 'inherit' }}
-                        >
-                          <Typography variant="subtitle1">
-                            {typeof product === 'object' ? product.name : 'Unknown Product'}
-                          </Typography>
-                        </RouterLink>
-                      </Box>
-                    </Box>
-                  ))}
+                  {data.usedInProducts.map((product, index) =>
+                    renderRelatedItem(product, index)
+                  )}
                 </Stack>
               ) : (
                 <Typography variant="body2" color="text.secondary">

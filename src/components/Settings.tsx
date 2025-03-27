@@ -20,7 +20,9 @@ import {
   InputAdornment,
   ToggleButtonGroup,
   Grid2,
-  ToggleButton
+  ToggleButton,
+  Button,
+  CircularProgress
 } from '@mui/material';
 import {
   DarkMode,
@@ -33,16 +35,21 @@ import {
   Scale,
   GridView as GridViewIcon,
   List as ListViewIcon,
-  ViewModule
+  ViewModule,
+  Sync,
+  Link as LinkIcon
 } from '@mui/icons-material';
 import { useAppContext } from '@context/AppContext';
 import { useSettings } from '@context/SettingsContext';
+import { useRebuildRelationships } from '@hooks/useItems';
 
 export default function Settings() {
   const { mode, toggleColorMode } = useAppContext();
   const [notifications, setNotifications] = useState(false);
   const [dataBackup, setDataBackup] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [rebuildingRelationships, setRebuildingRelationships] = useState(false);
+  const rebuildRelationships = useRebuildRelationships();
 
   // Use settings context instead of local state
   const {
@@ -112,6 +119,19 @@ export default function Settings() {
       event.target.value === 'none' ? 'None' :
       event.target.value === 'itemType' ? 'Item Type' : 'Category'
     }`);
+  };
+
+  const handleRebuildRelationships = async () => {
+    setRebuildingRelationships(true);
+    try {
+      await rebuildRelationships.mutateAsync();
+      setSuccessMessage('Item relationships have been successfully rebuilt!');
+    } catch (error) {
+      console.error('Failed to rebuild relationships:', error);
+      setSuccessMessage('Failed to rebuild item relationships. Please try again.');
+    } finally {
+      setRebuildingRelationships(false);
+    }
   };
 
   return (
@@ -387,6 +407,30 @@ export default function Settings() {
                     checked={dataBackup}
                     onChange={handleToggleDataBackup}
                   />
+                </ListItemSecondaryAction>
+              </ListItem>
+
+              <Divider component="li" />
+
+              <ListItem>
+                <ListItemIcon>
+                  <LinkIcon />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Item Relationships"
+                  secondary="Rebuild product-material relationships"
+                />
+                <ListItemSecondaryAction>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={handleRebuildRelationships}
+                    disabled={rebuildingRelationships}
+                    startIcon={rebuildingRelationships ? <CircularProgress size={20} /> : <Sync />}
+                    size="small"
+                  >
+                    {rebuildingRelationships ? 'Rebuilding...' : 'Rebuild'}
+                  </Button>
                 </ListItemSecondaryAction>
               </ListItem>
             </List>

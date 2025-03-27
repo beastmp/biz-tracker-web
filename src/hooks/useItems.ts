@@ -23,7 +23,7 @@ export const useItems = () => {
 export const useItem = (id: string | undefined) => {
   return useQuery({
     queryKey: [ITEMS_KEY, id],
-    queryFn: () => get<Item>(`/api/items/${id}`),
+    queryFn: () => get<Item>(`/api/items/${id}?populate=true`), // Add populate parameter
     enabled: !!id, // Only run if id exists
   });
 };
@@ -251,6 +251,19 @@ export const useTags = () => {
         console.error('Error in getTags:', error);
         return []; // Default fallback
       }
+    }
+  });
+};
+
+// Hook to rebuild item relationships
+export const useRebuildRelationships = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => post('/api/items/rebuild-relationships'),
+    onSuccess: () => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
     }
   });
 };

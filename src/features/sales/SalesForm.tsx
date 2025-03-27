@@ -40,7 +40,7 @@ import {
 } from '@mui/material';
 import { Save, ArrowBack, Add, Delete, Image as ImageIcon, Construction, DeleteOutline, Search, Category } from '@mui/icons-material';
 import { useSale, useCreateSale, useUpdateSale } from '@hooks/useSales';
-import { useItems, useCreateItem, useUpdateItem } from '@hooks/useItems';
+import { useItems, useCreateItem } from '@hooks/useItems';
 import { Sale, SaleItem, Item } from '@custTypes/models';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
@@ -56,7 +56,6 @@ export default function SaleForm() {
   const createSale = useCreateSale();
   const updateSale = useUpdateSale(id);
   const createItem = useCreateItem();
-  const updateItem = useUpdateItem();  // Empty string as we'll provide IDs in the function
 
   // Form state
   const [formData, setFormData] = useState<Partial<Sale>>({
@@ -294,11 +293,44 @@ export default function SaleForm() {
     }
   }, [selectedItem, useAutoMarkup, markupPercentage]);
 
-  const [materialsToReduce, setMaterialsToReduce] = useState<Array<{
-    materialId: string;
-    quantity: number;
-  }>>([]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
+    if (!formData.items?.length) {
+      setError('Please add at least one item to the sale');
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const saleData = formData as Sale;
+
+      if (isEditMode) {
+        await updateSale.mutateAsync(saleData);
+      } else {
+        await createSale.mutateAsync(saleData);
+      }
+      navigate('/sales');
+    } catch (error) {
+      console.error('Failed to save sale:', error);
+      setError('Failed to save sale. Please try again.');
+    }
+  };
+
+  // Create a lookup object for items for efficient access
+  const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
+
+  if (saleLoading || itemsLoading) {
+    return <LoadingScreen />;
+  }
+
+  // Remove a material from the new product
+  const handleRemoveMaterial = (index: number) => {
+    setSelectedMaterials(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Create the new product and add to sale
   const handleCreateProduct = async () => {
     if (!newProductName) {
       setError("Product name is required");
@@ -311,17 +343,6 @@ export default function SaleForm() {
     }
 
     try {
-      // Validate material quantities are available
-      const insufficientMaterials = selectedMaterials.filter(({ material, quantity }) => {
-        return material.quantity < quantity;
-      });
-
-      if (insufficientMaterials.length > 0) {
-        const missingItems = insufficientMaterials.map(({ material }) => material.name).join(", ");
-        setError(`Insufficient quantity for: ${missingItems}`);
-        return;
-      }
-
       // Create new product
       const materialsCost = calculateMaterialsCost();
       const productPrice = calculateProductPrice();
@@ -335,7 +356,7 @@ export default function SaleForm() {
         quantity: 1, // Start with one item
         weight: 0,
         weightUnit: 'lb',
-        price: calculateProductPrice(),
+        price: calculateProductPrice(), // This now handles both pricing modes
         priceType: 'each',
         itemType: 'product',
         cost: materialsCost,
@@ -347,16 +368,6 @@ export default function SaleForm() {
 
       // Create the product via API
       const createdProduct = await createItem.mutateAsync(newProduct as Item);
-
-      // REMOVED: Material inventory reduction code
-      // Instead, track materials to reduce when sale is finalized
-      const materialsToUpdate = selectedMaterials.map(({ material, quantity }) => ({
-        materialId: material._id || '',
-        quantity
-      })).filter(item => item.materialId);
-
-      // Add to the tracking list
-      setMaterialsToReduce(prev => [...prev, ...materialsToUpdate]);
 
       // Add the new product to the sale
       const newSaleItem: SaleItem = {
@@ -383,67 +394,6 @@ export default function SaleForm() {
       console.error('Failed to create product:', err);
       setError('Failed to create product. Please try again.');
     }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.items?.length) {
-      setError('Please add at least one item to the sale');
-      return;
-    }
-
-    setError(null);
-
-    try {
-      // FIRST: Update material inventory before creating the sale
-      if (materialsToReduce.length > 0) {
-        const materialUpdates = materialsToReduce.map(async ({ materialId, quantity }) => {
-          // Get the current material from the items list
-          const material = items.find(item => item._id === materialId);
-          if (!material) return null;
-
-          // Calculate new quantity
-          const newQuantity = Math.max(0, material.quantity - quantity);
-
-          // Update the material's quantity
-          return await updateItem.mutateAsync({
-            _id: materialId,
-            quantity: newQuantity,
-            lastUpdated: new Date()
-          } as Item);
-        });
-
-        // Wait for all material updates to complete BEFORE creating the sale
-        await Promise.all(materialUpdates);
-      }
-
-      // THEN: Create the sale after materials have been reduced
-      const saleData = formData as Sale;
-
-      if (isEditMode) {
-        await updateSale.mutateAsync(saleData);
-      } else {
-        await createSale.mutateAsync(saleData);
-      }
-
-      navigate('/sales');
-    } catch (error) {
-      console.error('Failed to save sale:', error);
-      setError('Failed to save sale. Please try again.');
-    }
-  };
-
-  // Create a lookup object for items for efficient access
-  const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
-
-  if (saleLoading || itemsLoading) {
-    return <LoadingScreen />;
-  }
-
-  // Remove a material from the new product
-  const handleRemoveMaterial = (index: number) => {
-    setSelectedMaterials(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAddMultipleMaterials = () => {

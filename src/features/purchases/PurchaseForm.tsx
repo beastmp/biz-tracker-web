@@ -32,11 +32,12 @@ import {
   InputLabel,
   Select,
   SelectChangeEvent,
+  FormHelperText,
 } from '@mui/material';
-import { Save, ArrowBack, Add, Delete, Image as ImageIcon } from '@mui/icons-material';
+import { Save, ArrowBack, Add, Delete, Image as ImageIcon, AddCircle } from '@mui/icons-material';
 import { usePurchase, useCreatePurchase, useUpdatePurchase } from '@hooks/usePurchases';
-import { useItems } from '@hooks/useItems';
-import { Purchase, PurchaseItem, Item } from '@custTypes/models';
+import { useItems, useCreateItem, useNextSku, useCategories } from '@hooks/useItems';
+import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType } from '@custTypes/models';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
@@ -49,8 +50,11 @@ export default function PurchaseForm() {
   // Queries
   const { data: existingPurchase, isLoading: purchaseLoading, error: purchaseError } = usePurchase(id);
   const { data: items = [], isLoading: itemsLoading, error: itemsError } = useItems();
+  const { data: nextSku } = useNextSku();
+  const { data: categories = [] } = useCategories();
   const createPurchase = useCreatePurchase();
   const updatePurchase = useUpdatePurchase(id);
+  const createItem = useCreateItem();
 
   // Form state
   const [purchase, setPurchase] = useState<Purchase>({
@@ -74,11 +78,31 @@ export default function PurchaseForm() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [weight, setWeight] = useState(0);
-  const [weightUnit, setWeightUnit] = useState<'oz' | 'lb' | 'g' | 'kg'>('lb');
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>('lb');
   const [costPerUnit, setCostPerUnit] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
   const [itemSelectDialogOpen, setItemSelectDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // New item form state
+  const [createItemDialogOpen, setCreateItemDialogOpen] = useState(false);
+  const [newItem, setNewItem] = useState<Partial<Item>>({
+    name: '',
+    sku: '',
+    category: '',
+    trackingType: 'quantity' as TrackingType,
+    itemType: 'material' as ItemType,
+    quantity: 0,
+    weight: 0,
+    weightUnit: 'lb' as WeightUnit,
+    price: 0,
+    priceType: 'each',
+    description: '',
+    cost: 0
+  });
+  const [newItemErrors, setNewItemErrors] = useState<Record<string, string>>({});
+  const [newItemTotalPrice, setNewItemTotalPrice] = useState<number>(0);
+  const [newItemUnitCost, setNewItemUnitCost] = useState<number>(0);
 
   // Load existing purchase data if in edit mode
   useEffect(() => {
@@ -86,6 +110,13 @@ export default function PurchaseForm() {
       setPurchase(existingPurchase);
     }
   }, [isEditMode, existingPurchase]);
+
+  // Set next SKU when available
+  useEffect(() => {
+    if (nextSku) {
+      setNewItem(prev => ({ ...prev, sku: nextSku }));
+    }
+  }, [nextSku]);
 
   // Update total costs whenever items, tax, or shipping change
   useEffect(() => {
@@ -114,6 +145,26 @@ export default function PurchaseForm() {
       setTotalCost(quantity * costPerUnit);
     }
   }, [quantity, costPerUnit, weight, selectedItem]);
+
+  // Add new effect to calculate cost per unit when total cost or quantity changes
+  useEffect(() => {
+    if (quantity > 0) {
+      setCostPerUnit(totalCost / quantity);
+    } else if (weight > 0 && selectedItem?.trackingType === 'weight') {
+      setCostPerUnit(totalCost / weight);
+    }
+  }, [totalCost, quantity, weight, selectedItem]);
+
+  // Add effect to calculate unit cost when total price or quantity changes
+  useEffect(() => {
+    if (newItem.trackingType === 'quantity' && newItem.quantity && newItem.quantity > 0) {
+      setNewItemUnitCost(newItemTotalPrice / newItem.quantity);
+    } else if (newItem.trackingType === 'weight' && newItem.weight && newItem.weight > 0) {
+      setNewItemUnitCost(newItemTotalPrice / newItem.weight);
+    } else {
+      setNewItemUnitCost(0);
+    }
+  }, [newItemTotalPrice, newItem.quantity, newItem.weight, newItem.trackingType]);
 
   const handleTextChange = (field: string, value: string | number) => {
     if (field.startsWith('supplier.')) {
@@ -182,6 +233,94 @@ export default function PurchaseForm() {
     setSelectedItem(item);
     setCostPerUnit(item.price);
     setItemSelectDialogOpen(false);
+  };
+
+  // New item handlers
+  const handleNewItemChange = (field: string, value: any) => {
+    setNewItem(prev => ({ ...prev, [field]: value }));
+
+    // Clear validation error when field is changed
+    if (newItemErrors[field]) {
+      setNewItemErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const validateNewItem = () => {
+    const errors: Record<string, string> = {};
+
+    if (!newItem.name) errors.name = 'Name is required';
+    if (!newItem.sku) errors.sku = 'SKU is required';
+    if (!newItem.category) errors.category = 'Category is required';
+
+    if (newItem.trackingType === 'quantity' && (!newItem.quantity || newItem.quantity < 0)) {
+      errors.quantity = 'Valid quantity is required';
+    }
+
+    if (newItem.trackingType === 'weight' && (!newItem.weight || newItem.weight < 0)) {
+      errors.weight = 'Valid weight is required';
+    }
+
+    // Remove price validation since it will be set from purchase cost
+
+    setNewItemErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleCreateNewItem = async () => {
+    if (!validateNewItem()) return;
+
+    try {
+      // Set price from costPerUnit for the new item
+      const itemWithCost = {
+        ...newItem,
+        cost: newItemUnitCost || 0,
+        price: newItem.price || 0 // Use the entered sale price
+      };
+
+      const createdItem = await createItem.mutateAsync(itemWithCost as Item);
+
+      // Automatically select the new item
+      setSelectedItem(createdItem);
+
+      // Transfer the purchase values to the form
+      setCostPerUnit(newItemUnitCost);
+      setTotalCost(newItemTotalPrice);
+
+      // Set quantity or weight based on tracking type
+      if (createdItem.trackingType === 'weight') {
+        setWeight(createdItem.weight || 0);
+        setWeightUnit(createdItem.weightUnit || 'lb');
+      } else {
+        setQuantity(createdItem.quantity || 1);
+      }
+
+      // Close the create dialog
+      setCreateItemDialogOpen(false);
+      setItemSelectDialogOpen(false);
+
+      // Reset new item form
+      setNewItem({
+        name: '',
+        sku: nextSku || '',
+        category: '',
+        trackingType: 'quantity' as TrackingType,
+        itemType: 'material' as ItemType,
+        quantity: 0,
+        weight: 0,
+        weightUnit: 'lb' as WeightUnit,
+        price: 0,
+        priceType: 'each',
+        description: '',
+        cost: 0
+      });
+
+      setNewItemTotalPrice(0);
+      setNewItemUnitCost(0);
+
+    } catch (error) {
+      console.error('Failed to create item:', error);
+      setError('Failed to create new item. Please try again.');
+    }
   };
 
   const validateForm = (): string | null => {
@@ -349,7 +488,11 @@ export default function PurchaseForm() {
                       label="Weight"
                       type="number"
                       value={weight}
-                      onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const newWeight = parseFloat(e.target.value) || 0;
+                        setWeight(newWeight);
+                        // Don't recalculate cost per unit here - it will be done by effect
+                      }}
                       disabled={createPurchase.isPending || updatePurchase.isPending}
                       InputProps={{
                         endAdornment: (
@@ -378,7 +521,11 @@ export default function PurchaseForm() {
                     label="Quantity"
                     type="number"
                     value={quantity}
-                    onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const newQuantity = parseInt(e.target.value) || 0;
+                      setQuantity(newQuantity);
+                      // Don't recalculate cost per unit here - it will be done by effect
+                    }}
                     disabled={createPurchase.isPending || updatePurchase.isPending}
                   />
                 </Grid2>
@@ -387,10 +534,14 @@ export default function PurchaseForm() {
               <Grid2 size= {{ xs: 4 }}>
                 <TextField
                   fullWidth
-                  label="Cost Per Unit"
+                  label="Total Cost"
                   type="number"
-                  value={costPerUnit}
-                  onChange={(e) => setCostPerUnit(parseFloat(e.target.value) || 0)}
+                  value={totalCost}
+                  onChange={(e) => {
+                    const newTotalCost = parseFloat(e.target.value) || 0;
+                    setTotalCost(newTotalCost);
+                    // Cost per unit will be calculated by the effect
+                  }}
                   disabled={createPurchase.isPending || updatePurchase.isPending}
                   InputProps={{
                     startAdornment: <InputAdornment position="start">$</InputAdornment>,
@@ -401,12 +552,12 @@ export default function PurchaseForm() {
               <Grid2 size= {{ xs: 4 }}>
                 <TextField
                   fullWidth
-                  label="Total Cost"
+                  label="Cost Per Unit"
                   type="number"
-                  value={totalCost}
-                  onChange={(e) => setTotalCost(parseFloat(e.target.value) || 0)}
-                  disabled={createPurchase.isPending || updatePurchase.isPending}
+                  value={costPerUnit}
+                  disabled={true}
                   InputProps={{
+                    readOnly: true,
                     startAdornment: <InputAdornment position="start">$</InputAdornment>,
                   }}
                 />
@@ -616,7 +767,20 @@ export default function PurchaseForm() {
 
       {/* Item Selection Dialog */}
       <Dialog open={itemSelectDialogOpen} onClose={() => setItemSelectDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Select Item</DialogTitle>
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Select Item</Typography>
+            <Button
+              startIcon={<AddCircle />}
+              color="primary"
+              onClick={() => {
+                setCreateItemDialogOpen(true);
+              }}
+            >
+              Create New Item
+            </Button>
+          </Box>
+        </DialogTitle>
         <DialogContent>
           <List>
             {items.map((item) => (
@@ -663,6 +827,225 @@ export default function PurchaseForm() {
         <DialogActions>
           <Button onClick={() => setItemSelectDialogOpen(false)} color="primary">
             Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create New Item Dialog */}
+      <Dialog
+        open={createItemDialogOpen}
+        onClose={() => setCreateItemDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Create New Item</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Creating a new item will add it to your inventory and automatically add it to this purchase.
+            Enter the total purchase price and quantity to automatically calculate the price per unit.
+          </Alert>
+
+          <Grid2 container spacing={2}>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Item Name"
+                value={newItem.name}
+                onChange={(e) => handleNewItemChange('name', e.target.value)}
+                margin="normal"
+                required
+                error={!!newItemErrors.name}
+                helperText={newItemErrors.name}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="SKU"
+                value={newItem.sku}
+                onChange={(e) => handleNewItemChange('sku', e.target.value)}
+                margin="normal"
+                required
+                error={!!newItemErrors.sku}
+                helperText={newItemErrors.sku}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <FormControl fullWidth margin="normal" required error={!!newItemErrors.category}>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={newItem.category}
+                  label="Category"
+                  onChange={(e) => handleNewItemChange('category', e.target.value)}
+                >
+                  {categories.map((category) => (
+                    <MenuItem key={category} value={category}>{category}</MenuItem>
+                  ))}
+                  <MenuItem value="new">
+                    <em>+ Add New Category</em>
+                  </MenuItem>
+                </Select>
+                {newItemErrors.category && <FormHelperText>{newItemErrors.category}</FormHelperText>}
+              </FormControl>
+            </Grid2>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel>Item Type</InputLabel>
+                <Select
+                  value={newItem.itemType}
+                  label="Item Type"
+                  onChange={(e) => handleNewItemChange('itemType', e.target.value)}
+                >
+                  <MenuItem value="material">Material</MenuItem>
+                  <MenuItem value="product">Product</MenuItem>
+                  <MenuItem value="both">Both</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid2>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel>Tracking Type</InputLabel>
+                <Select
+                  value={newItem.trackingType}
+                  label="Tracking Type"
+                  onChange={(e) => handleNewItemChange('trackingType', e.target.value)}
+                >
+                  <MenuItem value="quantity">Quantity</MenuItem>
+                  <MenuItem value="weight">Weight</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid2>
+
+            {newItem.trackingType === 'quantity' ? (
+              <Grid2 size={{ xs: 12, md: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Quantity"
+                  type="number"
+                  value={newItem.quantity}
+                  onChange={(e) => handleNewItemChange('quantity', parseFloat(e.target.value) || 0)}
+                  margin="normal"
+                  required
+                  error={!!newItemErrors.quantity}
+                  helperText={newItemErrors.quantity}
+                />
+              </Grid2>
+            ) : (
+              <Grid2 size={{ xs: 12, md: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Weight"
+                  type="number"
+                  value={newItem.weight}
+                  onChange={(e) => handleNewItemChange('weight', parseFloat(e.target.value) || 0)}
+                  margin="normal"
+                  required
+                  error={!!newItemErrors.weight}
+                  helperText={newItemErrors.weight}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <Select
+                          value={newItem.weightUnit}
+                          onChange={(e) => handleNewItemChange('weightUnit', e.target.value)}
+                          size="small"
+                        >
+                          <MenuItem value="oz">oz</MenuItem>
+                          <MenuItem value="lb">lb</MenuItem>
+                          <MenuItem value="g">g</MenuItem>
+                          <MenuItem value="kg">kg</MenuItem>
+                        </Select>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid2>
+            )}
+
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Total Purchase Price"
+                type="number"
+                value={newItemTotalPrice}
+                onChange={(e) => setNewItemTotalPrice(parseFloat(e.target.value) || 0)}
+                margin="normal"
+                required
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+              />
+            </Grid2>
+
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Price Per Unit"
+                type="number"
+                value={newItemUnitCost}
+                disabled
+                margin="normal"
+                InputProps={{
+                  readOnly: true,
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  endAdornment: <InputAdornment position="end">per unit</InputAdornment>
+                }}
+              />
+            </Grid2>
+
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Sale Price"
+                type="number"
+                value={newItem.price}
+                onChange={(e) => handleNewItemChange('price', parseFloat(e.target.value) || 0)}
+                margin="normal"
+                helperText="Set the retail selling price for this item"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+              />
+            </Grid2>
+
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Price Type</InputLabel>
+                <Select
+                  value={newItem.priceType}
+                  label="Price Type"
+                  onChange={(e) => handleNewItemChange('priceType', e.target.value)}
+                >
+                  <MenuItem value="each">Per Item</MenuItem>
+                  <MenuItem value="per_weight_unit">Per Weight Unit</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid2>
+
+            <Grid2 size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                label="Description"
+                value={newItem.description}
+                onChange={(e) => handleNewItemChange('description', e.target.value)}
+                margin="normal"
+                multiline
+                rows={3}
+              />
+            </Grid2>
+          </Grid2>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateItemDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateNewItem}
+            variant="contained"
+            color="primary"
+            disabled={createItem.isPending}
+          >
+            {createItem.isPending ? 'Creating...' : 'Create & Add to Purchase'}
           </Button>
         </DialogActions>
       </Dialog>
