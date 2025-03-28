@@ -172,6 +172,7 @@ export interface Purchase {
   invoiceNumber?: string;
   purchaseDate?: Date;
   subtotal: number;
+  discountAmount?: number;
   taxRate?: number;
   taxAmount?: number;
   shippingCost?: number;

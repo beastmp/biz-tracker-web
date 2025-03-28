@@ -66,6 +66,7 @@ export default function PurchaseForm() {
     },
     items: [],
     subtotal: 0,
+    discountAmount: 0,
     taxRate: 0,
     taxAmount: 0,
     shippingCost: 0,
@@ -130,16 +131,17 @@ export default function PurchaseForm() {
     }
   }, [nextSku]);
 
-  // Update total costs whenever items, tax, or shipping change
+  // Update total costs whenever items, tax, discount, or shipping change
   useEffect(() => {
     const subtotal = purchase.items.reduce(
       (sum, item) => sum + item.totalCost,
       0
     );
 
+    const discountAmount = purchase.discountAmount || 0;
     const taxAmount = subtotal * ((purchase.taxRate || 0) / 100);
     const shippingCost = purchase.shippingCost || 0;
-    const total = subtotal + taxAmount + shippingCost;
+    const total = subtotal - discountAmount + taxAmount + shippingCost;
 
     setPurchase(prev => ({
       ...prev,
@@ -147,7 +149,7 @@ export default function PurchaseForm() {
       taxAmount,
       total
     }));
-  }, [purchase.items, purchase.taxRate, purchase.shippingCost]);
+  }, [purchase.items, purchase.taxRate, purchase.discountAmount, purchase.shippingCost]);
 
   // Update total cost when quantity, costPerUnit or weight changes
   useEffect(() => {
@@ -896,6 +898,21 @@ export default function PurchaseForm() {
               margin="normal"
               InputProps={{
                 readOnly: true,
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+            />
+          </Grid2>
+          <Grid2 size= {{ xs: 12, md: 6 }}>
+            <TextField
+              fullWidth
+              label="Discount Amount"
+              type="number"
+              name="discountAmount"
+              value={purchase.discountAmount || 0}
+              onChange={(e) => handleTextChange('discountAmount', parseFloat(e.target.value) || 0)}
+              margin="normal"
+              disabled={createPurchase.isPending || updatePurchase.isPending}
+              InputProps={{
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
             />
