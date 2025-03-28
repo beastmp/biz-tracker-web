@@ -41,7 +41,7 @@ import {
 import { Save, ArrowBack, Add, Delete, Image as ImageIcon, Construction, DeleteOutline, Search, Category } from '@mui/icons-material';
 import { useSale, useCreateSale, useUpdateSale } from '@hooks/useSales';
 import { useItems, useCreateItem } from '@hooks/useItems';
-import { Sale, SaleItem, Item } from '@custTypes/models';
+import { Sale, SaleItem, Item, WeightUnit, LengthUnit, AreaUnit, VolumeUnit } from '@custTypes/models';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 
@@ -156,10 +156,31 @@ export default function SaleForm() {
       return;
     }
 
-    const subtotal = formData.items.reduce(
-      (sum, item) => sum + (item.quantity * item.priceAtSale),
-      0
-    );
+    const subtotal = formData.items.reduce((sum, item) => {
+      let itemTotal = 0;
+
+      switch (item.soldBy) {
+        case 'quantity':
+          itemTotal = item.quantity * item.priceAtSale;
+          break;
+        case 'weight':
+          itemTotal = item.weight * item.priceAtSale;
+          break;
+        case 'length':
+          itemTotal = item.length * item.priceAtSale;
+          break;
+        case 'area':
+          itemTotal = item.area * item.priceAtSale;
+          break;
+        case 'volume':
+          itemTotal = item.volume * item.priceAtSale;
+          break;
+        default:
+          itemTotal = item.quantity * item.priceAtSale;
+      }
+
+      return sum + itemTotal;
+    }, 0);
 
     const taxAmount = subtotal * ((formData.taxRate || 0) / 100);
     const total = subtotal + taxAmount - (formData.discountAmount || 0);
@@ -206,55 +227,189 @@ export default function SaleForm() {
     });
   };
 
+  const [selectedLength, setSelectedLength] = useState<string>('0');
+  const [selectedArea, setSelectedArea] = useState<string>('0');
+  const [selectedVolume, setSelectedVolume] = useState<string>('0');
+  const [selectedWeightUnit, setSelectedWeightUnit] = useState<WeightUnit>('lb');
+  const [selectedLengthUnit, setSelectedLengthUnit] = useState<LengthUnit>('in');
+  const [selectedAreaUnit, setSelectedAreaUnit] = useState<AreaUnit>('sqft');
+  const [selectedVolumeUnit, setSelectedVolumeUnit] = useState<VolumeUnit>('l');
+
   const handleAddItem = () => {
     if (!selectedItem) return;
 
-    if (selectedItem.trackingType === 'quantity') {
-      // Check if quantity is valid
-      const quantity = parseInt(selectedQuantity);
-      if (isNaN(quantity) || quantity <= 0 || quantity > selectedItem.quantity) {
-        setError(`Please enter a valid quantity between 1 and ${selectedItem.quantity}`);
-        return;
-      }
+    // Get the measurement type - default to the item's tracking type or use sellByMeasurement if specified
+    const measurementType = selectedItem.sellByMeasurement || selectedItem.trackingType || 'quantity';
 
-      const newItem: SaleItem = {
-        item: selectedItem._id || '',
-        quantity,
-        weight: 0,
-        priceAtSale: selectedItem.price
-      };
+    try {
+      let newItem: SaleItem;
+
+      switch (measurementType) {
+        case 'quantity': {
+          // Check if quantity is valid
+          const quantity = parseInt(selectedQuantity);
+          if (isNaN(quantity) || quantity <= 0 || quantity > selectedItem.quantity) {
+            setError(`Please enter a valid quantity between 1 and ${selectedItem.quantity}`);
+            return;
+          }
+
+          newItem = {
+            item: selectedItem._id || '',
+            name: selectedItem.name,
+            quantity,
+            weight: 0,
+            length: 0,
+            area: 0,
+            volume: 0,
+            priceAtSale: calculateItemPrice(selectedItem, quantity, 0, 0, 0, 0),
+            soldBy: 'quantity'
+          };
+          break;
+        }
+
+        case 'weight': {
+          // Check if weight is valid
+          const weight = parseFloat(selectedWeight);
+          if (isNaN(weight) || weight <= 0 || weight > selectedItem.weight) {
+            setError(`Please enter a valid weight between 0.1 and ${selectedItem.weight} ${selectedItem.weightUnit}`);
+            return;
+          }
+
+          newItem = {
+            item: selectedItem._id || '',
+            name: selectedItem.name,
+            quantity: 0,
+            weight,
+            weightUnit: selectedWeightUnit || selectedItem.weightUnit,
+            length: 0,
+            area: 0,
+            volume: 0,
+            priceAtSale: calculateItemPrice(selectedItem, 0, weight, 0, 0, 0),
+            soldBy: 'weight'
+          };
+          break;
+        }
+
+        case 'length': {
+          // Check if length is valid
+          const length = parseFloat(selectedLength);
+          if (isNaN(length) || length <= 0 || length > selectedItem.length) {
+            setError(`Please enter a valid length between 0.1 and ${selectedItem.length} ${selectedItem.lengthUnit}`);
+            return;
+          }
+
+          newItem = {
+            item: selectedItem._id || '',
+            name: selectedItem.name,
+            quantity: 0,
+            weight: 0,
+            length,
+            lengthUnit: selectedLengthUnit || selectedItem.lengthUnit,
+            area: 0,
+            volume: 0,
+            priceAtSale: calculateItemPrice(selectedItem, 0, 0, length, 0, 0),
+            soldBy: 'length'
+          };
+          break;
+        }
+
+        case 'area': {
+          // Check if area is valid
+          const area = parseFloat(selectedArea);
+          if (isNaN(area) || area <= 0 || area > selectedItem.area) {
+            setError(`Please enter a valid area between 0.1 and ${selectedItem.area} ${selectedItem.areaUnit}`);
+            return;
+          }
+
+          newItem = {
+            item: selectedItem._id || '',
+            name: selectedItem.name,
+            quantity: 0,
+            weight: 0,
+            length: 0,
+            area,
+            areaUnit: selectedAreaUnit || selectedItem.areaUnit,
+            volume: 0,
+            priceAtSale: calculateItemPrice(selectedItem, 0, 0, 0, area, 0),
+            soldBy: 'area'
+          };
+          break;
+        }
+
+        case 'volume': {
+          // Check if volume is valid
+          const volume = parseFloat(selectedVolume);
+          if (isNaN(volume) || volume <= 0 || volume > selectedItem.volume) {
+            setError(`Please enter a valid volume between .1 and ${selectedItem.volume} ${selectedItem.volumeUnit}`);
+            return;
+          }
+
+          newItem = {
+            item: selectedItem._id || '',
+            name: selectedItem.name,
+            quantity: 0,
+            weight: 0,
+            length: 0,
+            area: 0,
+            volume,
+            volumeUnit: selectedVolumeUnit || selectedItem.volumeUnit,
+            priceAtSale: calculateItemPrice(selectedItem, 0, 0, 0, 0, volume),
+            soldBy: 'volume'
+          };
+          break;
+        }
+
+        default:
+          setError(`Unsupported measurement type: ${measurementType}`);
+          return;
+      }
 
       setFormData(prev => ({
         ...prev,
         items: [...(prev.items || []), newItem]
       }));
-    } else {
-      // Weight-based item
-      const weight = parseFloat(selectedWeight);
-      if (isNaN(weight) || weight <= 0 || weight > selectedItem.weight) {
-        setError(`Please enter a valid weight between 0.1 and ${selectedItem.weight}`);
-        return;
-      }
 
-      const newItem: SaleItem = {
-        item: selectedItem._id || '',
-        quantity: 1, // We still set quantity to 1 for database consistency
-        weight,
-        weightUnit: selectedItem.weightUnit,
-        priceAtSale: selectedItem.price * weight // Calculate total price based on weight
-      };
-
-      setFormData(prev => ({
-        ...prev,
-        items: [...(prev.items || []), newItem]
-      }));
+      // Reset selection state
+      setSelectedItem(null);
+      setSelectedQuantity('1');
+      setSelectedWeight('0');
+      setSelectedLength('0');
+      setSelectedArea('0');
+      setSelectedVolume('0');
+      setError(null);
+    } catch (error) {
+      console.error('Error adding item:', error);
+      setError('Failed to add item. Please try again.');
     }
+  };
 
-    // Reset selected item and quantities
-    setSelectedItem(null);
-    setSelectedQuantity('1');
-    setSelectedWeight('1');
-    setItemDialogOpen(false);
+  // Helper function to calculate price based on measurement type
+  const calculateItemPrice = (
+    item: Item,
+    quantity: number,
+    weight: number,
+    length: number,
+    area: number,
+    volume: number
+  ): number => {
+    if (!item) return 0;
+
+    const basePrice = parseFloat(selectedItemPrice) || item.price || 0;
+
+    switch (item.priceType) {
+      case 'each':
+        return quantity > 0 ? basePrice * quantity : basePrice;
+      case 'per_weight_unit':
+        return weight > 0 ? basePrice * weight : basePrice;
+      case 'per_length_unit':
+        return length > 0 ? basePrice * length : basePrice;
+      case 'per_area_unit':
+        return area > 0 ? basePrice * area : basePrice;
+      case 'per_volume_unit':
+        return volume > 0 ? basePrice * volume : basePrice;
+      default:
+        return basePrice;
+    }
   };
 
   const handleRemoveItem = (index: number) => {
@@ -318,9 +473,6 @@ export default function SaleForm() {
     }
   };
 
-  // Create a lookup object for items for efficient access
-  const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
-
   if (saleLoading || itemsLoading) {
     return <LoadingScreen />;
   }
@@ -353,10 +505,11 @@ export default function SaleForm() {
         category: newProductCategory,
         description: newProductDescription,
         trackingType: 'quantity',
+        sellByMeasurement: 'quantity', // Add this missing property
         quantity: 1, // Start with one item
         weight: 0,
         weightUnit: 'lb',
-        price: calculateProductPrice(), // This now handles both pricing modes
+        price: productPrice, // This now handles both pricing modes
         priceType: 'each',
         itemType: 'product',
         cost: materialsCost,
@@ -372,9 +525,14 @@ export default function SaleForm() {
       // Add the new product to the sale
       const newSaleItem: SaleItem = {
         item: createdProduct._id || '',
+        name: createdProduct.name,  // Add name for display
         quantity: 1,
         weight: 0,
-        priceAtSale: productPrice
+        length: 0,
+        area: 0,
+        volume: 0,
+        priceAtSale: productPrice,
+        soldBy: 'quantity'
       };
 
       setFormData(prev => ({
@@ -390,6 +548,7 @@ export default function SaleForm() {
       setSelectedMaterials([]);
       setNewProductMarkup(50);
       setCreateProductDialogOpen(false);
+      setError(null);
     } catch (err) {
       console.error('Failed to create product:', err);
       setError('Failed to create product. Please try again.');
@@ -523,70 +682,55 @@ export default function SaleForm() {
             <Divider sx={{ mb: 2 }} />
 
             {formData.items && formData.items.length > 0 ? (
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
+              <TableContainer component={Paper}>
+                <Table>
                   <TableHead>
                     <TableRow>
                       <TableCell>Item</TableCell>
-                      <TableCell align="right">Price</TableCell>
-                      <TableCell align="right">Quantity</TableCell>
+                      <TableCell align="right">Quantity/Amount</TableCell>
+                      <TableCell align="right">Unit Price</TableCell>
                       <TableCell align="right">Total</TableCell>
-                      <TableCell align="center">Action</TableCell>
+                      <TableCell align="right">Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {formData.items?.map((item, index) => {
-                      const itemDetails = typeof item.item === 'object' ? item.item : itemLookup[item.item as string];
-                      return (
-                        <TableRow key={index}>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              {itemDetails?.imageUrl ? (
-                                <Avatar
-                                  src={itemDetails.imageUrl}
-                                  alt={itemDetails.name}
-                                  variant="rounded"
-                                  sx={{ width: 40, height: 40, mr: 1 }}
-                                />
-                              ) : (
-                                <Avatar
-                                  variant="rounded"
-                                  sx={{ width: 40, height: 40, mr: 1, bgcolor: 'action.hover' }}
-                                >
-                                  <ImageIcon color="disabled" fontSize="small" />
-                                </Avatar>
-                              )}
-                              <Box>
-                                {itemDetails?.name || 'Unknown Item'}
-                                {itemDetails?.tags && itemDetails.tags.length > 0 && (
-                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                                    {itemDetails.tags.slice(0, 1).map((tag: string) => (
-                                      <Chip key={tag} label={tag} size="small" variant="outlined" />
-                                    ))}
-                                    {itemDetails.tags.length > 1 && (
-                                      <Chip label={`+${itemDetails.tags.length - 1}`} size="small" variant="outlined" color="primary" />
-                                    )}
-                                  </Box>
-                                )}
-                              </Box>
-                            </Box>
-                          </TableCell>
-                          <TableCell align="right">{formatCurrency(item.priceAtSale)}</TableCell>
-                          <TableCell align="right">{item.quantity}</TableCell>
-                          <TableCell align="right">{formatCurrency(item.priceAtSale * item.quantity)}</TableCell>
-                          <TableCell align="center">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleRemoveItem(index)}
-                              disabled={createSale.isPending || updateSale.isPending}
-                            >
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {formData.items?.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{typeof item.item === 'string' ? item.name : item.item.name}</TableCell>
+                        <TableCell align="right">
+                          {item.soldBy === 'quantity' && `${item.quantity}`}
+                          {item.soldBy === 'weight' && `${item.weight} ${item.weightUnit}`}
+                          {item.soldBy === 'length' && `${item.length} ${item.lengthUnit}`}
+                          {item.soldBy === 'area' && `${item.area} ${item.areaUnit}`}
+                          {item.soldBy === 'volume' && `${item.volume} ${item.volumeUnit}`}
+                        </TableCell>
+                        <TableCell align="right">{formatCurrency(item.priceAtSale)}</TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(
+                            item.soldBy === 'quantity'
+                              ? item.priceAtSale * item.quantity
+                              : item.soldBy === 'weight'
+                              ? item.priceAtSale * item.weight
+                              : item.soldBy === 'length'
+                              ? item.priceAtSale * item.length
+                              : item.soldBy === 'area'
+                              ? item.priceAtSale * item.area
+                              : item.soldBy === 'volume'
+                              ? item.priceAtSale * item.volume
+                              : item.priceAtSale
+                          )}
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRemoveItem(index)}
+                            disabled={createSale.isPending || updateSale.isPending}
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -806,6 +950,141 @@ export default function SaleForm() {
                     />
                   )}
                 </Grid2>
+                {selectedItem.trackingType === 'length' && (
+                  <Grid2 container spacing={2}>
+                    <Grid2 size={{ xs: 8 }}>
+                      <TextField
+                        fullWidth
+                        label={`Length (${selectedItem.lengthUnit})`}
+                        type="number"
+                        value={selectedLength}
+                        onChange={(e) => setSelectedLength(e.target.value)}
+                        InputProps={{
+                          inputProps: { min: 0.01, max: selectedItem.length, step: 0.01 }
+                        }}
+                        helperText={`Maximum available: ${selectedItem.length} ${selectedItem.lengthUnit}`}
+                      />
+                    </Grid2>
+                    <Grid2 size={{ xs: 4 }}>
+                      <FormControl fullWidth>
+                        <InputLabel>Unit</InputLabel>
+                        <Select
+                          value={selectedLengthUnit}
+                          onChange={(e) => setSelectedLengthUnit(e.target.value as LengthUnit)}
+                          label="Unit"
+                        >
+                          <MenuItem value="mm">mm</MenuItem>
+                          <MenuItem value="cm">cm</MenuItem>
+                          <MenuItem value="m">m</MenuItem>
+                          <MenuItem value="in">in</MenuItem>
+                          <MenuItem value="ft">ft</MenuItem>
+                          <MenuItem value="yd">yd</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid2>
+                  </Grid2>
+                )}
+
+                {selectedItem.trackingType === 'area' && (
+                  <Grid2 container spacing={2}>
+                    <Grid2 size={{ xs: 8 }}>
+                      <TextField
+                        fullWidth
+                        label={`Area (${selectedItem.areaUnit})`}
+                        type="number"
+                        value={selectedArea}
+                        onChange={(e) => setSelectedArea(e.target.value)}
+                        InputProps={{
+                          inputProps: { min: 0.01, max: selectedItem.area, step: 0.01 }
+                        }}
+                        helperText={`Maximum available: ${selectedItem.area} ${selectedItem.areaUnit}`}
+                      />
+                    </Grid2>
+                    <Grid2 size={{ xs: 4 }}>
+                      <FormControl fullWidth>
+                        <InputLabel>Unit</InputLabel>
+                        <Select
+                          value={selectedAreaUnit}
+                          onChange={(e) => setSelectedAreaUnit(e.target.value as AreaUnit)}
+                          label="Unit"
+                        >
+                          <MenuItem value="sqft">sq ft</MenuItem>
+                          <MenuItem value="sqm">sq m</MenuItem>
+                          <MenuItem value="sqyd">sq yd</MenuItem>
+                          <MenuItem value="acre">acre</MenuItem>
+                          <MenuItem value="ha">ha</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid2>
+                  </Grid2>
+                )}
+
+                {selectedItem.trackingType === 'volume' && (
+                  <Grid2 container spacing={2}>
+                    <Grid2 size={{ xs: 8 }}>
+                      <TextField
+                        fullWidth
+                        label={`Volume (${selectedItem.volumeUnit})`}
+                        type="number"
+                        value={selectedVolume}
+                        onChange={(e) => setSelectedVolume(e.target.value)}
+                        InputProps={{
+                          inputProps: { min: 0.01, max: selectedItem.volume, step: 0.01 }
+                        }}
+                        helperText={`Maximum available: ${selectedItem.volume} ${selectedItem.volumeUnit}`}
+                      />
+                    </Grid2>
+                    <Grid2 size={{ xs: 4 }}>
+                      <FormControl fullWidth>
+                        <InputLabel>Unit</InputLabel>
+                        <Select
+                          value={selectedVolumeUnit}
+                          onChange={(e) => setSelectedVolumeUnit(e.target.value as VolumeUnit)}
+                          label="Unit"
+                        >
+                          <MenuItem value="ml">ml</MenuItem>
+                          <MenuItem value="l">l</MenuItem>
+                          <MenuItem value="gal">gal</MenuItem>
+                          <MenuItem value="floz">fl oz</MenuItem>
+                          <MenuItem value="cu_ft">cu ft</MenuItem>
+                          <MenuItem value="cu_m">cu m</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid2>
+                  </Grid2>
+                )}
+                {selectedItem.trackingType === 'weight' && (
+                  <Grid2 container spacing={2}>
+                    <Grid2 size={{ xs: 8 }}>
+                      <TextField
+                        fullWidth
+                        label={`Weight (${selectedItem.weightUnit})`}
+                        type="number"
+                        value={selectedWeight}
+                        onChange={(e) => setSelectedWeight(e.target.value)}
+                        InputProps={{
+                          inputProps: { min: 0.01, max: selectedItem.weight, step: 0.01 }
+                        }}
+                        helperText={`Maximum available: ${selectedItem.weight} ${selectedItem.weightUnit}`}
+                      />
+                    </Grid2>
+                    <Grid2 size={{ xs: 4 }}>
+                      <FormControl fullWidth>
+                        <InputLabel>Unit</InputLabel>
+                        <Select
+                          value={selectedWeightUnit}
+                          onChange={(e) => setSelectedWeightUnit(e.target.value as WeightUnit)}
+                          label="Unit"
+                        >
+                          <MenuItem value="oz">oz</MenuItem>
+                          <MenuItem value="lb">lb</MenuItem>
+                          <MenuItem value="g">g</MenuItem>
+                          <MenuItem value="kg">kg</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid2>
+                  </Grid2>
+                )}
               </Grid2>
               <Grid2 container spacing={2} sx={{ mt: 2 }}>
                 <Grid2 size={{ xs: 12 }}>
@@ -848,52 +1127,26 @@ export default function SaleForm() {
                   </Grid2>
                 )}
               </Grid2>
-              {/* Add this markup control section before the price field in your dialog */}
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={useAutoMarkup}
-                    onChange={(e) => setUseAutoMarkup(e.target.checked)}
-                    color="primary"
-                  />
-                }
-                label="Apply automatic markup"
-                sx={{ mb: 2 }}
-              />
-
-              {useAutoMarkup && (selectedItem?.cost ?? 0) > 0 && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" gutterBottom>
-                    Markup percentage: {markupPercentage}%
-                  </Typography>
-                  <Slider
-                    value={markupPercentage}
-                    onChange={(_, newValue) => setMarkupPercentage(newValue as number)}
-                    step={5}
-                    marks
-                    min={0}
-                    max={200}
-                    valueLabelDisplay="auto"
-                    valueLabelFormat={(value) => `${value}%`}
-                  />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Cost: {formatCurrency(selectedItem?.cost || 0)}
-                    </Typography>
-                    <Typography variant="body2" color="success.main">
-                      Profit: {formatCurrency(parseFloat(selectedItemPrice) - (selectedItem?.cost || 0))}
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
             </Box>
           ) : (
             <List sx={{ pt: 0 }}>
               {items
                 .filter(item => {
                   // Only show items that have stock available
-                  if (item.trackingType === 'quantity') return item.quantity > 0;
-                  return item.weight > 0;
+                  switch (item.trackingType) {
+                    case 'quantity':
+                      return item.quantity > 0;
+                    case 'weight':
+                      return item.weight > 0;
+                    case 'length':
+                      return item.length > 0;
+                    case 'area':
+                      return item.area > 0;
+                    case 'volume':
+                      return item.volume > 0;
+                    default:
+                      return item.quantity > 0;
+                  }
                 })
                 .map((item) => (
                   <ListItemButton

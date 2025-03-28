@@ -49,7 +49,7 @@ import { Item, ItemType } from '@custTypes/models';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
-import { useSettings } from '@context/SettingsContext';
+import { useSettings } from '@hooks/useSettings';
 
 export default function InventoryList() {
   const { data: items = [], isLoading, error } = useItems();
@@ -87,6 +87,9 @@ export default function InventoryList() {
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [newQuantity, setNewQuantity] = useState<string>('');
   const [newWeight, setNewWeight] = useState<string>('');
+  const [newLength, setNewLength] = useState<string>('');
+  const [newArea, setNewArea] = useState<string>('');
+  const [newVolume, setNewVolume] = useState<string>('');
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
   const updateItem = useUpdateItem(editingItem || undefined);
 
@@ -215,18 +218,30 @@ export default function InventoryList() {
     if (!item) return;
 
     try {
-      // Set editingItem first (which will cause the updateItem hook to reinitialize)
-      setEditingItem(itemId);
-
-      // Create update data without the spread of the entire item
-      // Just include the specific fields we want to update
+      // Create update data with only the specific fields we want to update
       const updateData: Partial<Item> = {
-        _id: itemId, // Make sure this is included
+        _id: itemId,
         lastUpdated: new Date(),
-        ...(item.trackingType === 'quantity'
-            ? { quantity: parseFloat(newQuantity) || 0 }
-            : { weight: parseFloat(newWeight) || 0 })
       };
+
+      // Add the appropriate measurement field based on tracking type
+      switch (item.trackingType) {
+        case 'quantity':
+          updateData.quantity = parseFloat(newQuantity) || 0;
+          break;
+        case 'weight':
+          updateData.weight = parseFloat(newWeight) || 0;
+          break;
+        case 'length':
+          updateData.length = parseFloat(newLength) || 0;
+          break;
+        case 'area':
+          updateData.area = parseFloat(newArea) || 0;
+          break;
+        case 'volume':
+          updateData.volume = parseFloat(newVolume) || 0;
+          break;
+      }
 
       // Use the hook after it has the correct ID
       await updateItem.mutateAsync(updateData as Item);
@@ -235,9 +250,13 @@ export default function InventoryList() {
       setUpdateSuccess(`Updated ${item.name}`);
       setTimeout(() => setUpdateSuccess(null), 3000);
 
+      // Reset all editing state
       setEditingItem(null);
       setNewQuantity('');
       setNewWeight('');
+      setNewLength('');
+      setNewArea('');
+      setNewVolume('');
     } catch (err) {
       console.error('Failed to update inventory:', err);
     }
@@ -246,10 +265,26 @@ export default function InventoryList() {
   // Add function to begin editing an item
   const startEditing = (item: Item) => {
     setEditingItem(item._id || null);
-    if (item.trackingType === 'quantity') {
-      setNewQuantity(item.quantity.toString());
-    } else {
-      setNewWeight(item.weight.toString());
+
+    switch (item.trackingType) {
+      case 'quantity':
+        setNewQuantity(item.quantity.toString());
+        break;
+      case 'weight':
+        setNewWeight(item.weight.toString());
+        break;
+      case 'length':
+        setNewLength(item.length.toString());
+        break;
+      case 'area':
+        setNewArea(item.area.toString());
+        break;
+      case 'volume':
+        setNewVolume(item.volume.toString());
+        break;
+      default:
+        setNewQuantity(item.quantity.toString());
+        break;
     }
   };
 
@@ -258,75 +293,105 @@ export default function InventoryList() {
     setEditingItem(null);
     setNewQuantity('');
     setNewWeight('');
+    setNewLength('');
+    setNewArea('');
+    setNewVolume('');
   };
 
   // Memoize helper functions
   const getStockStatusColor = useCallback((item: Item): 'success' | 'warning' | 'error' => {
-    if (item.trackingType === 'quantity') {
-      if (item.quantity <= 0) return 'error';
-      if (!lowStockAlertsEnabled) return 'success';
-      if (item.quantity <= quantityThreshold) return 'warning';
-      return 'success';
-    } else {
-      // Weight tracking
-      if (item.priceType === 'each') {
+    switch (item.trackingType) {
+      case 'quantity':
         if (item.quantity <= 0) return 'error';
         if (!lowStockAlertsEnabled) return 'success';
-        if (item.quantity <= 3) return 'warning'; // Consider adding a separate threshold for packages
+        if (item.quantity <= quantityThreshold) return 'warning';
         return 'success';
-      } else {
-        // Price per weight unit
+
+      case 'weight': {
         if (item.weight <= 0) return 'error';
         if (!lowStockAlertsEnabled) return 'success';
-
-        // Use configured thresholds based on weight unit
-        const threshold =
+        const weightThreshold =
           item.weightUnit === 'kg' ? weightThresholds.kg :
           item.weightUnit === 'g' ? weightThresholds.g :
           item.weightUnit === 'lb' ? weightThresholds.lb :
           item.weightUnit === 'oz' ? weightThresholds.oz : 5;
-
-        if (item.weight <= threshold) return 'warning';
+        if (item.weight <= weightThreshold) return 'warning';
         return 'success';
       }
+
+      case 'length':
+        if (item.length <= 0) return 'error';
+        return 'success'; // You may want to add thresholds for length
+
+      case 'area':
+        if (item.area <= 0) return 'error';
+        return 'success'; // You may want to add thresholds for area
+
+      case 'volume':
+        if (item.volume <= 0) return 'error';
+        return 'success'; // You may want to add thresholds for volume
+
+      default:
+        return 'success';
     }
   }, [lowStockAlertsEnabled, quantityThreshold, weightThresholds]);
 
   // Get stock status label
-  const getStockStatusLabel = (item: Item): string => {
-    if (item.trackingType === 'quantity') {
-      if (item.quantity <= 0) return 'Out of stock';
-      if (lowStockAlertsEnabled && item.quantity <= quantityThreshold) return `Low stock: ${item.quantity} left`;
-      return `${item.quantity} in stock`;
-    } else {
-      if (item.priceType === 'each') {
+  const getStockStatusLabel = useCallback((item: Item): string => {
+    switch (item.trackingType) {
+      case 'quantity':
         if (item.quantity <= 0) return 'Out of stock';
-        return `${item.quantity} × ${item.weight}${item.weightUnit}`;
-      } else {
-        const threshold =
+        if (lowStockAlertsEnabled && item.quantity <= quantityThreshold) return `Low stock: ${item.quantity} left`;
+        return `${item.quantity} in stock`;
+
+      case 'weight': {
+        if (item.weight <= 0) return 'Out of stock';
+        const weightThreshold =
           item.weightUnit === 'kg' ? weightThresholds.kg :
           item.weightUnit === 'g' ? weightThresholds.g :
           item.weightUnit === 'lb' ? weightThresholds.lb :
           item.weightUnit === 'oz' ? weightThresholds.oz : 5;
-
-        if (item.weight <= 0) return 'Out of stock';
-        if (lowStockAlertsEnabled && item.weight <= threshold) return `Low: ${item.weight}${item.weightUnit}`;
+        if (lowStockAlertsEnabled && item.weight <= weightThreshold) return `Low: ${item.weight}${item.weightUnit}`;
         return `${item.weight}${item.weightUnit} in stock`;
       }
+
+      case 'length':
+        if (item.length <= 0) return 'Out of stock';
+        return `${item.length}${item.lengthUnit} in stock`;
+
+      case 'area':
+        if (item.area <= 0) return 'Out of stock';
+        return `${item.area}${item.areaUnit} in stock`;
+
+      case 'volume':
+        if (item.volume <= 0) return 'Out of stock';
+        return `${item.volume}${item.volumeUnit} in stock`;
+
+      default:
+        return `${item.quantity} in stock`;
     }
-  };
+  }, [lowStockAlertsEnabled, quantityThreshold, weightThresholds]);
 
   // Calculate total inventory value for an item
   const calculateTotalValue = (item: Item): number => {
-    if (item.trackingType === 'quantity') {
-      return item.price * item.quantity;
-    } else {
-      // Weight tracking
-      if (item.priceType === 'each') {
-        return item.price * (item.quantity || 0);
-      } else {
-        return item.price * item.weight;
-      }
+    switch (item.trackingType) {
+      case 'quantity':
+        return item.price * item.quantity;
+
+      case 'weight':
+        return item.priceType === 'each' ? item.price * (item.quantity || 0) : item.price * item.weight;
+
+      case 'length':
+        return item.priceType === 'each' ? item.price * (item.quantity || 0) : item.price * item.length;
+
+      case 'area':
+        return item.priceType === 'each' ? item.price * (item.quantity || 0) : item.price * item.area;
+
+      case 'volume':
+        return item.priceType === 'each' ? item.price * (item.quantity || 0) : item.price * item.volume;
+
+      default:
+        return item.price * item.quantity;
     }
   };
 
@@ -350,7 +415,7 @@ export default function InventoryList() {
   };
 
   // Add a helper function to get group description
-  const getGroupDescription = (groupKey: string, groupItems: Item[]): string => {
+  const getGroupDescription = (_groupKey: string, groupItems: Item[]): string => {
     return `${groupItems.length} items • Total value: ${formatCurrency(calculateGroupValue(groupItems))}`;
   };
 
@@ -739,14 +804,40 @@ export default function InventoryList() {
                                         <TextField
                                           size="small"
                                           type="number"
-                                          value={item.trackingType === 'quantity' ? newQuantity : newWeight}
-                                          onChange={(e) => item.trackingType === 'quantity'
-                                            ? setNewQuantity(e.target.value)
-                                            : setNewWeight(e.target.value)
+                                          value={
+                                            item.trackingType === 'quantity' ? newQuantity :
+                                            item.trackingType === 'weight' ? newWeight :
+                                            item.trackingType === 'length' ? newLength :
+                                            item.trackingType === 'area' ? newArea :
+                                            newVolume
                                           }
+                                          onChange={(e) => {
+                                            switch(item.trackingType) {
+                                              case 'quantity':
+                                                setNewQuantity(e.target.value);
+                                                break;
+                                              case 'weight':
+                                                setNewWeight(e.target.value);
+                                                break;
+                                              case 'length':
+                                                setNewLength(e.target.value);
+                                                break;
+                                              case 'area':
+                                                setNewArea(e.target.value);
+                                                break;
+                                              case 'volume':
+                                                setNewVolume(e.target.value);
+                                                break;
+                                            }
+                                          }}
                                           InputProps={{
-                                            endAdornment: item.trackingType === 'weight' && (
-                                              <InputAdornment position="end">{item.weightUnit}</InputAdornment>
+                                            endAdornment: item.trackingType !== 'quantity' && (
+                                              <InputAdornment position="end">
+                                                {item.trackingType === 'weight' && item.weightUnit}
+                                                {item.trackingType === 'length' && item.lengthUnit}
+                                                {item.trackingType === 'area' && item.areaUnit}
+                                                {item.trackingType === 'volume' && item.volumeUnit}
+                                              </InputAdornment>
                                             ),
                                           }}
                                           sx={{ width: '100px' }}
@@ -781,7 +872,7 @@ export default function InventoryList() {
                                           size="small"
                                           onClick={() => startEditing(item)}
                                           sx={{ ml: 1 }}
-                                          title="Edit Quantity"
+                                          title="Edit Stock"
                                         >
                                           <EditIcon fontSize="small" />
                                         </IconButton>
@@ -979,14 +1070,40 @@ export default function InventoryList() {
                                         <TextField
                                           size="small"
                                           type="number"
-                                          value={item.trackingType === 'quantity' ? newQuantity : newWeight}
-                                          onChange={(e) => item.trackingType === 'quantity'
-                                            ? setNewQuantity(e.target.value)
-                                            : setNewWeight(e.target.value)
+                                          value={
+                                            item.trackingType === 'quantity' ? newQuantity :
+                                            item.trackingType === 'weight' ? newWeight :
+                                            item.trackingType === 'length' ? newLength :
+                                            item.trackingType === 'area' ? newArea :
+                                            newVolume
                                           }
+                                          onChange={(e) => {
+                                            switch(item.trackingType) {
+                                              case 'quantity':
+                                                setNewQuantity(e.target.value);
+                                                break;
+                                              case 'weight':
+                                                setNewWeight(e.target.value);
+                                                break;
+                                              case 'length':
+                                                setNewLength(e.target.value);
+                                                break;
+                                              case 'area':
+                                                setNewArea(e.target.value);
+                                                break;
+                                              case 'volume':
+                                                setNewVolume(e.target.value);
+                                                break;
+                                            }
+                                          }}
                                           InputProps={{
-                                            endAdornment: item.trackingType === 'weight' && (
-                                              <InputAdornment position="end">{item.weightUnit}</InputAdornment>
+                                            endAdornment: item.trackingType !== 'quantity' && (
+                                              <InputAdornment position="end">
+                                                {item.trackingType === 'weight' && item.weightUnit}
+                                                {item.trackingType === 'length' && item.lengthUnit}
+                                                {item.trackingType === 'area' && item.areaUnit}
+                                                {item.trackingType === 'volume' && item.volumeUnit}
+                                              </InputAdornment>
                                             ),
                                           }}
                                           sx={{ width: '100px' }}
@@ -1020,7 +1137,7 @@ export default function InventoryList() {
                                           size="small"
                                           onClick={() => startEditing(item)}
                                           sx={{ ml: 1 }}
-                                          title="Edit Quantity"
+                                          title="Edit Stock"
                                         >
                                           <EditIcon fontSize="small" />
                                         </IconButton>
@@ -1132,14 +1249,40 @@ export default function InventoryList() {
                                       <TextField
                                         size="small"
                                         type="number"
-                                        value={item.trackingType === 'quantity' ? newQuantity : newWeight}
-                                        onChange={(e) => item.trackingType === 'quantity'
-                                          ? setNewQuantity(e.target.value)
-                                          : setNewWeight(e.target.value)
+                                        value={
+                                          item.trackingType === 'quantity' ? newQuantity :
+                                          item.trackingType === 'weight' ? newWeight :
+                                          item.trackingType === 'length' ? newLength :
+                                          item.trackingType === 'area' ? newArea :
+                                          newVolume
                                         }
+                                        onChange={(e) => {
+                                          switch(item.trackingType) {
+                                            case 'quantity':
+                                              setNewQuantity(e.target.value);
+                                              break;
+                                            case 'weight':
+                                              setNewWeight(e.target.value);
+                                              break;
+                                            case 'length':
+                                              setNewLength(e.target.value);
+                                              break;
+                                            case 'area':
+                                              setNewArea(e.target.value);
+                                              break;
+                                            case 'volume':
+                                              setNewVolume(e.target.value);
+                                              break;
+                                          }
+                                        }}
                                         InputProps={{
-                                          endAdornment: item.trackingType === 'weight' && (
-                                            <InputAdornment position="end">{item.weightUnit}</InputAdornment>
+                                          endAdornment: item.trackingType !== 'quantity' && (
+                                            <InputAdornment position="end">
+                                              {item.trackingType === 'weight' && item.weightUnit}
+                                              {item.trackingType === 'length' && item.lengthUnit}
+                                              {item.trackingType === 'area' && item.areaUnit}
+                                              {item.trackingType === 'volume' && item.volumeUnit}
+                                            </InputAdornment>
                                           ),
                                         }}
                                         sx={{ width: '100px' }}
@@ -1174,7 +1317,7 @@ export default function InventoryList() {
                                         size="small"
                                         onClick={() => startEditing(item)}
                                         sx={{ ml: 1 }}
-                                        title="Edit Quantity"
+                                        title="Edit Stock"
                                       >
                                         <EditIcon fontSize="small" />
                                       </IconButton>
@@ -1376,14 +1519,40 @@ export default function InventoryList() {
                                     <TextField
                                       size="small"
                                       type="number"
-                                      value={item.trackingType === 'quantity' ? newQuantity : newWeight}
-                                      onChange={(e) => item.trackingType === 'quantity'
-                                        ? setNewQuantity(e.target.value)
-                                        : setNewWeight(e.target.value)
+                                      value={
+                                        item.trackingType === 'quantity' ? newQuantity :
+                                        item.trackingType === 'weight' ? newWeight :
+                                        item.trackingType === 'length' ? newLength :
+                                        item.trackingType === 'area' ? newArea :
+                                        newVolume
                                       }
+                                      onChange={(e) => {
+                                        switch(item.trackingType) {
+                                          case 'quantity':
+                                            setNewQuantity(e.target.value);
+                                            break;
+                                          case 'weight':
+                                            setNewWeight(e.target.value);
+                                            break;
+                                          case 'length':
+                                            setNewLength(e.target.value);
+                                            break;
+                                          case 'area':
+                                            setNewArea(e.target.value);
+                                            break;
+                                          case 'volume':
+                                            setNewVolume(e.target.value);
+                                            break;
+                                        }
+                                      }}
                                       InputProps={{
-                                        endAdornment: item.trackingType === 'weight' && (
-                                          <InputAdornment position="end">{item.weightUnit}</InputAdornment>
+                                        endAdornment: item.trackingType !== 'quantity' && (
+                                          <InputAdornment position="end">
+                                            {item.trackingType === 'weight' && item.weightUnit}
+                                            {item.trackingType === 'length' && item.lengthUnit}
+                                            {item.trackingType === 'area' && item.areaUnit}
+                                            {item.trackingType === 'volume' && item.volumeUnit}
+                                          </InputAdornment>
                                         ),
                                       }}
                                       sx={{ width: '100px' }}
@@ -1417,7 +1586,7 @@ export default function InventoryList() {
                                       size="small"
                                       onClick={() => startEditing(item)}
                                       sx={{ ml: 1 }}
-                                      title="Edit Quantity"
+                                      title="Edit Stock"
                                     >
                                       <EditIcon fontSize="small" />
                                     </IconButton>

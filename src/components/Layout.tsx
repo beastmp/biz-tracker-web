@@ -30,7 +30,7 @@ import {
   Settings as SettingsIcon,
   ChevronLeft as ChevronLeftIcon
 } from '@mui/icons-material';
-import { useAppContext } from '@context/AppContext';
+import { useAppContext } from '@hooks/useAppContext';
 
 const drawerWidth = 240;
 
@@ -46,7 +46,7 @@ export default function Layout() {
     if (isMobile && drawerOpen) {
       setDrawerOpen(false);
     }
-  }, [location.pathname, isMobile]);
+  }, [location.pathname, isMobile, drawerOpen]);
 
   // Set initial drawer state based on screen size
   useEffect(() => {

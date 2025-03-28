@@ -38,6 +38,8 @@ export default function InventoryProfitReport() {
     const categories = new Map();
 
     items.forEach(item => {
+      if (!item.category) return;
+
       if (!categories.has(item.category)) {
         categories.set(item.category, {
           items: 0,
@@ -56,13 +58,13 @@ export default function InventoryProfitReport() {
     });
 
     return Array.from(categories.entries()).map(([category, data]) => ({
-      name: category,
+      name: category || 'Uncategorized',
       avgMarkup: data.items > 0 ? data.totalMarkup / data.items : 0,
       totalProfit: data.totalProfit
     }));
   }, [items]);
 
-  // Calculate summary statistics
+  // Calculate summary statistics with support for all measurement types
   const summaryStats = useMemo(() => {
     let totalValue = 0;
     let totalCost = 0;
@@ -70,19 +72,38 @@ export default function InventoryProfitReport() {
     let highestMarkupItem = null;
 
     items.forEach(item => {
-      const itemValue = item.trackingType === 'quantity'
-        ? item.price * item.quantity
-        : item.price * item.weight;
+      // Calculate item value based on tracking type
+      let itemValue = 0;
+      let itemCost = 0;
 
-      const itemCost = item.trackingType === 'quantity'
-        ? (item.cost || 0) * item.quantity
-        : (item.cost || 0) * item.weight;
+      switch (item.trackingType) {
+        case 'quantity':
+          itemValue = item.price * item.quantity;
+          itemCost = (item.cost || 0) * item.quantity;
+          break;
+        case 'weight':
+          itemValue = item.priceType === 'each' ? item.price * (item.quantity || 1) : item.price * item.weight;
+          itemCost = item.priceType === 'each' ? (item.cost || 0) * (item.quantity || 1) : (item.cost || 0) * item.weight;
+          break;
+        case 'length':
+          itemValue = item.priceType === 'each' ? item.price * (item.quantity || 1) : item.price * item.length;
+          itemCost = item.priceType === 'each' ? (item.cost || 0) * (item.quantity || 1) : (item.cost || 0) * item.length;
+          break;
+        case 'area':
+          itemValue = item.priceType === 'each' ? item.price * (item.quantity || 1) : item.price * item.area;
+          itemCost = item.priceType === 'each' ? (item.cost || 0) * (item.quantity || 1) : (item.cost || 0) * item.area;
+          break;
+        case 'volume':
+          itemValue = item.priceType === 'each' ? item.price * (item.quantity || 1) : item.price * item.volume;
+          itemCost = item.priceType === 'each' ? (item.cost || 0) * (item.quantity || 1) : (item.cost || 0) * item.volume;
+          break;
+      }
 
       totalValue += itemValue;
       totalCost += itemCost;
 
       const markup = item.cost ? (item.price / item.cost - 1) * 100 : 0;
-      if (markup > highestMarkup) {
+      if (markup > highestMarkup && (item.cost || 0) > 0) {
         highestMarkup = markup;
         highestMarkupItem = item;
       }
@@ -179,7 +200,13 @@ export default function InventoryProfitReport() {
             <XAxis dataKey="name" />
             <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
             <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-            <Tooltip />
+            <Tooltip formatter={(value, name) => [
+              // Ensure 'name' is treated as a string before using includes method
+              typeof name === 'string' && name.includes('Markup')
+                ? `${Number(value).toFixed(1)}%`
+                : formatCurrency(Number(value)),
+              name
+            ]} />
             <Legend />
             <Bar yAxisId="left" dataKey="avgMarkup" name="Avg. Markup (%)" fill="#8884d8" unit="%" />
             <Bar yAxisId="right" dataKey="totalProfit" name="Total Profit ($)" fill="#82ca9d" />
@@ -220,6 +247,7 @@ export default function InventoryProfitReport() {
                     Markup %
                   </TableSortLabel>
                 </TableCell>
+                <TableCell>Measurement</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -230,7 +258,7 @@ export default function InventoryProfitReport() {
                 return (
                   <TableRow key={item._id} hover>
                     <TableCell>{item.name}</TableCell>
-                    <TableCell>{item.category}</TableCell>
+                    <TableCell>{item.category || 'Uncategorized'}</TableCell>
                     <TableCell>
                       <Chip
                         size="small"
@@ -251,6 +279,13 @@ export default function InventoryProfitReport() {
                       sx={{ color: markup > 0 ? 'success.main' : 'error.main' }}
                     >
                       {markup.toFixed(1)}%
+                    </TableCell>
+                    <TableCell>
+                      {item.trackingType === 'quantity' && `${item.quantity} units`}
+                      {item.trackingType === 'weight' && `${item.weight} ${item.weightUnit}`}
+                      {item.trackingType === 'length' && `${item.length} ${item.lengthUnit}`}
+                      {item.trackingType === 'area' && `${item.area} ${item.areaUnit}`}
+                      {item.trackingType === 'volume' && `${item.volume} ${item.volumeUnit}`}
                     </TableCell>
                   </TableRow>
                 );

@@ -30,9 +30,9 @@ import { useItem, useDeleteItem } from '@hooks/useItems';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
-import { useSettings } from '@context/SettingsContext';
+import { useSettings } from '@hooks/useSettings';
 import { isPopulatedItem, Item } from '@custTypes/models';
-import { JSX } from 'react';
+import { JSX, useMemo } from 'react';
 
 export default function InventoryDetail() {
   const { id } = useParams();
@@ -40,6 +40,8 @@ export default function InventoryDetail() {
   const { data: item, isLoading, error } = useItem(id);
   const deleteItem = useDeleteItem();
   const { lowStockAlertsEnabled, quantityThreshold, weightThresholds } = useSettings();
+
+  const data = item;
 
   const handleDelete = async () => {
     if (!id || !window.confirm('Are you sure you want to delete this item?')) {
@@ -59,23 +61,39 @@ export default function InventoryDetail() {
     return new Date(date).toLocaleString();
   };
 
+  // Update inventory value calculation to handle all tracking types
+  const inventoryValue = useMemo(() => {
+    if (!data) return 0;
+
+    switch (data?.trackingType) {
+      case 'quantity':
+        return (data?.price || 0) * (data?.quantity || 0);
+      case 'weight':
+        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.weight || 0);
+      case 'length':
+        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.length || 0);
+      case 'area':
+        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.area || 0);
+      case 'volume':
+        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.volume || 0);
+      default:
+        return (data?.price || 0) * (data?.quantity || 0);
+    }
+  }, [data]);
+
+  // Update the getStockStatusColor function to properly handle all tracking types
   const getStockStatusColor = (item: typeof data): 'success' | 'warning' | 'error' => {
-    if (item.trackingType === 'quantity') {
-      if (item.quantity === 0) return 'error';
-      if (!lowStockAlertsEnabled) return 'success';
-      if (item.quantity < quantityThreshold) return 'warning';
-      return 'success';
-    } else {
-      // For weight-tracked items
-      if (item.priceType === 'each') {
-        // Base status on quantity when pricing is per item
-        if (!item.quantity || item.quantity === 0) return 'error';
+    if (!item) return 'success';
+
+    switch (item.trackingType) {
+      case 'quantity':
+        if (item.quantity === 0) return 'error';
         if (!lowStockAlertsEnabled) return 'success';
-        if (item.quantity < 3) return 'warning'; // Consider adding a separate threshold for packages
+        if (item.quantity < quantityThreshold) return 'warning';
         return 'success';
-      } else {
-        // Base status on weight when pricing is per weight
-        if (!item.weight || item.weight === 0) return 'error';
+
+      case 'weight':
+        { if (item.weight === 0) return 'error';
         if (!lowStockAlertsEnabled) return 'success';
 
         // Different thresholds based on weight unit
@@ -86,8 +104,22 @@ export default function InventoryDetail() {
           item.weightUnit === 'oz' ? weightThresholds.oz : 5;
 
         if (item.weight < lowThreshold) return 'warning';
+        return 'success'; }
+
+      case 'length':
+        if (item.length === 0) return 'error';
         return 'success';
-      }
+
+      case 'area':
+        if (item.area === 0) return 'error';
+        return 'success';
+
+      case 'volume':
+        if (item.volume === 0) return 'error';
+        return 'success';
+
+      default:
+        return 'success';
     }
   };
 
@@ -163,15 +195,6 @@ export default function InventoryDetail() {
     );
   }
 
-  const data = item;
-
-  // Calculate inventory value
-  const inventoryValue = data.trackingType === 'quantity'
-    ? data.price * data.quantity
-    : data.priceType === 'each'
-      ? data.price * (data.quantity || 0)
-      : data.price * data.weight;
-
   return (
     <Box>
       {/* Header with navigation and actions */}
@@ -190,11 +213,11 @@ export default function InventoryDetail() {
                 Back
               </Button>
               <Typography variant="h4" component="div">
-                {data.name}
+                {data?.name}
               </Typography>
-              {data.category && (
+              {data?.category && (
                 <Chip
-                  label={data.category}
+                  label={data?.category}
                   size="small"
                   color="primary"
                   variant="outlined"
@@ -203,7 +226,7 @@ export default function InventoryDetail() {
               )}
             </Box>
             <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
-              SKU: {data.sku}
+              SKU: {data?.sku}
             </Typography>
           </Grid2>
           <Grid2>
@@ -237,11 +260,11 @@ export default function InventoryDetail() {
             {/* Item Image */}
             <Grid2 size= {{ xs: 12 }}>
               <Paper sx={{ p: 3, height: '100%', overflow: 'hidden', borderRadius: 2 }}>
-                {data.imageUrl ? (
+                {data?.imageUrl ? (
                   <Box
                     sx={{
                       height: 300,
-                      backgroundImage: `url(${data.imageUrl})`,
+                      backgroundImage: `url(${data?.imageUrl})`,
                       backgroundSize: 'contain',
                       backgroundPosition: 'center',
                       backgroundRepeat: 'no-repeat',
@@ -280,11 +303,11 @@ export default function InventoryDetail() {
                   <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2" sx={{ opacity: 0.8 }}>Cost:</Typography>
-                      <Typography variant="h6">{formatCurrency(data.cost || 0)}</Typography>
+                      <Typography variant="h6">{formatCurrency(data?.cost || 0)}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2" sx={{ opacity: 0.8 }}>Sale:</Typography>
-                      <Typography variant="h6">{formatCurrency(data.price)}</Typography>
+                      <Typography variant="h6">{formatCurrency(data?.price || 0)}</Typography>
                     </Box>
                   </Box>
                 </CardContent>
@@ -306,16 +329,18 @@ export default function InventoryDetail() {
                     <Typography variant="h6">Stock</Typography>
                   </Box>
                   <Typography variant="h4">
-                    {data.trackingType === 'quantity'
-                      ? data.quantity
-                      : `${data.weight}${data.weightUnit}`}
+                    {data?.trackingType === 'quantity' && data?.quantity}
+                    {data?.trackingType === 'weight' && `${data?.weight}${data?.weightUnit}`}
+                    {data?.trackingType === 'length' && `${data?.length}${data?.lengthUnit}`}
+                    {data?.trackingType === 'area' && `${data?.area}${data?.areaUnit}`}
+                    {data?.trackingType === 'volume' && `${data?.volume}${data?.volumeUnit}`}
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>
-                    {data.trackingType === 'quantity'
+                    {data?.trackingType === 'quantity'
                       ? 'units available'
-                      : data.priceType === 'each'
-                        ? `${data.quantity || 0} packages`
-                        : 'total weight'}
+                      : data?.priceType === 'each'
+                        ? `${data?.quantity || 0} packages`
+                        : `total ${data?.trackingType}`}
                   </Typography>
                 </CardContent>
               </Card>
@@ -346,14 +371,14 @@ export default function InventoryDetail() {
                     <Typography variant="h6">Last Updated</Typography>
                   </Box>
                   <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
-                    {formatDate(data.lastUpdated)}
+                    {formatDate(data?.lastUpdated)}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid2>
 
             {/* Item Description */}
-            {data.description && (
+            {data?.description && (
               <Grid2 size= {{ xs: 12 }}>
                 <Paper sx={{ p: 3 }}>
                   <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -362,7 +387,7 @@ export default function InventoryDetail() {
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
                   <Typography variant="body1">
-                    {data.description}
+                    {data?.description}
                   </Typography>
                 </Paper>
               </Grid2>
@@ -377,9 +402,9 @@ export default function InventoryDetail() {
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
 
-                {data.tags && data.tags.length > 0 ? (
+                {data?.tags && data?.tags.length > 0 ? (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {data.tags.map(tag => (
+                    {data?.tags.map(tag => (
                       <Chip
                         key={tag}
                         label={tag}
@@ -414,7 +439,7 @@ export default function InventoryDetail() {
                   Tracking Type
                 </Typography>
                 <Typography variant="body1">
-                  {data.trackingType === 'quantity' ? (
+                  {data?.trackingType === 'quantity' ? (
                     <Chip
                       icon={<Inventory fontSize="small" />}
                       label="Track by Quantity"
@@ -437,14 +462,14 @@ export default function InventoryDetail() {
                   Price Type
                 </Typography>
                 <Typography variant="body1">
-                  {data.trackingType === 'quantity' ? (
+                  {data?.trackingType === 'quantity' ? (
                     <Chip
                       icon={<AttachMoney fontSize="small" />}
                       label="Price per Item"
                       size="small"
                       variant="outlined"
                     />
-                  ) : data.priceType === 'each' ? (
+                  ) : data?.priceType === 'each' ? (
                     <Chip
                       icon={<AttachMoney fontSize="small" />}
                       label="Price per Package"
@@ -454,7 +479,7 @@ export default function InventoryDetail() {
                   ) : (
                     <Chip
                       icon={<AttachMoney fontSize="small" />}
-                      label={`Price per ${data.weightUnit}`}
+                      label={`Price per ${data?.weightUnit}`}
                       size="small"
                       variant="outlined"
                     />
@@ -467,14 +492,14 @@ export default function InventoryDetail() {
                   Item Type
                 </Typography>
                 <Typography variant="body1">
-                  {data.itemType === 'material' ? (
+                  {data?.itemType === 'material' ? (
                     <Chip
                       icon={<Category fontSize="small" />}
                       label="Raw Material"
                       size="small"
                       variant="outlined"
                     />
-                  ) : data.itemType === 'product' ? (
+                  ) : data?.itemType === 'product' ? (
                     <Chip
                       icon={<Inventory fontSize="small" />}
                       label="Finished Product"
@@ -498,26 +523,26 @@ export default function InventoryDetail() {
                 <Typography variant="subtitle2" color="text.secondary">
                   Stock Details
                 </Typography>
-                {data.trackingType === 'quantity' ? (
+                {data?.trackingType === 'quantity' ? (
                   <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
                     <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                    {data.quantity} units in stock
+                    {data?.quantity} units in stock
                   </Typography>
-                ) : data.priceType === 'each' ? (
+                ) : data?.priceType === 'each' ? (
                   <Box>
                     <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
                       <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      {data.quantity || 0} packages in stock
+                      {data?.quantity || 0} packages in stock
                     </Typography>
                     <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
                       <Scale fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      Each package: {data.weight}{data.weightUnit}
+                      Each package: {data?.weight}{data?.weightUnit}
                     </Typography>
                   </Box>
                 ) : (
                   <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
                     <Scale fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                    {data.weight}{data.weightUnit} in stock
+                    {data?.weight}{data?.weightUnit} in stock
                   </Typography>
                 )}
               </Box>
@@ -529,13 +554,13 @@ export default function InventoryDetail() {
                   Sale Price
                 </Typography>
                 <Typography variant="h5" color="primary" sx={{ mt: 1, fontWeight: 'bold' }}>
-                  {formatCurrency(data.price)}
+                  {formatCurrency(data?.price || 0)}
                   <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
-                    {data.trackingType === 'quantity'
+                    {data?.trackingType === 'quantity'
                       ? 'per item'
-                      : data.priceType === 'each'
+                      : data?.priceType === 'each'
                         ? 'per package'
-                        : `per ${data.weightUnit}`}
+                        : `per ${data?.weightUnit}`}
                   </Typography>
                 </Typography>
               </Box>
@@ -551,28 +576,28 @@ export default function InventoryDetail() {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="body2" color="text.secondary">Purchase Cost:</Typography>
                     <Typography variant="body1" fontWeight="medium">
-                      {formatCurrency(data.cost || 0)}
+                      {formatCurrency(data?.cost || 0)}
                     </Typography>
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
                     <Typography variant="body2" color="text.secondary">Markup:</Typography>
-                    <Typography variant="body1" fontWeight="medium" color={data.price > (data.cost || 0) ? 'success.main' : 'error.main'}>
-                      {data.cost ? `${Math.round((data.price / data.cost - 1) * 100)}%` : 'N/A'}
+                    <Typography variant="body1" fontWeight="medium" color={data?.price || 0 > (data?.cost || 0) ? 'success.main' : 'error.main'}>
+                      {data?.cost || 0 ? `${Math.round(((data?.price || 0) / (data?.cost || 0) - 1) * 100)}%` : 'N/A'}
                     </Typography>
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
                     <Typography variant="body2" color="text.secondary">Profit per Unit:</Typography>
-                    <Typography variant="body1" fontWeight="medium" color={data.price > (data.cost || 0) ? 'success.main' : 'error.main'}>
-                      {formatCurrency(data.price - (data.cost || 0))}
+                    <Typography variant="body1" fontWeight="medium" color={(data?.price || 0) > (data?.cost || 0) ? 'success.main' : 'error.main'}>
+                      {formatCurrency((data?.price || 0) - (data?.cost || 0))}
                     </Typography>
                   </Box>
                 </Box>
               </Box>
 
               {/* Pack Information for Materials */}
-              {(data.itemType === 'material' || data.itemType === 'both') && data.packInfo?.isPack && (
+              {(data?.itemType === 'material' || data?.itemType === 'both') && data?.packInfo?.isPack && (
                 <>
                   <Divider />
                   <Box>
@@ -582,20 +607,20 @@ export default function InventoryDetail() {
                     <Box sx={{ mt: 1 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                         <Typography variant="body2" color="text.secondary">Units per Pack:</Typography>
-                        <Typography variant="body1">{data.packInfo.unitsPerPack}</Typography>
+                        <Typography variant="body1">{data?.packInfo.unitsPerPack}</Typography>
                       </Box>
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
                         <Typography variant="body2" color="text.secondary">Cost per Unit:</Typography>
                         <Typography variant="body1">
-                          {formatCurrency(data.packInfo.costPerUnit || 0)}
+                          {formatCurrency(data?.packInfo.costPerUnit || 0)}
                         </Typography>
                       </Box>
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
                         <Typography variant="body2" color="text.secondary">Pack Cost:</Typography>
                         <Typography variant="body1">
-                          {formatCurrency((data.packInfo.costPerUnit || 0) * (data.packInfo.unitsPerPack || 1))}
+                          {formatCurrency((data?.packInfo.costPerUnit || 0) * (data?.packInfo.unitsPerPack || 1))}
                         </Typography>
                       </Box>
                     </Box>
@@ -638,19 +663,19 @@ export default function InventoryDetail() {
           </Paper>
 
           {/* Materials & Products Relationships */}
-          {(data.itemType === 'product' || data.itemType === 'both') && (
+          {(data?.itemType === 'product' || data?.itemType === 'both') && (
             <Paper sx={{ p: 3, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
                 Materials Used
               </Typography>
               <Divider sx={{ mb: 2 }} />
 
-              {data.components && data.components.length > 0 ? (
+              {data?.components && data?.components.length > 0 ? (
                 <Stack spacing={2}>
-                  {data.components.map((component, index) => {
+                  {data?.components.map((component, index) => {
                     const material = component.item || null;
                     const isPopulated = isPopulatedItem(material);
-                    const materialCost = isPopulated && material.cost ? material.cost : 0;
+                    const materialCost = isPopulated && (material.cost || 0) ? (material.cost || 0) : 0;
 
                     return (
                       <Box
@@ -681,16 +706,16 @@ export default function InventoryDetail() {
             </Paper>
           )}
 
-          {(data.itemType === 'material' || data.itemType === 'both') && (
+          {(data?.itemType === 'material' || data?.itemType === 'both') && (
             <Paper sx={{ p: 3, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
                 Used In Products
               </Typography>
               <Divider sx={{ mb: 2 }} />
 
-              {data.usedInProducts && data.usedInProducts.length > 0 ? (
+              {data?.usedInProducts && data?.usedInProducts.length > 0 ? (
                 <Stack spacing={2}>
-                  {data.usedInProducts.map((product, index) =>
+                  {data?.usedInProducts.map((product, index) =>
                     renderRelatedItem(product, index)
                   )}
                 </Stack>

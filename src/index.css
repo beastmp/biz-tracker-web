@@ -1,4 +1,20 @@
+/* Base styles with improved accessibility */
 :root {
+  /* Base colors */
+  --primary: #0a7ea4;
+  --secondary: #4caf50;
+  --error: #f44336;
+  --warning: #ff9800;
+  --info: #2196f3;
+  --success: #4caf50;
+
+  /* Focus style variables */
+  --focus-color: rgba(10, 126, 164, 0.5);
+  --focus-width: 3px;
+
+  /* Animations */
+  --transition-speed: 0.2s;
+
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -13,13 +29,15 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+/* Reset and core styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
-a:hover {
-  color: #535bf2;
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -28,6 +46,111 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  text-rendering: optimizeSpeed;
+  font-family: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu,
+    Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+/* Improved focus styles for accessibility */
+:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+/* Handle keyboard navigation styles */
+a:focus,
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline-color: var(--focus-color);
+}
+
+/* Improved link accessibility */
+a {
+  font-weight: 500;
+  color: var(--primary);
+  text-decoration: inherit;
+  transition: color var(--transition-speed) ease;
+}
+
+a:hover {
+  color: #535bf2;
+  text-decoration: underline;
+}
+
+/* Skip to content for keyboard accessibility */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--primary);
+  color: white;
+  padding: 8px;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Better image handling */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* Responsive tables */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Utility classes */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Animation utilities */
+.fade-in {
+  animation: fadeIn var(--transition-speed) ease-in;
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Improved scrollbar for better UX */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #bbb;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999;
 }
 
 h1 {
@@ -52,6 +175,44 @@ button:hover {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* Print styles for better reports */
+@media print {
+  body {
+    color: #000;
+    background: #fff;
+  }
+
+  nav,
+  .no-print {
+    display: none !important;
+  }
+
+  a {
+    text-decoration: none;
+    color: #000;
+  }
+
+  @page {
+    margin: 1cm;
+  }
+}
+
+/* High contrast and reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .low-contrast {
+    filter: brightness(1.1) contrast(1.3);
+  }
 }
 
 @media (prefers-color-scheme: light) {

@@ -31,7 +31,7 @@ import { usePurchases } from '@hooks/usePurchases';
 import { formatCurrency, formatDate } from '@utils/formatters';
 import StatusChip from '@components/ui/StatusChip';
 import LoadingScreen from '@components/ui/LoadingScreen';
-import { useSettings } from '@context/SettingsContext';
+import { useSettings } from '@hooks/useSettings';
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');

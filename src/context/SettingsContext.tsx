@@ -1,100 +1,58 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-
-type WeightThresholds = {
-  kg: number;
-  g: number;
-  lb: number;
-  oz: number;
-};
-
-type ViewMode = 'grid' | 'list';
-
-// Add a type for possible grouping options
-export type GroupByOption = 'none' | 'itemType' | 'category';
-
-interface SettingsContextType {
-  lowStockAlertsEnabled: boolean;
-  quantityThreshold: number;
-  weightThresholds: WeightThresholds;
-  setLowStockAlertsEnabled: (value: boolean) => void;
-  setQuantityThreshold: (value: number) => void;
-  setWeightThresholds: (thresholds: WeightThresholds) => void;
-  updateWeightThreshold: (unit: keyof WeightThresholds, value: number) => void;
-  defaultViewMode: ViewMode;
-  setDefaultViewMode: (mode: ViewMode) => void;
-
-  // Add new settings for default grouping
-  defaultGroupBy: GroupByOption;
-  setDefaultGroupBy: (groupBy: GroupByOption) => void;
-}
-
-const defaultWeightThresholds = {
-  kg: 1,
-  g: 500,
-  lb: 2,
-  oz: 16
-};
-
-const defaultSettings: SettingsContextType = {
-  lowStockAlertsEnabled: true,
-  quantityThreshold: 5,
-  weightThresholds: defaultWeightThresholds,
-  setLowStockAlertsEnabled: () => {},
-  setQuantityThreshold: () => {},
-  setWeightThresholds: () => {},
-  updateWeightThreshold: () => {},
-  defaultViewMode: 'grid',
-  setDefaultViewMode: () => {},
-
-  // Add default for grouping
-  defaultGroupBy: 'itemType',
-  setDefaultGroupBy: () => {}
-};
-
-const SettingsContext = createContext<SettingsContextType>(defaultSettings);
-
-export const useSettings = () => useContext(SettingsContext);
+import React, { useState, useEffect } from 'react';
+import { SettingsContext, SettingsContextType } from './SettingsContextDef';
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Low stock alert settings
   const [lowStockAlertsEnabled, setLowStockAlertsEnabled] = useState<boolean>(() => {
     const saved = localStorage.getItem('lowStockAlertsEnabled');
-    return saved !== null ? JSON.parse(saved) : defaultSettings.lowStockAlertsEnabled;
+    return saved !== null ? JSON.parse(saved) : true;
   });
 
   const [quantityThreshold, setQuantityThreshold] = useState<number>(() => {
     const saved = localStorage.getItem('quantityThreshold');
-    return saved !== null ? JSON.parse(saved) : defaultSettings.quantityThreshold;
+    return saved !== null ? parseInt(saved, 10) : 5;
   });
 
-  const [weightThresholds, setWeightThresholds] = useState<WeightThresholds>(() => {
+  const [weightThresholds, setWeightThresholds] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem('weightThresholds');
-    return saved !== null ? JSON.parse(saved) : defaultSettings.weightThresholds;
+    return saved !== null
+      ? JSON.parse(saved)
+      : {
+          kg: 1,
+          g: 500,
+          lb: 2,
+          oz: 32
+        };
   });
 
-  const [defaultViewMode, setDefaultViewMode] = useState<ViewMode>(() => {
+  // Display settings
+  const [defaultViewMode, setDefaultViewMode] = useState<'grid' | 'list'>(() => {
     const saved = localStorage.getItem('defaultViewMode');
-    return (saved as ViewMode) || defaultSettings.defaultViewMode;
+    return (saved === 'grid' || saved === 'list') ? saved : 'list';
   });
 
-  // Add new state for default grouping with localStorage persistence
-  const [defaultGroupBy, setDefaultGroupBy] = useState<GroupByOption>(() => {
+  const [defaultGroupBy, setDefaultGroupBy] = useState<'none' | 'category' | 'itemType'>(() => {
     const saved = localStorage.getItem('defaultGroupBy');
-    return (saved as GroupByOption) || defaultSettings.defaultGroupBy;
+    return (saved === 'none' || saved === 'category' || saved === 'itemType')
+      ? saved
+      : 'none';
   });
 
-  const updateWeightThreshold = (unit: keyof WeightThresholds, value: number) => {
+  // Update a specific weight threshold
+  const updateWeightThreshold = (unit: string, value: number) => {
     setWeightThresholds(prev => ({
       ...prev,
       [unit]: value
     }));
   };
 
+  // Save settings to localStorage
   useEffect(() => {
     localStorage.setItem('lowStockAlertsEnabled', JSON.stringify(lowStockAlertsEnabled));
   }, [lowStockAlertsEnabled]);
 
   useEffect(() => {
-    localStorage.setItem('quantityThreshold', JSON.stringify(quantityThreshold));
+    localStorage.setItem('quantityThreshold', quantityThreshold.toString());
   }, [quantityThreshold]);
 
   useEffect(() => {
@@ -105,28 +63,28 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem('defaultViewMode', defaultViewMode);
   }, [defaultViewMode]);
 
-  // Update localStorage when defaultGroupBy changes
   useEffect(() => {
     localStorage.setItem('defaultGroupBy', defaultGroupBy);
   }, [defaultGroupBy]);
 
-  return (
-    <SettingsContext.Provider value={{
-      lowStockAlertsEnabled,
-      quantityThreshold,
-      weightThresholds,
-      setLowStockAlertsEnabled,
-      setQuantityThreshold,
-      setWeightThresholds,
-      updateWeightThreshold,
-      defaultViewMode,
-      setDefaultViewMode,
+  const contextValue: SettingsContextType = {
+    lowStockAlertsEnabled,
+    setLowStockAlertsEnabled,
+    quantityThreshold,
+    setQuantityThreshold,
+    weightThresholds,
+    updateWeightThreshold,
+    defaultViewMode,
+    setDefaultViewMode,
+    defaultGroupBy,
+    setDefaultGroupBy
+  };
 
-      // Add new values
-      defaultGroupBy,
-      setDefaultGroupBy
-    }}>
+  return (
+    <SettingsContext.Provider value={contextValue}>
       {children}
     </SettingsContext.Provider>
   );
 };
+
+export default SettingsProvider;

@@ -37,7 +37,7 @@ import {
 import { Save, ArrowBack, Add, Delete, Image as ImageIcon, AddCircle } from '@mui/icons-material';
 import { usePurchase, useCreatePurchase, useUpdatePurchase } from '@hooks/usePurchases';
 import { useItems, useCreateItem, useNextSku, useCategories } from '@hooks/useItems';
-import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType } from '@custTypes/models';
+import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType, LengthUnit, AreaUnit, VolumeUnit } from '@custTypes/models';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
@@ -79,6 +79,12 @@ export default function PurchaseForm() {
   const [quantity, setQuantity] = useState(1);
   const [weight, setWeight] = useState(0);
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('lb');
+  const [length, setLength] = useState(0);
+  const [lengthUnit, setLengthUnit] = useState<LengthUnit>('in');
+  const [area, setArea] = useState(0);
+  const [areaUnit, setAreaUnit] = useState<AreaUnit>('sqft');
+  const [volume, setVolume] = useState(0);
+  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>('l');
   const [costPerUnit, setCostPerUnit] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
   const [itemSelectDialogOpen, setItemSelectDialogOpen] = useState(false);
@@ -95,6 +101,12 @@ export default function PurchaseForm() {
     quantity: 0,
     weight: 0,
     weightUnit: 'lb' as WeightUnit,
+    length: 0,
+    lengthUnit: 'in' as LengthUnit,
+    area: 0,
+    areaUnit: 'sqft' as AreaUnit,
+    volume: 0,
+    volumeUnit: 'l' as VolumeUnit,
     price: 0,
     priceType: 'each',
     description: '',
@@ -139,21 +151,47 @@ export default function PurchaseForm() {
 
   // Update total cost when quantity, costPerUnit or weight changes
   useEffect(() => {
-    if (selectedItem?.trackingType === 'weight') {
-      setTotalCost(weight * costPerUnit);
-    } else {
-      setTotalCost(quantity * costPerUnit);
+    if (selectedItem) {
+      switch (selectedItem.trackingType) {
+        case 'weight':
+          setTotalCost(weight * costPerUnit);
+          break;
+        case 'length':
+          setTotalCost(length * costPerUnit);
+          break;
+        case 'area':
+          setTotalCost(area * costPerUnit);
+          break;
+        case 'volume':
+          setTotalCost(volume * costPerUnit);
+          break;
+        default: // quantity
+          setTotalCost(quantity * costPerUnit);
+      }
     }
-  }, [quantity, costPerUnit, weight, selectedItem]);
+  }, [quantity, costPerUnit, weight, length, area, volume, selectedItem]);
 
   // Add new effect to calculate cost per unit when total cost or quantity changes
   useEffect(() => {
-    if (quantity > 0) {
-      setCostPerUnit(totalCost / quantity);
-    } else if (weight > 0 && selectedItem?.trackingType === 'weight') {
-      setCostPerUnit(totalCost / weight);
+    if (selectedItem) {
+      switch (selectedItem.trackingType) {
+        case 'weight':
+          if (weight > 0) setCostPerUnit(totalCost / weight);
+          break;
+        case 'length':
+          if (length > 0) setCostPerUnit(totalCost / length);
+          break;
+        case 'area':
+          if (area > 0) setCostPerUnit(totalCost / area);
+          break;
+        case 'volume':
+          if (volume > 0) setCostPerUnit(totalCost / volume);
+          break;
+        default: // quantity
+          if (quantity > 0) setCostPerUnit(totalCost / quantity);
+      }
     }
-  }, [totalCost, quantity, weight, selectedItem]);
+  }, [totalCost, quantity, weight, length, area, volume, selectedItem]);
 
   // Add effect to calculate unit cost when total price or quantity changes
   useEffect(() => {
@@ -197,14 +235,42 @@ export default function PurchaseForm() {
 
     const newItem: PurchaseItem = {
       item: selectedItem._id || '',
-      quantity: selectedItem.trackingType === 'weight' ? 1 : quantity,
       costPerUnit,
       totalCost,
+      // Add required properties with defaults
+      quantity: 0,
+      weight: 0,
+      length: 0,
+      area: 0,
+      volume: 0,
+      purchasedBy: 'quantity' // Default tracking type
     };
 
-    if (selectedItem.trackingType === 'weight') {
-      newItem.weight = weight;
-      newItem.weightUnit = weightUnit;
+    // Add appropriate measurement fields based on tracking type
+    switch (selectedItem.trackingType) {
+      case 'weight':
+        newItem.weight = weight;
+        newItem.weightUnit = weightUnit;
+        newItem.purchasedBy = 'weight';
+        break;
+      case 'length':
+        newItem.length = length;
+        newItem.lengthUnit = lengthUnit;
+        newItem.purchasedBy = 'length';
+        break;
+      case 'area':
+        newItem.area = area;
+        newItem.areaUnit = areaUnit;
+        newItem.purchasedBy = 'area';
+        break;
+      case 'volume':
+        newItem.volume = volume;
+        newItem.volumeUnit = volumeUnit;
+        newItem.purchasedBy = 'volume';
+        break;
+      default: // quantity
+        newItem.quantity = quantity;
+        newItem.purchasedBy = 'quantity';
     }
 
     setPurchase({
@@ -216,6 +282,9 @@ export default function PurchaseForm() {
     setSelectedItem(null);
     setQuantity(1);
     setWeight(0);
+    setLength(0);
+    setArea(0);
+    setVolume(0);
     setCostPerUnit(0);
     setTotalCost(0);
   };
@@ -252,15 +321,33 @@ export default function PurchaseForm() {
     if (!newItem.sku) errors.sku = 'SKU is required';
     if (!newItem.category) errors.category = 'Category is required';
 
-    if (newItem.trackingType === 'quantity' && (!newItem.quantity || newItem.quantity < 0)) {
-      errors.quantity = 'Valid quantity is required';
+    switch (newItem.trackingType) {
+      case 'quantity':
+        if (!newItem.quantity || newItem.quantity < 0) {
+          errors.quantity = 'Valid quantity is required';
+        }
+        break;
+      case 'weight':
+        if (!newItem.weight || newItem.weight < 0) {
+          errors.weight = 'Valid weight is required';
+        }
+        break;
+      case 'length':
+        if (!newItem.length || newItem.length < 0) {
+          errors.length = 'Valid length is required';
+        }
+        break;
+      case 'area':
+        if (!newItem.area || newItem.area < 0) {
+          errors.area = 'Valid area is required';
+        }
+        break;
+      case 'volume':
+        if (!newItem.volume || newItem.volume < 0) {
+          errors.volume = 'Valid volume is required';
+        }
+        break;
     }
-
-    if (newItem.trackingType === 'weight' && (!newItem.weight || newItem.weight < 0)) {
-      errors.weight = 'Valid weight is required';
-    }
-
-    // Remove price validation since it will be set from purchase cost
 
     setNewItemErrors(errors);
     return Object.keys(errors).length === 0;
@@ -308,6 +395,12 @@ export default function PurchaseForm() {
         quantity: 0,
         weight: 0,
         weightUnit: 'lb' as WeightUnit,
+        length: 0,
+        lengthUnit: 'in' as LengthUnit,
+        area: 0,
+        areaUnit: 'sqft' as AreaUnit,
+        volume: 0,
+        volumeUnit: 'l' as VolumeUnit,
         price: 0,
         priceType: 'each',
         description: '',
@@ -480,42 +573,8 @@ export default function PurchaseForm() {
             </Typography>
 
             <Grid2 container spacing={2} alignItems="center">
-              {selectedItem.trackingType === 'weight' ? (
-                <>
-                  <Grid2 size= {{ xs: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="Weight"
-                      type="number"
-                      value={weight}
-                      onChange={(e) => {
-                        const newWeight = parseFloat(e.target.value) || 0;
-                        setWeight(newWeight);
-                        // Don't recalculate cost per unit here - it will be done by effect
-                      }}
-                      disabled={createPurchase.isPending || updatePurchase.isPending}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Select
-                              value={weightUnit}
-                              onChange={(e) => setWeightUnit(e.target.value as any)}
-                              size="small"
-                              disabled={createPurchase.isPending || updatePurchase.isPending}
-                            >
-                              <MenuItem value="oz">oz</MenuItem>
-                              <MenuItem value="lb">lb</MenuItem>
-                              <MenuItem value="g">g</MenuItem>
-                              <MenuItem value="kg">kg</MenuItem>
-                            </Select>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </Grid2>
-                </>
-              ) : (
-                <Grid2 size= {{ xs: 4 }}>
+              {selectedItem.trackingType === 'quantity' && (
+                <Grid2 size={{ xs: 4 }}>
                   <TextField
                     fullWidth
                     label="Quantity"
@@ -524,14 +583,150 @@ export default function PurchaseForm() {
                     onChange={(e) => {
                       const newQuantity = parseInt(e.target.value) || 0;
                       setQuantity(newQuantity);
-                      // Don't recalculate cost per unit here - it will be done by effect
                     }}
                     disabled={createPurchase.isPending || updatePurchase.isPending}
                   />
                 </Grid2>
               )}
 
-              <Grid2 size= {{ xs: 4 }}>
+              {selectedItem.trackingType === 'weight' && (
+                <Grid2 size={{ xs: 4 }}>
+                  <TextField
+                    fullWidth
+                    label="Weight"
+                    type="number"
+                    value={weight}
+                    onChange={(e) => {
+                      const newWeight = parseFloat(e.target.value) || 0;
+                      setWeight(newWeight);
+                    }}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Select
+                            value={weightUnit}
+                            onChange={(e) => setWeightUnit(e.target.value as WeightUnit)}
+                            size="small"
+                            disabled={createPurchase.isPending || updatePurchase.isPending}
+                          >
+                            <MenuItem value="oz">oz</MenuItem>
+                            <MenuItem value="lb">lb</MenuItem>
+                            <MenuItem value="g">g</MenuItem>
+                            <MenuItem value="kg">kg</MenuItem>
+                          </Select>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid2>
+              )}
+
+              {selectedItem.trackingType === 'length' && (
+                <Grid2 size={{ xs: 4 }}>
+                  <TextField
+                    fullWidth
+                    label="Length"
+                    type="number"
+                    value={length}
+                    onChange={(e) => {
+                      const newLength = parseFloat(e.target.value) || 0;
+                      setLength(newLength);
+                    }}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Select
+                            value={lengthUnit}
+                            onChange={(e) => setLengthUnit(e.target.value as LengthUnit)}
+                            size="small"
+                            disabled={createPurchase.isPending || updatePurchase.isPending}
+                          >
+                            <MenuItem value="mm">mm</MenuItem>
+                            <MenuItem value="cm">cm</MenuItem>
+                            <MenuItem value="m">m</MenuItem>
+                            <MenuItem value="in">in</MenuItem>
+                            <MenuItem value="ft">ft</MenuItem>
+                            <MenuItem value="yd">yd</MenuItem>
+                          </Select>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid2>
+              )}
+
+              {selectedItem.trackingType === 'area' && (
+                <Grid2 size={{ xs: 4 }}>
+                  <TextField
+                    fullWidth
+                    label="Area"
+                    type="number"
+                    value={area}
+                    onChange={(e) => {
+                      const newArea = parseFloat(e.target.value) || 0;
+                      setArea(newArea);
+                    }}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Select
+                            value={areaUnit}
+                            onChange={(e) => setAreaUnit(e.target.value as AreaUnit)}
+                            size="small"
+                            disabled={createPurchase.isPending || updatePurchase.isPending}
+                          >
+                            <MenuItem value="sqft">sq ft</MenuItem>
+                            <MenuItem value="sqm">sq m</MenuItem>
+                            <MenuItem value="sqyd">sq yd</MenuItem>
+                            <MenuItem value="acre">acre</MenuItem>
+                            <MenuItem value="ha">ha</MenuItem>
+                          </Select>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid2>
+              )}
+
+              {selectedItem.trackingType === 'volume' && (
+                <Grid2 size={{ xs: 4 }}>
+                  <TextField
+                    fullWidth
+                    label="Volume"
+                    type="number"
+                    value={volume}
+                    onChange={(e) => {
+                      const newVolume = parseFloat(e.target.value) || 0;
+                      setVolume(newVolume);
+                    }}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Select
+                            value={volumeUnit}
+                            onChange={(e) => setVolumeUnit(e.target.value as VolumeUnit)}
+                            size="small"
+                            disabled={createPurchase.isPending || updatePurchase.isPending}
+                          >
+                            <MenuItem value="ml">ml</MenuItem>
+                            <MenuItem value="l">l</MenuItem>
+                            <MenuItem value="gal">gal</MenuItem>
+                            <MenuItem value="floz">fl oz</MenuItem>
+                            <MenuItem value="cu_ft">cu ft</MenuItem>
+                            <MenuItem value="cu_m">cu m</MenuItem>
+                          </Select>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid2>
+              )}
+
+              <Grid2 size={{ xs: 4 }}>
                 <TextField
                   fullWidth
                   label="Total Cost"
@@ -540,7 +735,6 @@ export default function PurchaseForm() {
                   onChange={(e) => {
                     const newTotalCost = parseFloat(e.target.value) || 0;
                     setTotalCost(newTotalCost);
-                    // Cost per unit will be calculated by the effect
                   }}
                   disabled={createPurchase.isPending || updatePurchase.isPending}
                   InputProps={{
@@ -549,7 +743,7 @@ export default function PurchaseForm() {
                 />
               </Grid2>
 
-              <Grid2 size= {{ xs: 4 }}>
+              <Grid2 size={{ xs: 4 }}>
                 <TextField
                   fullWidth
                   label="Cost Per Unit"
@@ -559,6 +753,12 @@ export default function PurchaseForm() {
                   InputProps={{
                     readOnly: true,
                     startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                    endAdornment: <InputAdornment position="end">
+                      {selectedItem.trackingType === 'weight' ? `/${weightUnit}` :
+                       selectedItem.trackingType === 'length' ? `/${lengthUnit}` :
+                       selectedItem.trackingType === 'area' ? `/${areaUnit}` :
+                       selectedItem.trackingType === 'volume' ? `/${volumeUnit}` : ''}
+                    </InputAdornment>
                   }}
                 />
               </Grid2>
@@ -596,7 +796,11 @@ export default function PurchaseForm() {
                     <TableRow key={index}>
                       <TableCell>{itemDetails ? itemDetails.name : 'Unknown Item'}</TableCell>
                       <TableCell>
-                        {item.weight ? `${item.weight} ${item.weightUnit}` : item.quantity}
+                        {item.purchasedBy === 'weight' ? `${item.weight} ${item.weightUnit}` :
+                         item.purchasedBy === 'length' ? `${item.length} ${item.lengthUnit}` :
+                         item.purchasedBy === 'area' ? `${item.area} ${item.areaUnit}` :
+                         item.purchasedBy === 'volume' ? `${item.volume} ${item.volumeUnit}` :
+                         item.quantity}
                       </TableCell>
                       <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
                       <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
@@ -910,9 +1114,23 @@ export default function PurchaseForm() {
                   label="Tracking Type"
                   onChange={(e) => handleNewItemChange('trackingType', e.target.value)}
                 >
-                  <MenuItem value="quantity">Quantity</MenuItem>
-                  <MenuItem value="weight">Weight</MenuItem>
+                  <MenuItem value="quantity">Track by Quantity</MenuItem>
+                  <MenuItem value="weight">Track by Weight</MenuItem>
+                  <MenuItem value="length">Track by Length</MenuItem>
+                  <MenuItem value="area">Track by Area</MenuItem>
+                  <MenuItem value="volume">Track by Volume</MenuItem>
                 </Select>
+                <FormHelperText>
+                  {newItem.trackingType === 'quantity'
+                    ? 'Track individual units in your inventory'
+                    : newItem.trackingType === 'weight'
+                    ? 'Track the weight of your inventory'
+                    : newItem.trackingType === 'length'
+                    ? 'Track the length of your inventory'
+                    : newItem.trackingType === 'area'
+                    ? 'Track the area of your inventory'
+                    : 'Track the volume of your inventory'}
+                </FormHelperText>
               </FormControl>
             </Grid2>
 
@@ -930,7 +1148,7 @@ export default function PurchaseForm() {
                   helperText={newItemErrors.quantity}
                 />
               </Grid2>
-            ) : (
+            ) : newItem.trackingType === 'weight' ? (
               <Grid2 size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
@@ -954,6 +1172,101 @@ export default function PurchaseForm() {
                           <MenuItem value="lb">lb</MenuItem>
                           <MenuItem value="g">g</MenuItem>
                           <MenuItem value="kg">kg</MenuItem>
+                        </Select>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid2>
+            ) : newItem.trackingType === 'length' ? (
+              <Grid2 size={{ xs: 12, md: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Length"
+                  type="number"
+                  value={newItem.length}
+                  onChange={(e) => handleNewItemChange('length', parseFloat(e.target.value) || 0)}
+                  margin="normal"
+                  required
+                  error={!!newItemErrors.length}
+                  helperText={newItemErrors.length}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <Select
+                          value={newItem.lengthUnit}
+                          onChange={(e) => handleNewItemChange('lengthUnit', e.target.value)}
+                          size="small"
+                        >
+                          <MenuItem value="mm">mm</MenuItem>
+                          <MenuItem value="cm">cm</MenuItem>
+                          <MenuItem value="m">m</MenuItem>
+                          <MenuItem value="in">in</MenuItem>
+                          <MenuItem value="ft">ft</MenuItem>
+                          <MenuItem value="yd">yd</MenuItem>
+                        </Select>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid2>
+            ) : newItem.trackingType === 'area' ? (
+              <Grid2 size={{ xs: 12, md: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Area"
+                  type="number"
+                  value={newItem.area}
+                  onChange={(e) => handleNewItemChange('area', parseFloat(e.target.value) || 0)}
+                  margin="normal"
+                  required
+                  error={!!newItemErrors.area}
+                  helperText={newItemErrors.area}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <Select
+                          value={newItem.areaUnit}
+                          onChange={(e) => handleNewItemChange('areaUnit', e.target.value)}
+                          size="small"
+                        >
+                          <MenuItem value="sqft">sq ft</MenuItem>
+                          <MenuItem value="sqm">sq m</MenuItem>
+                          <MenuItem value="sqyd">sq yd</MenuItem>
+                          <MenuItem value="acre">acre</MenuItem>
+                          <MenuItem value="ha">ha</MenuItem>
+                        </Select>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid2>
+            ) : (
+              <Grid2 size={{ xs: 12, md: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Volume"
+                  type="number"
+                  value={newItem.volume}
+                  onChange={(e) => handleNewItemChange('volume', parseFloat(e.target.value) || 0)}
+                  margin="normal"
+                  required
+                  error={!!newItemErrors.volume}
+                  helperText={newItemErrors.volume}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <Select
+                          value={newItem.volumeUnit}
+                          onChange={(e) => handleNewItemChange('volumeUnit', e.target.value)}
+                          size="small"
+                        >
+                          <MenuItem value="ml">ml</MenuItem>
+                          <MenuItem value="l">l</MenuItem>
+                          <MenuItem value="gal">gal</MenuItem>
+                          <MenuItem value="floz">fl oz</MenuItem>
+                          <MenuItem value="cu_ft">cu ft</MenuItem>
+                          <MenuItem value="cu_m">cu m</MenuItem>
                         </Select>
                       </InputAdornment>
                     ),
@@ -1016,8 +1329,19 @@ export default function PurchaseForm() {
                   label="Price Type"
                   onChange={(e) => handleNewItemChange('priceType', e.target.value)}
                 >
-                  <MenuItem value="each">Per Item</MenuItem>
-                  <MenuItem value="per_weight_unit">Per Weight Unit</MenuItem>
+                  <MenuItem value="each">Price per Item</MenuItem>
+                  {newItem.trackingType === 'weight' && (
+                    <MenuItem value="per_weight_unit">Price per {newItem.weightUnit}</MenuItem>
+                  )}
+                  {newItem.trackingType === 'length' && (
+                    <MenuItem value="per_length_unit">Price per {newItem.lengthUnit}</MenuItem>
+                  )}
+                  {newItem.trackingType === 'area' && (
+                    <MenuItem value="per_area_unit">Price per {newItem.areaUnit}</MenuItem>
+                  )}
+                  {newItem.trackingType === 'volume' && (
+                    <MenuItem value="per_volume_unit">Price per {newItem.volumeUnit}</MenuItem>
+                  )}
                 </Select>
               </FormControl>
             </Grid2>

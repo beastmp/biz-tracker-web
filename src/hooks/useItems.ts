@@ -40,7 +40,7 @@ export const useCreateItem = () => {
           // Check if there's an actual new image file being uploaded
           let hasImageFile = false;
           for (const pair of itemData.entries()) {
-            if (pair[0] === 'image' && pair[1] instanceof File) {
+            if (pair[0] === 'image' && pair[1] instanceof File && (pair[1] as File).size > 0) {
               hasImageFile = true;
               break;
             }
@@ -48,18 +48,21 @@ export const useCreateItem = () => {
 
           // If no actual file is being uploaded, convert to regular JSON
           if (!hasImageFile) {
-            const jsonData: Record<string, any> = {};
+            const jsonData: Record<string, unknown> = {};
             for (const [key, value] of itemData.entries()) {
               // Parse special fields as needed
-              if (key === 'tags') {
+              if (key === 'tags' && typeof value === 'string') {
                 try {
-                  jsonData[key] = JSON.parse(value as string);
+                  jsonData[key] = JSON.parse(value);
                 } catch {
                   // If not valid JSON, use as-is
                   jsonData[key] = value;
                 }
-              } else if (['quantity', 'weight', 'price'].includes(key)) {
-                jsonData[key] = parseFloat(value as string) || 0;
+              } else if ([
+                'quantity', 'weight', 'length', 'area', 'volume', 'price', 'cost'
+              ].includes(key) && typeof value === 'string') {
+                // Parse all numeric fields
+                jsonData[key] = parseFloat(value) || 0;
               } else {
                 jsonData[key] = value;
               }
@@ -92,8 +95,14 @@ export const useCreateItem = () => {
           // Regular JSON data
           return await post<Item>('/api/items', itemData);
         }
-      } catch (error: any) {
-        console.error('Failed to create item:', error.response?.data || error.message);
+      } catch (error: unknown) {
+        // Type narrowing for different error types
+        if (error && typeof error === 'object' && 'response' in error) {
+          const axiosError = error as { response?: { data?: unknown }; message?: string };
+          console.error('Failed to create item:', axiosError.response?.data || axiosError.message);
+        } else {
+          console.error('Failed to create item:', error);
+        }
         throw error;
       }
     },
@@ -110,9 +119,13 @@ export const useUpdateItem = (initialId?: string) => {
   return useMutation({
     mutationFn: async (itemData: FormData | Item, id?: string) => {
       // Use the provided ID, or the initial ID, or try to get it from the item data
-      const effectiveId = id || initialId || (itemData as any)._id;
+      const effectiveId = id || initialId || (
+        itemData instanceof FormData ? undefined : itemData._id
+      );
 
-      if (!effectiveId) throw new Error('Item ID is required');
+      if (!effectiveId) {
+        throw new Error('Item ID is required for updates');
+      }
 
       // Check if we're dealing with FormData with an actual image file
       if (itemData instanceof FormData) {
@@ -127,12 +140,15 @@ export const useUpdateItem = (initialId?: string) => {
 
         // If no actual file is being uploaded, convert to regular JSON
         if (!hasImageFile) {
-          const jsonData: Record<string, any> = {};
+          const jsonData: Record<string, unknown> = {};
           for (const [key, value] of itemData.entries()) {
             // Parse special fields as needed
             if (key === 'tags') {
               jsonData[key] = JSON.parse(value as string);
-            } else if (['quantity', 'weight', 'price'].includes(key)) {
+            } else if ([
+              'quantity', 'weight', 'length', 'area', 'volume', 'price', 'cost'
+            ].includes(key)) {
+              // Parse all numeric measurement fields
               jsonData[key] = parseFloat(value as string);
             } else {
               jsonData[key] = value;
@@ -144,13 +160,13 @@ export const useUpdateItem = (initialId?: string) => {
         try {
           // Fix the URL - remove duplicate /api/ segment
           const baseUrl = config.API_URL.replace(/\/+$/, '');
-          const apiPath = `/api/items/${id}`;
+          let apiPath = `/api/items/${id}`;
 
           // Parse URL to ensure no duplicate path segments
           const url = new URL(baseUrl);
           // Make sure there's only one /api in the path
           if (url.pathname.endsWith('/api')) {
-            url.pathname = url.pathname;
+            apiPath = apiPath.replace(/^\/api/, '');
           }
 
           const requestUrl = url.toString() + apiPath;
@@ -180,8 +196,14 @@ export const useUpdateItem = (initialId?: string) => {
             }
           });
           return response.data;
-        } catch (error: any) {
-          console.error('Upload error details:', error.response?.data || error.message);
+        } catch (error: unknown) {
+          // Type narrowing for different error types
+          if (error && typeof error === 'object' && 'response' in error) {
+            const axiosError = error as { response?: { data?: unknown }; message?: string };
+            console.error('Upload error details:', axiosError.response?.data || axiosError.message);
+          } else {
+            console.error('Upload error:', error);
+          }
           throw error;
         }
       } else {

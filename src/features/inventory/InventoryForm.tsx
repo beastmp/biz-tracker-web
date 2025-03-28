@@ -50,7 +50,6 @@ import {
   Category,
   Inventory,
   AttachMoney,
-  //LocalOffer,
   Description,
   Help,
   Label,
@@ -69,7 +68,7 @@ import {
   useTags,
   useItems
 } from '@hooks/useItems';
-import { Item } from '@custTypes/models';
+import { Item, TrackingType, PriceType } from '@custTypes/models';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import { get } from '@utils/apiClient';
@@ -107,9 +106,16 @@ export default function InventoryForm() {
     category: '',
     trackingType: 'quantity',
     itemType: 'product',
+    sellByMeasurement: 'quantity',
     quantity: 0,
     weight: 0,
     weightUnit: 'lb',
+    length: 0,
+    lengthUnit: 'in',
+    area: 0,
+    areaUnit: 'sqft',
+    volume: 0,
+    volumeUnit: 'l',
     price: 0,
     priceType: 'each',
     description: '',
@@ -188,7 +194,8 @@ export default function InventoryForm() {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: name === 'quantity' || name === 'weight' || name === 'price'
+      [name]: name === 'quantity' || name === 'weight' || name === 'length' ||
+              name === 'area' || name === 'volume' || name === 'price' || name === 'cost'
         ? parseFloat(value) || 0
         : value
     });
@@ -254,6 +261,12 @@ export default function InventoryForm() {
         formDataToSend.append('quantity', String(formData.quantity || 0));
         formDataToSend.append('weight', String(formData.weight || 0));
         formDataToSend.append('weightUnit', formData.weightUnit || 'lb');
+        formDataToSend.append('length', String(formData.length || 0));
+        formDataToSend.append('lengthUnit', formData.lengthUnit || 'in');
+        formDataToSend.append('area', String(formData.area || 0));
+        formDataToSend.append('areaUnit', formData.areaUnit || 'sqft');
+        formDataToSend.append('volume', String(formData.volume || 0));
+        formDataToSend.append('volumeUnit', formData.volumeUnit || 'l');
         formDataToSend.append('price', String(formData.price || 0));
         formDataToSend.append('priceType', formData.priceType || 'each');
 
@@ -664,16 +677,41 @@ export default function InventoryForm() {
                       name="trackingType"
                       value={formData.trackingType}
                       label="Tracking Type"
-                      onChange={handleSelectChange}
+                      onChange={(e) => {
+                        const newTrackingType = e.target.value as TrackingType;
+                        handleSelectChange(e);
+                        // Adjust price type based on tracking type
+                        if (newTrackingType !== 'quantity' && formData.priceType === 'each') {
+                          setFormData(prev => ({
+                            ...prev,
+                            trackingType: newTrackingType,
+                            priceType: `per_${newTrackingType}_unit` as PriceType
+                          }));
+                        } else {
+                          setFormData(prev => ({
+                            ...prev,
+                            trackingType: newTrackingType
+                          }));
+                        }
+                      }}
                       disabled={isSaving}
                     >
                       <MenuItem value="quantity">Track by Quantity</MenuItem>
                       <MenuItem value="weight">Track by Weight</MenuItem>
+                      <MenuItem value="length">Track by Length</MenuItem>
+                      <MenuItem value="area">Track by Area</MenuItem>
+                      <MenuItem value="volume">Track by Volume</MenuItem>
                     </Select>
                     <FormHelperText>
                       {formData.trackingType === 'quantity'
                         ? 'Track individual units in your inventory'
-                        : 'Track the weight of your inventory'}
+                        : formData.trackingType === 'weight'
+                        ? 'Track the weight of your inventory'
+                        : formData.trackingType === 'length'
+                        ? 'Track the length of your inventory'
+                        : formData.trackingType === 'area'
+                        ? 'Track the area of your inventory'
+                        : 'Track the volume of your inventory'}
                     </FormHelperText>
                   </FormControl>
                 </Grid2>
@@ -758,6 +796,110 @@ export default function InventoryForm() {
                     )}
                   </>
                 )}
+
+                {formData.trackingType === 'length' && (
+                  <Grid2 size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Length"
+                      name="length"
+                      value={formData.length}
+                      onChange={handleInputChange}
+                      disabled={isSaving}
+                      InputProps={{
+                        inputProps: { min: 0, step: 0.01 },
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <Select
+                              name="lengthUnit"
+                              value={formData.lengthUnit}
+                              onChange={handleSelectChange}
+                              disabled={isSaving}
+                              sx={{ mr: -1 }}
+                            >
+                              <MenuItem value="mm">mm</MenuItem>
+                              <MenuItem value="cm">cm</MenuItem>
+                              <MenuItem value="m">m</MenuItem>
+                              <MenuItem value="in">in</MenuItem>
+                              <MenuItem value="ft">ft</MenuItem>
+                              <MenuItem value="yd">yd</MenuItem>
+                            </Select>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid2>
+                )}
+
+                {formData.trackingType === 'area' && (
+                  <Grid2 size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Area"
+                      name="area"
+                      value={formData.area}
+                      onChange={handleInputChange}
+                      disabled={isSaving}
+                      InputProps={{
+                        inputProps: { min: 0, step: 0.01 },
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <Select
+                              name="areaUnit"
+                              value={formData.areaUnit}
+                              onChange={handleSelectChange}
+                              disabled={isSaving}
+                              sx={{ mr: -1 }}
+                            >
+                              <MenuItem value="sqft">sq ft</MenuItem>
+                              <MenuItem value="sqm">sq m</MenuItem>
+                              <MenuItem value="sqyd">sq yd</MenuItem>
+                              <MenuItem value="acre">acre</MenuItem>
+                              <MenuItem value="ha">ha</MenuItem>
+                            </Select>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid2>
+                )}
+
+                {formData.trackingType === 'volume' && (
+                  <Grid2 size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Volume"
+                      name="volume"
+                      value={formData.volume}
+                      onChange={handleInputChange}
+                      disabled={isSaving}
+                      InputProps={{
+                        inputProps: { min: 0, step: 0.01 },
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <Select
+                              name="volumeUnit"
+                              value={formData.volumeUnit}
+                              onChange={handleSelectChange}
+                              disabled={isSaving}
+                              sx={{ mr: -1 }}
+                            >
+                              <MenuItem value="ml">ml</MenuItem>
+                              <MenuItem value="l">l</MenuItem>
+                              <MenuItem value="gal">gal</MenuItem>
+                              <MenuItem value="floz">fl oz</MenuItem>
+                              <MenuItem value="cu_ft">cu ft</MenuItem>
+                              <MenuItem value="cu_m">cu m</MenuItem>
+                            </Select>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid2>
+                )}
               </Grid2>
             </CardContent>
           </Card>
@@ -824,14 +966,31 @@ export default function InventoryForm() {
                       disabled={isSaving}
                     >
                       <MenuItem value="each">Price per Item</MenuItem>
-                      <MenuItem value="per_weight_unit">Price per {formData.weightUnit}</MenuItem>
+                      {formData.trackingType === 'weight' && (
+                        <MenuItem value="per_weight_unit">Price per {formData.weightUnit}</MenuItem>
+                      )}
+                      {formData.trackingType === 'length' && (
+                        <MenuItem value="per_length_unit">Price per {formData.lengthUnit}</MenuItem>
+                      )}
+                      {formData.trackingType === 'area' && (
+                        <MenuItem value="per_area_unit">Price per {formData.areaUnit}</MenuItem>
+                      )}
+                      {formData.trackingType === 'volume' && (
+                        <MenuItem value="per_volume_unit">Price per {formData.volumeUnit}</MenuItem>
+                      )}
                     </Select>
                     <FormHelperText>
-                      {formData.trackingType === 'weight' && formData.priceType === 'each'
-                        ? 'Price for each package/unit of this weight'
+                      {formData.trackingType === 'quantity'
+                        ? 'Price for each individual unit'
+                        : formData.priceType === 'each'
+                        ? 'Price for each package/unit of this measurement'
                         : formData.trackingType === 'weight'
-                          ? `Price per ${formData.weightUnit} of this item`
-                          : 'Price for each individual unit'}
+                        ? `Price per ${formData.weightUnit} of this item`
+                        : formData.trackingType === 'length'
+                        ? `Price per ${formData.lengthUnit} of this item`
+                        : formData.trackingType === 'area'
+                        ? `Price per ${formData.areaUnit} of this item`
+                        : `Price per ${formData.volumeUnit} of this item`}
                     </FormHelperText>
                   </FormControl>
                 </Grid2>

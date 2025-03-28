@@ -1,86 +1,59 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline } from '@mui/material';
+import CssBaseline from '@mui/material/CssBaseline';
+import { AppContext, AppContextProps } from '@context/AppContextDef';
 
-type ThemeMode = 'light' | 'dark';
-
-interface AppContextProps {
-  mode: ThemeMode;
-  toggleColorMode: () => void;
-}
-
-const AppContext = createContext<AppContextProps>({
-  mode: 'light',
-  toggleColorMode: () => {},
-});
-
-export const useAppContext = () => useContext(AppContext);
-
-interface AppProviderProps {
+// Define props for the provider component
+export interface AppProviderProps {
   children: React.ReactNode;
 }
 
+// App provider component
 export function AppProvider({ children }: AppProviderProps) {
-  // Check local storage for saved theme preference
-  const [mode, setMode] = useState<ThemeMode>(() => {
+  // Theme state
+  const [mode, setMode] = useState<'light' | 'dark'>(() => {
     const savedMode = localStorage.getItem('themeMode');
-    return (savedMode as ThemeMode) || 'light';
+    return (savedMode === 'dark' || savedMode === 'light') ? savedMode : 'light';
   });
 
-  // Create theme
+  const [defaultViewMode, setDefaultViewMode] = useState<'grid' | 'list'>(() => {
+    const savedMode = localStorage.getItem('defaultViewMode');
+    return (savedMode === 'grid' || savedMode === 'list') ? savedMode : 'list';
+  });
+
+  // Effect to save theme mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('themeMode', mode);
+  }, [mode]);
+
+  // Effect to save default view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('defaultViewMode', defaultViewMode);
+  }, [defaultViewMode]);
+
+  // Toggle between light and dark modes
+  const toggleColorMode = () => {
+    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+  };
+
+  // Create MUI theme based on current mode
   const theme = useMemo(
     () =>
       createTheme({
         palette: {
           mode,
-          primary: {
-            main: '#0a7ea4',
-          },
-          secondary: {
-            main: '#4caf50',
-          },
-        },
-        components: {
-          MuiCssBaseline: {
-            styleOverrides: {
-              body: {
-                scrollbarWidth: 'thin',
-                '&::-webkit-scrollbar': {
-                  width: '0.4em',
-                },
-                '&::-webkit-scrollbar-track': {
-                  background: mode === 'dark' ? '#424242' : '#f1f1f1',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: mode === 'dark' ? '#686868' : '#888',
-                  borderRadius: 20,
-                },
-              },
-            },
-          },
         },
       }),
-    [mode],
-  );
-
-  // Toggle color mode
-  const toggleColorMode = () => {
-    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
-  };
-
-  // Save theme preference to local storage
-  useEffect(() => {
-    localStorage.setItem('themeMode', mode);
-  }, [mode]);
-
-  // Context value
-  const contextValue = useMemo(
-    () => ({
-      mode,
-      toggleColorMode,
-    }),
     [mode]
   );
+
+  // Context value
+  const contextValue: AppContextProps = {
+    theme: mode,
+    toggleColorMode,
+    defaultViewMode,
+    setDefaultViewMode
+  };
 
   return (
     <AppContext.Provider value={contextValue}>
@@ -91,3 +64,5 @@ export function AppProvider({ children }: AppProviderProps) {
     </AppContext.Provider>
   );
 }
+
+export default AppProvider;

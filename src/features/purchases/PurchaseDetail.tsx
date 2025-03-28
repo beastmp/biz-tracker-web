@@ -12,9 +12,22 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  Avatar,
+  Chip
 } from '@mui/material';
-import { ArrowBack, Edit, Delete, Print } from '@mui/icons-material';
+import {
+  ArrowBack,
+  Edit,
+  Delete,
+  Print,
+  Inventory,
+  Scale,
+  Straighten,
+  SquareFoot,
+  LocalDrink,
+  Image as ImageIcon
+} from '@mui/icons-material';
 import { usePurchase, useDeletePurchase } from '@hooks/usePurchases';
 import { formatCurrency, formatDate, formatPaymentMethod } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
@@ -36,6 +49,47 @@ export default function PurchaseDetail() {
     } catch (error) {
       console.error('Failed to delete purchase:', error);
     }
+  };
+
+  const getMeasurementIcon = (trackingType: string) => {
+    switch (trackingType) {
+      case 'weight': return <Scale fontSize="small" />;
+      case 'length': return <Straighten fontSize="small" />;
+      case 'area': return <SquareFoot fontSize="small" />;
+      case 'volume': return <LocalDrink fontSize="small" />;
+      default: return <Inventory fontSize="small" />;
+    }
+  };
+
+  const formatMeasurement = (item: any) => {
+    if (!item) return '';
+
+    // For items with tracking types
+    if (typeof item.item === 'object' && item.item?.trackingType) {
+      const trackingType = item.item.trackingType;
+
+      switch (trackingType) {
+        case 'quantity':
+          return `${item.quantity} units`;
+        case 'weight':
+          return `${item.weight} ${item.weightUnit || item.item.weightUnit}`;
+        case 'length':
+          return `${item.length} ${item.lengthUnit || item.item.lengthUnit}`;
+        case 'area':
+          return `${item.area} ${item.areaUnit || item.item.areaUnit}`;
+        case 'volume':
+          return `${item.volume} ${item.volumeUnit || item.item.volumeUnit}`;
+      }
+    }
+
+    // Fallback to simple quantity
+    return item.quantity ? `${item.quantity} units` : (item.weight ? `${item.weight} ${item.weightUnit}` : '');
+  };
+
+  const getTrackingType = (item: any) => {
+    return typeof item.item === 'object' && item.item?.trackingType
+      ? item.item.trackingType
+      : (item.weight ? 'weight' : 'quantity');
   };
 
   if (isLoading) {
@@ -66,9 +120,16 @@ export default function PurchaseDetail() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
-          Purchase Details
-        </Typography>
+        <Box>
+          <Typography variant="h4" component="h1">
+            Purchase Details
+          </Typography>
+          {purchase._id && (
+            <Typography variant="subtitle1" color="text.secondary">
+              {purchase._id}
+            </Typography>
+          )}
+        </Box>
         <Stack direction="row" spacing={2}>
           <Button
             variant="outlined"
@@ -106,7 +167,7 @@ export default function PurchaseDetail() {
       </Box>
 
       <Grid2 container spacing={3}>
-        <Grid2 size= {{ xs: 12, md: 6 }}>
+        <Grid2 size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>Purchase Information</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -138,18 +199,18 @@ export default function PurchaseDetail() {
             {purchase.notes && (
               <Box sx={{ mb: 1.5 }}>
                 <Typography variant="body2" color="text.secondary">Notes</Typography>
-                <Typography variant="body1">{purchase.notes}</Typography>
+                <Typography variant="body1" style={{ whiteSpace: 'pre-wrap' }}>{purchase.notes}</Typography>
               </Box>
             )}
           </Paper>
         </Grid2>
 
-        <Grid2 size= {{ xs: 12, md: 6 }}>
+        <Grid2 size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>Supplier Information</Typography>
             <Divider sx={{ mb: 2 }} />
 
-            {purchase.supplier.name ? (
+            {purchase.supplier && purchase.supplier.name ? (
               <>
                 <Box sx={{ mb: 1.5 }}>
                   <Typography variant="body2" color="text.secondary">Name</Typography>
@@ -185,7 +246,7 @@ export default function PurchaseDetail() {
           </Paper>
         </Grid2>
 
-        <Grid2 size= {{ xs: 12 }}>
+        <Grid2 size={{ xs: 12 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>Items Purchased</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -194,25 +255,68 @@ export default function PurchaseDetail() {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell width={60}>Image</TableCell>
                     <TableCell>Item</TableCell>
-                    <TableCell align="right">Quantity</TableCell>
+                    <TableCell>Measurement</TableCell>
                     <TableCell align="right">Unit Cost</TableCell>
                     <TableCell align="right">Total Cost</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {purchase.items.map((item, index) => {
-                    const itemName =
-                      typeof item.item === 'object' && item.item.name
-                        ? item.item.name
-                        : 'Unknown Item';
+                    const itemDetails = typeof item.item === 'object' ? item.item : null;
+                    const itemName = itemDetails ? itemDetails.name : 'Unknown Item';
+                    const trackingType = getTrackingType(item);
 
                     return (
                       <TableRow key={index}>
-                        <TableCell>{itemName}</TableCell>
-                        <TableCell align="right">
-                          {item.quantity}
-                          {item.weight && item.weightUnit && ` (${item.weight} ${item.weightUnit})`}
+                        <TableCell>
+                          {itemDetails?.imageUrl ? (
+                            <Avatar
+                              src={itemDetails.imageUrl}
+                              alt={itemName}
+                              variant="rounded"
+                              sx={{ width: 50, height: 50 }}
+                            />
+                          ) : (
+                            <Avatar
+                              variant="rounded"
+                              sx={{ width: 50, height: 50, bgcolor: 'action.hover' }}
+                            >
+                              <ImageIcon color="disabled" />
+                            </Avatar>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body1">{itemName}</Typography>
+                          {itemDetails?.sku && (
+                            <Typography variant="caption" color="text.secondary">
+                              SKU: {itemDetails.sku}
+                            </Typography>
+                          )}
+                          {itemDetails?.tags && itemDetails.tags.length > 0 && (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                              {itemDetails.tags.slice(0, 2).map(tag => (
+                                <Chip key={tag} label={tag} size="small" variant="outlined" />
+                              ))}
+                              {itemDetails.tags.length > 2 && (
+                                <Chip label={`+${itemDetails.tags.length - 2}`} size="small" variant="outlined" color="primary" />
+                              )}
+                            </Box>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            {getMeasurementIcon(trackingType)}
+                            <Typography variant="body1" sx={{ ml: 1 }}>
+                              {formatMeasurement(item)}
+                            </Typography>
+                          </Box>
+                          {itemDetails?.packInfo?.isPack && (
+                            <Typography variant="caption" color="info.main">
+                              Pack of {itemDetails.packInfo.unitsPerPack} units
+                            </Typography>
+                          )}
                         </TableCell>
                         <TableCell align="right">{formatCurrency(item.costPerUnit)}</TableCell>
                         <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
@@ -225,7 +329,7 @@ export default function PurchaseDetail() {
           </Paper>
         </Grid2>
 
-        <Grid2 size= {{ xs: 12 }}>
+        <Grid2 size={{ xs: 12 }}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>Purchase Summary</Typography>
             <Divider sx={{ mb: 2 }} />

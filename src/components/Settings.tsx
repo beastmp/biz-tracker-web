@@ -39,12 +39,13 @@ import {
   Sync,
   Link as LinkIcon
 } from '@mui/icons-material';
-import { useAppContext } from '@context/AppContext';
-import { useSettings } from '@context/SettingsContext';
+import { useAppContext } from '@hooks/useAppContext';
+import { useSettings } from '@hooks/useSettings';
 import { useRebuildRelationships } from '@hooks/useItems';
 
 export default function Settings() {
-  const { mode, toggleColorMode } = useAppContext();
+  // Change from 'mode' to 'theme' to match the AppContextProps interface
+  const { theme, toggleColorMode } = useAppContext();
   const [notifications, setNotifications] = useState(false);
   const [dataBackup, setDataBackup] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -155,7 +156,7 @@ export default function Settings() {
             <List disablePadding>
               <ListItem>
                 <ListItemIcon>
-                  {mode === 'dark' ? <DarkMode /> : <LightMode />}
+                  {theme === 'dark' ? <DarkMode /> : <LightMode />}
                 </ListItemIcon>
                 <ListItemText
                   primary="Dark Mode"
@@ -164,7 +165,7 @@ export default function Settings() {
                 <ListItemSecondaryAction>
                   <Switch
                     edge="end"
-                    checked={mode === 'dark'}
+                    checked={theme === 'dark'}
                     onChange={toggleColorMode}
                   />
                 </ListItemSecondaryAction>
