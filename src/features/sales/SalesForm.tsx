@@ -651,15 +651,6 @@ export default function SaleForm() {
               </Typography>
               <Button
                 variant="contained"
-                color="primary"
-                startIcon={<Add />}
-                onClick={() => setItemDialogOpen(true)}
-                disabled={createSale.isPending || updateSale.isPending || items.length === 0}
-              >
-                Add Item
-              </Button>
-              <Button
-                variant="contained"
                 startIcon={<Add />}
                 color="primary"
                 onClick={() => setItemDialogOpen(true)}
