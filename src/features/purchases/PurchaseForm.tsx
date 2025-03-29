@@ -50,7 +50,7 @@ export default function PurchaseForm() {
   // Queries
   const { data: existingPurchase, isLoading: purchaseLoading, error: purchaseError } = usePurchase(id);
   const { data: items = [], isLoading: itemsLoading, error: itemsError } = useItems();
-  const { data: nextSku } = useNextSku();
+  const { data: nextSku, refetch: refetchNextSku } = useNextSku();
   const { data: categories = [] } = useCategories();
   const createPurchase = useCreatePurchase();
   const updatePurchase = useUpdatePurchase(id);
@@ -387,10 +387,10 @@ export default function PurchaseForm() {
       setCreateItemDialogOpen(false);
       setItemSelectDialogOpen(false);
 
-      // Reset new item form
+      // Reset new item form with empty SKU temporarily
       setNewItem({
         name: '',
-        sku: nextSku || '',
+        sku: '', // Set to empty initially
         category: '',
         trackingType: 'quantity' as TrackingType,
         itemType: 'material' as ItemType,
@@ -411,6 +411,9 @@ export default function PurchaseForm() {
 
       setNewItemTotalPrice(0);
       setNewItemUnitCost(0);
+
+      // Refetch the next SKU
+      refetchNextSku();
 
     } catch (error) {
       console.error('Failed to create item:', error);
