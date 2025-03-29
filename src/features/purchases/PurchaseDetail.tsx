@@ -33,6 +33,7 @@ import { formatCurrency, formatDate, formatPaymentMethod } from '@utils/formatte
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import StatusChip from '@components/ui/StatusChip';
+import { PurchaseItem } from '@custTypes/models';
 
 export default function PurchaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -61,32 +62,7 @@ export default function PurchaseDetail() {
     }
   };
 
-  const formatMeasurement = (item: any) => {
-    if (!item) return '';
-
-    // For items with tracking types
-    if (typeof item.item === 'object' && item.item?.trackingType) {
-      const trackingType = item.item.trackingType;
-
-      switch (trackingType) {
-        case 'quantity':
-          return `${item.quantity} units`;
-        case 'weight':
-          return `${item.weight} ${item.weightUnit || item.item.weightUnit}`;
-        case 'length':
-          return `${item.length} ${item.lengthUnit || item.item.lengthUnit}`;
-        case 'area':
-          return `${item.area} ${item.areaUnit || item.item.areaUnit}`;
-        case 'volume':
-          return `${item.volume} ${item.volumeUnit || item.item.volumeUnit}`;
-      }
-    }
-
-    // Fallback to simple quantity
-    return item.quantity ? `${item.quantity} units` : (item.weight ? `${item.weight} ${item.weightUnit}` : '');
-  };
-
-  const getTrackingType = (item: any) => {
+  const getTrackingType = (item: PurchaseItem) => {
     return typeof item.item === 'object' && item.item?.trackingType
       ? item.item.trackingType
       : (item.weight ? 'weight' : 'quantity');
@@ -258,7 +234,8 @@ export default function PurchaseDetail() {
                     <TableCell width={60}>Image</TableCell>
                     <TableCell>Item</TableCell>
                     <TableCell>Measurement</TableCell>
-                    <TableCell align="right">Unit Cost</TableCell>
+                    <TableCell>Cost Per Unit</TableCell>
+                    <TableCell>Discount</TableCell>
                     <TableCell align="right">Total Cost</TableCell>
                   </TableRow>
                 </TableHead>
@@ -308,17 +285,26 @@ export default function PurchaseDetail() {
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             {getMeasurementIcon(trackingType)}
-                            <Typography variant="body1" sx={{ ml: 1 }}>
-                              {formatMeasurement(item)}
-                            </Typography>
+                            <Box sx={{ ml: 1 }}>
+                              {item.purchasedBy === 'weight' && `${item.weight} ${item.weightUnit}`}
+                              {item.purchasedBy === 'length' && `${item.length} ${item.lengthUnit}`}
+                              {item.purchasedBy === 'area' && `${item.area} ${item.areaUnit}`}
+                              {item.purchasedBy === 'volume' && `${item.volume} ${item.volumeUnit}`}
+                              {(item.purchasedBy === 'quantity' || !item.purchasedBy) && `${item.quantity} units`}
+                            </Box>
                           </Box>
-                          {itemDetails?.packInfo?.isPack && (
-                            <Typography variant="caption" color="info.main">
-                              Pack of {itemDetails.packInfo.unitsPerPack} units
-                            </Typography>
+                        </TableCell>
+                        <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
+                        <TableCell>
+                          {((item.discountAmount || 0) > 0 || (item.discountPercentage && item.discountPercentage > 0)) ? (
+                            <Box>
+                              {formatCurrency(item.discountAmount || 0)}
+                              {(item.discountPercentage || 0) > 0 && ` (${(item.discountPercentage || 0).toFixed(2)}%)`}
+                            </Box>
+                          ) : (
+                            '-'
                           )}
                         </TableCell>
-                        <TableCell align="right">{formatCurrency(item.costPerUnit)}</TableCell>
                         <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
                       </TableRow>
                     );
@@ -353,6 +339,24 @@ export default function PurchaseDetail() {
                 <Typography>Shipping:</Typography>
                 <Typography>{formatCurrency(purchase.shippingCost || 0)}</Typography>
               </Box>
+
+              {/* Calculate and display total item discounts */}
+              {purchase.items.some(item => (item.discountAmount || 0) > 0) && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '250px', mb: 1 }}>
+                  <Typography>Item Discounts:</Typography>
+                  <Typography>
+                    -{formatCurrency(purchase.items.reduce((sum, item) => sum + (item.discountAmount || 0), 0))}
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Show purchase-level discount if present */}
+              {(purchase.discountAmount || 0) > 0 && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '250px', mb: 1 }}>
+                  <Typography>Additional Discount:</Typography>
+                  <Typography>{formatCurrency((purchase.discountAmount || 0))}</Typography>
+                </Box>
+              )}
 
               <Divider sx={{ width: '250px', my: 1 }} />
 

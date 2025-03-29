@@ -34,7 +34,7 @@ import {
   SelectChangeEvent,
   FormHelperText,
 } from '@mui/material';
-import { Save, ArrowBack, Add, Delete, Image as ImageIcon, AddCircle } from '@mui/icons-material';
+import { Save, ArrowBack, Add, Image as ImageIcon, AddCircle, DeleteOutline } from '@mui/icons-material';
 import { usePurchase, useCreatePurchase, useUpdatePurchase } from '@hooks/usePurchases';
 import { useItems, useCreateItem, useNextSku, useCategories } from '@hooks/useItems';
 import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType, LengthUnit, AreaUnit, VolumeUnit } from '@custTypes/models';
@@ -285,6 +285,8 @@ export default function PurchaseForm() {
       length: 0,
       area: 0,
       volume: 0,
+      discountAmount: 0,
+      discountPercentage: 0,
       purchasedBy: 'quantity' // Default tracking type
     };
 
@@ -519,6 +521,60 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
     setIsManuallyEditing('totalCost');
     setTotalCost(newTotalCost);
     setTimeout(() => setIsManuallyEditing(null), 0);
+  };
+
+  const handleItemDiscountChange = (index: number, type: 'percentage' | 'amount', value: number) => {
+    const updatedItems = [...purchase.items];
+    const item = updatedItems[index];
+
+    if (type === 'percentage') {
+      // Update percentage discount
+      item.discountPercentage = value;
+
+      // Calculate discount amount based on percentage
+      const baseAmount = calculateItemBaseAmount(item);
+      item.discountAmount = (value / 100) * baseAmount;
+    } else {
+      // Update amount discount
+      item.discountAmount = value;
+
+      // Calculate percentage based on amount
+      const baseAmount = calculateItemBaseAmount(item);
+      item.discountPercentage = baseAmount > 0 ? (value / baseAmount) * 100 : 0;
+    }
+
+    // Recalculate total cost
+    item.totalCost = calculateItemTotalCost(item);
+
+    setPurchase({
+      ...purchase,
+      items: updatedItems
+    });
+  };
+
+  // Helper function to calculate item's base amount before discount
+  const calculateItemBaseAmount = (item: PurchaseItem): number => {
+    switch (item.purchasedBy) {
+      case 'quantity':
+        return item.quantity * item.costPerUnit;
+      case 'weight':
+        return item.weight * item.costPerUnit;
+      case 'length':
+        return item.length * item.costPerUnit;
+      case 'area':
+        return item.area * item.costPerUnit;
+      case 'volume':
+        return item.volume * item.costPerUnit;
+      default:
+        return item.quantity * item.costPerUnit;
+    }
+  };
+
+  // Helper function to calculate item's total cost after discount
+  const calculateItemTotalCost = (item: PurchaseItem): number => {
+    const baseAmount = calculateItemBaseAmount(item);
+    const discountAmount = item.discountAmount || 0;
+    return Math.max(0, baseAmount - discountAmount);
   };
 
   return (
@@ -842,6 +898,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
                   <TableCell>Item</TableCell>
                   <TableCell>Quantity/Weight</TableCell>
                   <TableCell>Cost Per Unit</TableCell>
+                  <TableCell>Discount</TableCell>
                   <TableCell align="right">Total Cost</TableCell>
                   <TableCell width={80}>Actions</TableCell>
                 </TableRow>
@@ -857,18 +914,39 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
                          item.purchasedBy === 'length' ? `${item.length} ${item.lengthUnit}` :
                          item.purchasedBy === 'area' ? `${item.area} ${item.areaUnit}` :
                          item.purchasedBy === 'volume' ? `${item.volume} ${item.volumeUnit}` :
-                         item.quantity}
+                         `${item.quantity} units`}
                       </TableCell>
                       <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
+                      <TableCell>
+                        <Grid2 container spacing={1} alignItems="center">
+                          <Grid2 size={{ xs: 6 }}>
+                            <TextField
+                              size="small"
+                              type="number"
+                              value={item.discountPercentage || 0}
+                              onChange={(e) => handleItemDiscountChange(index, 'percentage', parseFloat(e.target.value) || 0)}
+                              InputProps={{
+                                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                              }}
+                            />
+                          </Grid2>
+                          <Grid2 size={{ xs: 6 }}>
+                            <TextField
+                              size="small"
+                              type="number"
+                              value={item.discountAmount || 0}
+                              onChange={(e) => handleItemDiscountChange(index, 'amount', parseFloat(e.target.value) || 0)}
+                              InputProps={{
+                                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                              }}
+                            />
+                          </Grid2>
+                        </Grid2>
+                      </TableCell>
                       <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
                       <TableCell>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleRemoveItem(index)}
-                          disabled={createPurchase.isPending || updatePurchase.isPending}
-                        >
-                          <Delete />
+                        <IconButton size="small" onClick={() => handleRemoveItem(index)}>
+                          <DeleteOutline fontSize="small" />
                         </IconButton>
                       </TableCell>
                     </TableRow>

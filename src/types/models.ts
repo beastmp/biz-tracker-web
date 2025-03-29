@@ -153,6 +153,8 @@ export interface PurchaseItem {
   volume: number;            // Volume purchased
   volumeUnit?: VolumeUnit;   // Unit of volume measurement
   costPerUnit: number;       // Cost per unit
+  discountAmount?: number;   // Discount amount for this item
+  discountPercentage?: number; // Discount percentage for this item
   totalCost: number;         // Total cost
   purchasedBy: TrackingType; // How this item was purchased
   packageInfo?: {
