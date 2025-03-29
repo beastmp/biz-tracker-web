@@ -116,6 +116,10 @@ export default function PurchaseForm() {
   const [newItemErrors, setNewItemErrors] = useState<Record<string, string>>({});
   const [newItemTotalPrice, setNewItemTotalPrice] = useState<number>(0);
   const [newItemUnitCost, setNewItemUnitCost] = useState<number>(0);
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
+
+  // Add a state to track manual vs. automatic updates
+  const [isManuallyEditing, setIsManuallyEditing] = useState<string | null>(null);
 
   // Load existing purchase data if in edit mode
   useEffect(() => {
@@ -151,49 +155,79 @@ export default function PurchaseForm() {
     }));
   }, [purchase.items, purchase.taxRate, purchase.discountAmount, purchase.shippingCost]);
 
-  // Update total cost when quantity, costPerUnit or weight changes
+  // First effect - update total cost when inputs change
   useEffect(() => {
-    if (selectedItem) {
+    if (selectedItem && isManuallyEditing !== 'totalCost') {
       switch (selectedItem.trackingType) {
         case 'weight':
+          setIsManuallyEditing('totalCost');
           setTotalCost(weight * costPerUnit);
+          setTimeout(() => setIsManuallyEditing(null), 0);
           break;
         case 'length':
+          setIsManuallyEditing('totalCost');
           setTotalCost(length * costPerUnit);
+          setTimeout(() => setIsManuallyEditing(null), 0);
           break;
         case 'area':
+          setIsManuallyEditing('totalCost');
           setTotalCost(area * costPerUnit);
+          setTimeout(() => setIsManuallyEditing(null), 0);
           break;
         case 'volume':
+          setIsManuallyEditing('totalCost');
           setTotalCost(volume * costPerUnit);
+          setTimeout(() => setIsManuallyEditing(null), 0);
           break;
         default: // quantity
+          setIsManuallyEditing('totalCost');
           setTotalCost(quantity * costPerUnit);
+          setTimeout(() => setIsManuallyEditing(null), 0);
       }
     }
-  }, [quantity, costPerUnit, weight, length, area, volume, selectedItem]);
+  }, [quantity, costPerUnit, weight, length, area, volume, selectedItem, isManuallyEditing]);
 
-  // Add new effect to calculate cost per unit when total cost or quantity changes
+  // Second effect - update cost per unit when total cost changes
   useEffect(() => {
-    if (selectedItem) {
+    if (selectedItem && isManuallyEditing !== 'costPerUnit') {
       switch (selectedItem.trackingType) {
         case 'weight':
-          if (weight > 0) setCostPerUnit(totalCost / weight);
+          if (weight > 0) {
+            setIsManuallyEditing('costPerUnit');
+            setCostPerUnit(totalCost / weight);
+            setTimeout(() => setIsManuallyEditing(null), 0);
+          }
           break;
         case 'length':
-          if (length > 0) setCostPerUnit(totalCost / length);
+          if (length > 0) {
+            setIsManuallyEditing('costPerUnit');
+            setCostPerUnit(totalCost / length);
+            setTimeout(() => setIsManuallyEditing(null), 0);
+          }
           break;
         case 'area':
-          if (area > 0) setCostPerUnit(totalCost / area);
+          if (area > 0) {
+            setIsManuallyEditing('costPerUnit');
+            setCostPerUnit(totalCost / area);
+            setTimeout(() => setIsManuallyEditing(null), 0);
+          }
           break;
         case 'volume':
-          if (volume > 0) setCostPerUnit(totalCost / volume);
+          if (volume > 0) {
+            setIsManuallyEditing('costPerUnit');
+            setCostPerUnit(totalCost / volume);
+            setTimeout(() => setIsManuallyEditing(null), 0);
+          }
           break;
         default: // quantity
-          if (quantity > 0) setCostPerUnit(totalCost / quantity);
+          if (quantity > 0) {
+            setIsManuallyEditing('costPerUnit');
+            setCostPerUnit(totalCost / quantity);
+            setTimeout(() => setIsManuallyEditing(null), 0);
+          }
       }
     }
-  }, [totalCost, quantity, weight, length, area, volume, selectedItem]);
+  }, [totalCost, quantity, weight, length, area, volume, selectedItem, isManuallyEditing]);
 
   // Add effect to calculate unit cost when total price or quantity changes
   useEffect(() => {
@@ -205,6 +239,12 @@ export default function PurchaseForm() {
       setNewItemUnitCost(0);
     }
   }, [newItemTotalPrice, newItem.quantity, newItem.weight, newItem.trackingType]);
+
+  useEffect(() => {
+    // Set price to 50% markup of cost
+    const markupPrice = newItemUnitCost * 1.5;
+    setNewItem(prev => ({...prev, price: markupPrice}));
+  }, [newItemUnitCost]);
 
   const handleTextChange = (field: string, value: string | number) => {
     if (field.startsWith('supplier.')) {
@@ -306,15 +346,16 @@ export default function PurchaseForm() {
     setItemSelectDialogOpen(false);
   };
 
-  // New item handlers
-  const handleNewItemChange = (field: string, value: any) => {
-    setNewItem(prev => ({ ...prev, [field]: value }));
+  type ItemFieldValue = string | number | boolean | TrackingType | ItemType | WeightUnit | LengthUnit | AreaUnit | VolumeUnit;
 
-    // Clear validation error when field is changed
-    if (newItemErrors[field]) {
-      setNewItemErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
+const handleNewItemChange = (field: string, value: ItemFieldValue) => {
+  setNewItem(prev => ({ ...prev, [field]: value }));
+
+  // Clear validation error when field is changed
+  if (newItemErrors[field]) {
+    setNewItemErrors(prev => ({ ...prev, [field]: '' }));
+  }
+};
 
   const validateNewItem = () => {
     const errors: Record<string, string> = {};
@@ -362,11 +403,14 @@ export default function PurchaseForm() {
       // Set price from costPerUnit for the new item
       const itemWithCost = {
         ...newItem,
+        quantity: 0, // Set inventory quantity to 0
         cost: newItemUnitCost || 0,
-        price: newItem.price || 0 // Use the entered sale price
+        price: newItem.price || 0
       };
 
       const createdItem = await createItem.mutateAsync(itemWithCost as Item);
+      // Then use the original quantity value for the purchase
+      setQuantity(newItem.quantity || 1); // Default to 1 if quantity is not provided
 
       // Automatically select the new item
       setSelectedItem(createdItem);
@@ -462,6 +506,20 @@ export default function PurchaseForm() {
 
   // Create a lookup object for items for efficient access
   const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
+
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newQuantity = parseInt(e.target.value) || 0;
+    setIsManuallyEditing('quantity');
+    setQuantity(newQuantity);
+    setTimeout(() => setIsManuallyEditing(null), 0);
+  };
+
+  const handleTotalCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTotalCost = parseFloat(e.target.value) || 0;
+    setIsManuallyEditing('totalCost');
+    setTotalCost(newTotalCost);
+    setTimeout(() => setIsManuallyEditing(null), 0);
+  };
 
   return (
     <Box>
@@ -585,10 +643,7 @@ export default function PurchaseForm() {
                     label="Quantity"
                     type="number"
                     value={quantity}
-                    onChange={(e) => {
-                      const newQuantity = parseInt(e.target.value) || 0;
-                      setQuantity(newQuantity);
-                    }}
+                    onChange={handleQuantityChange}
                     disabled={createPurchase.isPending || updatePurchase.isPending}
                   />
                 </Grid2>
@@ -737,10 +792,7 @@ export default function PurchaseForm() {
                   label="Total Cost"
                   type="number"
                   value={totalCost}
-                  onChange={(e) => {
-                    const newTotalCost = parseFloat(e.target.value) || 0;
-                    setTotalCost(newTotalCost);
-                  }}
+                  onChange={handleTotalCostChange}
                   disabled={createPurchase.isPending || updatePurchase.isPending}
                   InputProps={{
                     startAdornment: <InputAdornment position="start">$</InputAdornment>,
@@ -1112,6 +1164,15 @@ export default function PurchaseForm() {
                 {newItemErrors.category && <FormHelperText>{newItemErrors.category}</FormHelperText>}
               </FormControl>
             </Grid2>
+            {newItem.category === 'new' && (
+              <TextField
+                fullWidth
+                label="New Category Name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                margin="normal"
+              />
+            )}
             <Grid2 size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth margin="normal" required>
                 <InputLabel>Item Type</InputLabel>
