@@ -28,19 +28,27 @@ import {
   ListItemAvatar,
   Avatar,
   FormControl,
-  AlertTitle,
   InputLabel,
   Select,
   SelectChangeEvent,
   FormHelperText,
+  Checkbox,
+  ListItemIcon,
+  Autocomplete,
 } from '@mui/material';
-import { Save, ArrowBack, Add, Image as ImageIcon, AddCircle, DeleteOutline } from '@mui/icons-material';
+import { Save, ArrowBack, Add, Image as ImageIcon, AddCircle, DeleteOutline, DragIndicator } from '@mui/icons-material';
 import { usePurchase, useCreatePurchase, useUpdatePurchase } from '@hooks/usePurchases';
 import { useItems, useCreateItem, useNextSku, useCategories } from '@hooks/useItems';
 import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType, LengthUnit, AreaUnit, VolumeUnit } from '@custTypes/models';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+
+// Utility function to round to 5 decimal places
+const roundToFiveDecimalPlaces = (num: number): number => {
+  return Math.round(num * 100000) / 100000;
+};
 
 export default function PurchaseForm() {
   const { id } = useParams<{ id: string }>();
@@ -76,18 +84,7 @@ export default function PurchaseForm() {
   });
 
   // Item selection state
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [weight, setWeight] = useState(0);
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>('lb');
-  const [length, setLength] = useState(0);
-  const [lengthUnit, setLengthUnit] = useState<LengthUnit>('in');
-  const [area, setArea] = useState(0);
-  const [areaUnit, setAreaUnit] = useState<AreaUnit>('sqft');
-  const [volume, setVolume] = useState(0);
-  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>('l');
-  const [costPerUnit, setCostPerUnit] = useState(0);
-  const [totalCost, setTotalCost] = useState(0);
+  const [selectedItems, setSelectedItems] = useState<Item[]>([]);
   const [itemSelectDialogOpen, setItemSelectDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,9 +111,8 @@ export default function PurchaseForm() {
     cost: 0
   });
   const [newItemErrors, setNewItemErrors] = useState<Record<string, string>>({});
-  const [newItemTotalPrice, setNewItemTotalPrice] = useState<number>(0);
+  const [newItemTotalPrice] = useState<number>(0);
   const [newItemUnitCost, setNewItemUnitCost] = useState<number>(0);
-  const [newCategoryName, setNewCategoryName] = useState<string>('');
 
   // Add a state to track manual vs. automatic updates
   const [isManuallyEditing, setIsManuallyEditing] = useState<string | null>(null);
@@ -143,13 +139,13 @@ export default function PurchaseForm() {
     );
 
     const discountAmount = purchase.discountAmount || 0;
-    const taxAmount = subtotal * ((purchase.taxRate || 0) / 100);
+    const taxAmount = roundToFiveDecimalPlaces(subtotal * ((purchase.taxRate || 0) / 100));
     const shippingCost = purchase.shippingCost || 0;
-    const total = subtotal - discountAmount + taxAmount + shippingCost;
+    const total = roundToFiveDecimalPlaces(subtotal - discountAmount + taxAmount + shippingCost);
 
     setPurchase(prev => ({
       ...prev,
-      subtotal,
+      subtotal: roundToFiveDecimalPlaces(subtotal),
       taxAmount,
       total
     }));
@@ -157,84 +153,58 @@ export default function PurchaseForm() {
 
   // First effect - update total cost when inputs change
   useEffect(() => {
-    if (selectedItem && isManuallyEditing !== 'totalCost') {
-      switch (selectedItem.trackingType) {
-        case 'weight':
-          setIsManuallyEditing('totalCost');
-          setTotalCost(weight * costPerUnit);
-          setTimeout(() => setIsManuallyEditing(null), 0);
-          break;
-        case 'length':
-          setIsManuallyEditing('totalCost');
-          setTotalCost(length * costPerUnit);
-          setTimeout(() => setIsManuallyEditing(null), 0);
-          break;
-        case 'area':
-          setIsManuallyEditing('totalCost');
-          setTotalCost(area * costPerUnit);
-          setTimeout(() => setIsManuallyEditing(null), 0);
-          break;
-        case 'volume':
-          setIsManuallyEditing('totalCost');
-          setTotalCost(volume * costPerUnit);
-          setTimeout(() => setIsManuallyEditing(null), 0);
-          break;
-        default: // quantity
-          setIsManuallyEditing('totalCost');
-          setTotalCost(quantity * costPerUnit);
-          setTimeout(() => setIsManuallyEditing(null), 0);
-      }
+    if (selectedItems && isManuallyEditing !== 'totalCost') {
+      selectedItems.forEach(selectedItem => {
+        switch (selectedItem.trackingType) {
+          case 'weight':
+            setIsManuallyEditing('totalCost');
+            setTimeout(() => setIsManuallyEditing(null), 0);
+            break;
+          case 'length':
+            setIsManuallyEditing('totalCost');
+            setTimeout(() => setIsManuallyEditing(null), 0);
+            break;
+          case 'area':
+            setIsManuallyEditing('totalCost');
+            setTimeout(() => setIsManuallyEditing(null), 0);
+            break;
+          case 'volume':
+            setIsManuallyEditing('totalCost');
+            setTimeout(() => setIsManuallyEditing(null), 0);
+            break;
+          default: // quantity
+            setIsManuallyEditing('totalCost');
+            setTimeout(() => setIsManuallyEditing(null), 0);
+        }
+      });
     }
-  }, [quantity, costPerUnit, weight, length, area, volume, selectedItem, isManuallyEditing]);
+  }, [selectedItems, isManuallyEditing]);
 
   // Second effect - update cost per unit when total cost changes
   useEffect(() => {
-    if (selectedItem && isManuallyEditing !== 'costPerUnit') {
-      switch (selectedItem.trackingType) {
-        case 'weight':
-          if (weight > 0) {
-            setIsManuallyEditing('costPerUnit');
-            setCostPerUnit(totalCost / weight);
-            setTimeout(() => setIsManuallyEditing(null), 0);
-          }
-          break;
-        case 'length':
-          if (length > 0) {
-            setIsManuallyEditing('costPerUnit');
-            setCostPerUnit(totalCost / length);
-            setTimeout(() => setIsManuallyEditing(null), 0);
-          }
-          break;
-        case 'area':
-          if (area > 0) {
-            setIsManuallyEditing('costPerUnit');
-            setCostPerUnit(totalCost / area);
-            setTimeout(() => setIsManuallyEditing(null), 0);
-          }
-          break;
-        case 'volume':
-          if (volume > 0) {
-            setIsManuallyEditing('costPerUnit');
-            setCostPerUnit(totalCost / volume);
-            setTimeout(() => setIsManuallyEditing(null), 0);
-          }
-          break;
-        default: // quantity
-          if (quantity > 0) {
-            setIsManuallyEditing('costPerUnit');
-            setCostPerUnit(totalCost / quantity);
-            setTimeout(() => setIsManuallyEditing(null), 0);
-          }
-      }
+    if (selectedItems && isManuallyEditing !== 'costPerUnit') {
+      selectedItems.forEach(selectedItem => {
+        switch (selectedItem.trackingType) {
+          case 'weight':
+            break;
+          case 'length':
+            break;
+          case 'area':
+            break;
+          case 'volume':
+            break;
+          default: // quantity
+        }
+      });
     }
-  }, [totalCost, quantity, weight, length, area, volume, selectedItem, isManuallyEditing]);
+  }, [selectedItems, isManuallyEditing]);
 
   // Add effect to calculate unit cost when total price or quantity changes
   useEffect(() => {
     if (newItem.trackingType === 'quantity' && newItem.quantity && newItem.quantity > 0) {
-      setNewItemUnitCost(newItemTotalPrice / newItem.quantity);
+      setNewItemUnitCost(roundToFiveDecimalPlaces(newItemTotalPrice / newItem.quantity));
     } else if (newItem.trackingType === 'weight' && newItem.weight && newItem.weight > 0) {
-      setNewItemUnitCost(newItemTotalPrice / newItem.weight);
+      setNewItemUnitCost(roundToFiveDecimalPlaces(newItemTotalPrice / newItem.weight));
     } else {
       setNewItemUnitCost(0);
     }
@@ -242,8 +212,8 @@ export default function PurchaseForm() {
 
   useEffect(() => {
     // Set price to 50% markup of cost
-    const markupPrice = newItemUnitCost * 1.5;
-    setNewItem(prev => ({...prev, price: markupPrice}));
+    const markupPrice = roundToFiveDecimalPlaces(newItemUnitCost * 1.5);
+    setNewItem(prev => ({ ...prev, price: markupPrice }));
   }, [newItemUnitCost]);
 
   const handleTextChange = (field: string, value: string | number) => {
@@ -272,65 +242,77 @@ export default function PurchaseForm() {
     });
   };
 
-  const handleAddItem = () => {
-    if (!selectedItem) return;
-
-    const newItem: PurchaseItem = {
-      item: selectedItem._id || '',
-      costPerUnit,
-      totalCost,
-      // Add required properties with defaults
-      quantity: 0,
-      weight: 0,
-      length: 0,
-      area: 0,
-      volume: 0,
-      discountAmount: 0,
-      discountPercentage: 0,
-      purchasedBy: 'quantity' // Default tracking type
-    };
-
-    // Add appropriate measurement fields based on tracking type
-    switch (selectedItem.trackingType) {
-      case 'weight':
-        newItem.weight = weight;
-        newItem.weightUnit = weightUnit;
-        newItem.purchasedBy = 'weight';
-        break;
-      case 'length':
-        newItem.length = length;
-        newItem.lengthUnit = lengthUnit;
-        newItem.purchasedBy = 'length';
-        break;
-      case 'area':
-        newItem.area = area;
-        newItem.areaUnit = areaUnit;
-        newItem.purchasedBy = 'area';
-        break;
-      case 'volume':
-        newItem.volume = volume;
-        newItem.volumeUnit = volumeUnit;
-        newItem.purchasedBy = 'volume';
-        break;
-      default: // quantity
-        newItem.quantity = quantity;
-        newItem.purchasedBy = 'quantity';
+  const handleItemSelectionToggle = (item: Item) => {
+    const isSelected = selectedItems.some(selectedItem => selectedItem._id === item._id);
+    if (isSelected) {
+      setSelectedItems(selectedItems.filter(selectedItem => selectedItem._id !== item._id));
+    } else {
+      setSelectedItems([...selectedItems, item]);
     }
+  };
+
+  const handleAddSelectedItems = () => {
+    if (selectedItems.length === 0) return;
+
+    const newItems: PurchaseItem[] = selectedItems.map(item => {
+      const newItem: PurchaseItem = {
+        item: item._id || '',
+        costPerUnit: item.cost || item.price || 0,
+        originalCost: item.cost || item.price || 0,
+        totalCost: item.cost || item.price || 0,
+        // Add required properties with defaults
+        quantity: 1, // Default quantity to 1
+        weight: 0,
+        length: 0,
+        area: 0,
+        volume: 0,
+        discountAmount: 0,
+        discountPercentage: 0,
+        purchasedBy: 'quantity' // Default tracking type
+      };
+
+      // Set appropriate measurement fields based on tracking type
+      switch (item.trackingType) {
+        case 'weight':
+          newItem.weight = 1; // Default weight to 1
+          newItem.weightUnit = item.weightUnit;
+          newItem.purchasedBy = 'weight';
+          break;
+        case 'length':
+          newItem.length = 1; // Default length to 1
+          newItem.lengthUnit = item.lengthUnit;
+          newItem.purchasedBy = 'length';
+          break;
+        case 'area':
+          newItem.area = 1; // Default area to 1
+          newItem.areaUnit = item.areaUnit;
+          newItem.purchasedBy = 'area';
+          break;
+        case 'volume':
+          newItem.volume = 1; // Default volume to 1
+          newItem.volumeUnit = item.volumeUnit;
+          newItem.purchasedBy = 'volume';
+          break;
+        default: // quantity
+          newItem.quantity = 1;
+          newItem.purchasedBy = 'quantity';
+      }
+
+      return newItem;
+    });
 
     setPurchase({
       ...purchase,
-      items: [...purchase.items, newItem]
+      items: [...purchase.items, ...newItems]
     });
 
-    // Reset form values
-    setSelectedItem(null);
-    setQuantity(1);
-    setWeight(0);
-    setLength(0);
-    setArea(0);
-    setVolume(0);
-    setCostPerUnit(0);
-    setTotalCost(0);
+    // Reset selections and close dialog
+    setSelectedItems([]);
+    setItemSelectDialogOpen(false);
+  };
+
+  const isItemSelected = (item: Item): boolean => {
+    return selectedItems.some(selectedItem => selectedItem._id === item._id);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -342,22 +324,16 @@ export default function PurchaseForm() {
     });
   };
 
-  const handleItemSelect = (item: Item) => {
-    setSelectedItem(item);
-    setCostPerUnit(item.price);
-    setItemSelectDialogOpen(false);
-  };
-
   type ItemFieldValue = string | number | boolean | TrackingType | ItemType | WeightUnit | LengthUnit | AreaUnit | VolumeUnit;
 
-const handleNewItemChange = (field: string, value: ItemFieldValue) => {
-  setNewItem(prev => ({ ...prev, [field]: value }));
+  const handleNewItemChange = (field: string, value: ItemFieldValue) => {
+    setNewItem(prev => ({ ...prev, [field]: value }));
 
-  // Clear validation error when field is changed
-  if (newItemErrors[field]) {
-    setNewItemErrors(prev => ({ ...prev, [field]: '' }));
-  }
-};
+    // Clear validation error when field is changed
+    if (newItemErrors[field]) {
+      setNewItemErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
 
   const validateNewItem = () => {
     const errors: Record<string, string> = {};
@@ -366,12 +342,8 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
     if (!newItem.sku) errors.sku = 'SKU is required';
     if (!newItem.category) errors.category = 'Category is required';
 
+    // Only validate tracking type specific fields
     switch (newItem.trackingType) {
-      case 'quantity':
-        if (!newItem.quantity || newItem.quantity < 0) {
-          errors.quantity = 'Valid quantity is required';
-        }
-        break;
       case 'weight':
         if (!newItem.weight || newItem.weight < 0) {
           errors.weight = 'Valid weight is required';
@@ -402,36 +374,22 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
     if (!validateNewItem()) return;
 
     try {
-      // Set price from costPerUnit for the new item
-      const itemWithCost = {
+      // Set defaults for the removed fields
+      const itemWithDefaults = {
         ...newItem,
         quantity: 0, // Set inventory quantity to 0
-        cost: newItemUnitCost || 0,
-        price: newItem.price || 0
+        cost: 0,     // Default cost to 0
+        price: 0,    // Default price to 0
+        priceType: 'each' // Default price type
       };
 
-      const createdItem = await createItem.mutateAsync(itemWithCost as Item);
-      // Then use the original quantity value for the purchase
-      setQuantity(newItem.quantity || 1); // Default to 1 if quantity is not provided
+      const createdItem = await createItem.mutateAsync(itemWithDefaults as Item);
 
-      // Automatically select the new item
-      setSelectedItem(createdItem);
-
-      // Transfer the purchase values to the form
-      setCostPerUnit(newItemUnitCost);
-      setTotalCost(newItemTotalPrice);
-
-      // Set quantity or weight based on tracking type
-      if (createdItem.trackingType === 'weight') {
-        setWeight(createdItem.weight || 0);
-        setWeightUnit(createdItem.weightUnit || 'lb');
-      } else {
-        setQuantity(createdItem.quantity || 1);
-      }
-
-      // Close the create dialog
+      // Close create dialog and go back to selection dialog
       setCreateItemDialogOpen(false);
-      setItemSelectDialogOpen(false);
+
+      // Add the newly created item to selected items without removing already selected ones
+      setSelectedItems(prev => [...prev, createdItem]);
 
       // Reset new item form with empty SKU temporarily
       setNewItem({
@@ -454,9 +412,6 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
         description: '',
         cost: 0
       });
-
-      setNewItemTotalPrice(0);
-      setNewItemUnitCost(0);
 
       // Refetch the next SKU
       refetchNextSku();
@@ -509,42 +464,28 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
   // Create a lookup object for items for efficient access
   const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
 
-  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newQuantity = parseInt(e.target.value) || 0;
-    setIsManuallyEditing('quantity');
-    setQuantity(newQuantity);
-    setTimeout(() => setIsManuallyEditing(null), 0);
-  };
-
-  const handleTotalCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTotalCost = parseFloat(e.target.value) || 0;
-    setIsManuallyEditing('totalCost');
-    setTotalCost(newTotalCost);
-    setTimeout(() => setIsManuallyEditing(null), 0);
-  };
-
   const handleItemDiscountChange = (index: number, type: 'percentage' | 'amount', value: number) => {
     const updatedItems = [...purchase.items];
     const item = updatedItems[index];
 
     if (type === 'percentage') {
       // Update percentage discount
-      item.discountPercentage = value;
+      item.discountPercentage = roundToFiveDecimalPlaces(value);
 
       // Calculate discount amount based on percentage
       const baseAmount = calculateItemBaseAmount(item);
-      item.discountAmount = (value / 100) * baseAmount;
+      item.discountAmount = roundToFiveDecimalPlaces((value / 100) * baseAmount);
     } else {
       // Update amount discount
-      item.discountAmount = value;
+      item.discountAmount = roundToFiveDecimalPlaces(value);
 
       // Calculate percentage based on amount
       const baseAmount = calculateItemBaseAmount(item);
-      item.discountPercentage = baseAmount > 0 ? (value / baseAmount) * 100 : 0;
+      item.discountPercentage = baseAmount > 0 ? roundToFiveDecimalPlaces((value / baseAmount) * 100) : 0;
     }
 
     // Recalculate total cost
-    item.totalCost = calculateItemTotalCost(item);
+    item.totalCost = roundToFiveDecimalPlaces(calculateItemTotalCost(item));
 
     setPurchase({
       ...purchase,
@@ -554,19 +495,20 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
 
   // Helper function to calculate item's base amount before discount
   const calculateItemBaseAmount = (item: PurchaseItem): number => {
+    // Calculate using cost per unit which is now derived from original cost and quantity
     switch (item.purchasedBy) {
       case 'quantity':
-        return item.quantity * item.costPerUnit;
+        return roundToFiveDecimalPlaces(item.quantity * item.costPerUnit);
       case 'weight':
-        return item.weight * item.costPerUnit;
+        return roundToFiveDecimalPlaces(item.weight * item.costPerUnit);
       case 'length':
-        return item.length * item.costPerUnit;
+        return roundToFiveDecimalPlaces(item.length * item.costPerUnit);
       case 'area':
-        return item.area * item.costPerUnit;
+        return roundToFiveDecimalPlaces(item.area * item.costPerUnit);
       case 'volume':
-        return item.volume * item.costPerUnit;
+        return roundToFiveDecimalPlaces(item.volume * item.costPerUnit);
       default:
-        return item.quantity * item.costPerUnit;
+        return roundToFiveDecimalPlaces(item.quantity * item.costPerUnit);
     }
   };
 
@@ -574,7 +516,97 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
   const calculateItemTotalCost = (item: PurchaseItem): number => {
     const baseAmount = calculateItemBaseAmount(item);
     const discountAmount = item.discountAmount || 0;
-    return Math.max(0, baseAmount - discountAmount);
+    return roundToFiveDecimalPlaces(Math.max(0, baseAmount - discountAmount));
+  };
+
+  // Add this handler function to update quantity in the items list
+  const handleItemQuantityChange = (index: number, value: number) => {
+    const updatedItems = [...purchase.items];
+    const item = updatedItems[index];
+
+    // Update quantity
+    if (item.purchasedBy === 'quantity') {
+      item.quantity = value;
+    } else if (item.purchasedBy === 'weight') {
+      item.weight = value;
+    } else if (item.purchasedBy === 'length') {
+      item.length = value;
+    } else if (item.purchasedBy === 'area') {
+      item.area = value;
+    } else if (item.purchasedBy === 'volume') {
+      item.volume = value;
+    }
+
+    // Recalculate cost per unit (if original cost exists)
+    if (item.originalCost) {
+      if (value > 0) {
+        item.costPerUnit = roundToFiveDecimalPlaces(item.originalCost / value);
+      } else {
+        item.costPerUnit = 0;
+      }
+    }
+
+    // Recalculate total cost
+    item.totalCost = roundToFiveDecimalPlaces(calculateItemTotalCost(item));
+
+    setPurchase({
+      ...purchase,
+      items: updatedItems
+    });
+  };
+
+  // Add this handler function to update original cost
+  const handleItemOriginalCostChange = (index: number, value: number) => {
+    const updatedItems = [...purchase.items];
+    const item = updatedItems[index];
+
+    // Update original cost
+    item.originalCost = value;
+
+    // Recalculate cost per unit
+    const quantity = item.purchasedBy === 'quantity' ? item.quantity :
+      item.purchasedBy === 'weight' ? item.weight :
+        item.purchasedBy === 'length' ? item.length :
+          item.purchasedBy === 'area' ? item.area :
+            item.purchasedBy === 'volume' ? item.volume : 0;
+
+    if (quantity > 0) {
+      item.costPerUnit = roundToFiveDecimalPlaces(value / quantity);
+    } else {
+      item.costPerUnit = 0;
+    }
+
+    // Recalculate total cost
+    item.totalCost = roundToFiveDecimalPlaces(calculateItemTotalCost(item));
+
+    setPurchase({
+      ...purchase,
+      items: updatedItems
+    });
+  };
+
+  // Handle drag end event for reordering
+  const handleDragEnd = (result: DropResult) => {
+    // If dropped outside the list, do nothing
+    if (!result.destination) return;
+
+    // If the item was dropped in the same position, do nothing
+    if (result.destination.index === result.source.index) return;
+
+    // Create a new array of purchase items
+    const updatedItems = Array.from(purchase.items);
+
+    // Remove the dragged item from the array
+    const [movedItem] = updatedItems.splice(result.source.index, 1);
+
+    // Insert it at the destination position
+    updatedItems.splice(result.destination.index, 0, movedItem);
+
+    // Update the state with the new order
+    setPurchase({
+      ...purchase,
+      items: updatedItems
+    });
   };
 
   return (
@@ -604,7 +636,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
         <Divider sx={{ mb: 2 }} />
 
         <Grid2 container spacing={2}>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Supplier Name"
@@ -615,7 +647,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Contact Name"
@@ -625,7 +657,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Email"
@@ -636,7 +668,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Phone"
@@ -646,7 +678,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Invoice Number"
@@ -656,7 +688,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Purchase Date"
@@ -680,283 +712,143 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
             onClick={() => setItemSelectDialogOpen(true)}
             disabled={createPurchase.isPending || updatePurchase.isPending}
           >
-            Add Item
+            Add Items
           </Button>
         </Box>
         <Divider sx={{ mb: 2 }} />
 
-        {selectedItem && (
-          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              {selectedItem.name} - {formatCurrency(selectedItem.price)}
-            </Typography>
-
-            <Grid2 container spacing={2} alignItems="center">
-              {selectedItem.trackingType === 'quantity' && (
-                <Grid2 size={{ xs: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="Quantity"
-                    type="number"
-                    value={quantity}
-                    onChange={handleQuantityChange}
-                    disabled={createPurchase.isPending || updatePurchase.isPending}
-                  />
-                </Grid2>
-              )}
-
-              {selectedItem.trackingType === 'weight' && (
-                <Grid2 size={{ xs: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="Weight"
-                    type="number"
-                    value={weight}
-                    onChange={(e) => {
-                      const newWeight = parseFloat(e.target.value) || 0;
-                      setWeight(newWeight);
-                    }}
-                    disabled={createPurchase.isPending || updatePurchase.isPending}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <Select
-                            value={weightUnit}
-                            onChange={(e) => setWeightUnit(e.target.value as WeightUnit)}
-                            size="small"
-                            disabled={createPurchase.isPending || updatePurchase.isPending}
-                          >
-                            <MenuItem value="oz">oz</MenuItem>
-                            <MenuItem value="lb">lb</MenuItem>
-                            <MenuItem value="g">g</MenuItem>
-                            <MenuItem value="kg">kg</MenuItem>
-                          </Select>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid2>
-              )}
-
-              {selectedItem.trackingType === 'length' && (
-                <Grid2 size={{ xs: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="Length"
-                    type="number"
-                    value={length}
-                    onChange={(e) => {
-                      const newLength = parseFloat(e.target.value) || 0;
-                      setLength(newLength);
-                    }}
-                    disabled={createPurchase.isPending || updatePurchase.isPending}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <Select
-                            value={lengthUnit}
-                            onChange={(e) => setLengthUnit(e.target.value as LengthUnit)}
-                            size="small"
-                            disabled={createPurchase.isPending || updatePurchase.isPending}
-                          >
-                            <MenuItem value="mm">mm</MenuItem>
-                            <MenuItem value="cm">cm</MenuItem>
-                            <MenuItem value="m">m</MenuItem>
-                            <MenuItem value="in">in</MenuItem>
-                            <MenuItem value="ft">ft</MenuItem>
-                            <MenuItem value="yd">yd</MenuItem>
-                          </Select>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid2>
-              )}
-
-              {selectedItem.trackingType === 'area' && (
-                <Grid2 size={{ xs: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="Area"
-                    type="number"
-                    value={area}
-                    onChange={(e) => {
-                      const newArea = parseFloat(e.target.value) || 0;
-                      setArea(newArea);
-                    }}
-                    disabled={createPurchase.isPending || updatePurchase.isPending}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <Select
-                            value={areaUnit}
-                            onChange={(e) => setAreaUnit(e.target.value as AreaUnit)}
-                            size="small"
-                            disabled={createPurchase.isPending || updatePurchase.isPending}
-                          >
-                            <MenuItem value="sqft">sq ft</MenuItem>
-                            <MenuItem value="sqm">sq m</MenuItem>
-                            <MenuItem value="sqyd">sq yd</MenuItem>
-                            <MenuItem value="acre">acre</MenuItem>
-                            <MenuItem value="ha">ha</MenuItem>
-                          </Select>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid2>
-              )}
-
-              {selectedItem.trackingType === 'volume' && (
-                <Grid2 size={{ xs: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="Volume"
-                    type="number"
-                    value={volume}
-                    onChange={(e) => {
-                      const newVolume = parseFloat(e.target.value) || 0;
-                      setVolume(newVolume);
-                    }}
-                    disabled={createPurchase.isPending || updatePurchase.isPending}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <Select
-                            value={volumeUnit}
-                            onChange={(e) => setVolumeUnit(e.target.value as VolumeUnit)}
-                            size="small"
-                            disabled={createPurchase.isPending || updatePurchase.isPending}
-                          >
-                            <MenuItem value="ml">ml</MenuItem>
-                            <MenuItem value="l">l</MenuItem>
-                            <MenuItem value="gal">gal</MenuItem>
-                            <MenuItem value="floz">fl oz</MenuItem>
-                            <MenuItem value="cu_ft">cu ft</MenuItem>
-                            <MenuItem value="cu_m">cu m</MenuItem>
-                          </Select>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid2>
-              )}
-
-              <Grid2 size={{ xs: 4 }}>
-                <TextField
-                  fullWidth
-                  label="Total Cost"
-                  type="number"
-                  value={totalCost}
-                  onChange={handleTotalCostChange}
-                  disabled={createPurchase.isPending || updatePurchase.isPending}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                  }}
-                />
-              </Grid2>
-
-              <Grid2 size={{ xs: 4 }}>
-                <TextField
-                  fullWidth
-                  label="Cost Per Unit"
-                  type="number"
-                  value={costPerUnit}
-                  disabled={true}
-                  InputProps={{
-                    readOnly: true,
-                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                    endAdornment: <InputAdornment position="end">
-                      {selectedItem.trackingType === 'weight' ? `/${weightUnit}` :
-                       selectedItem.trackingType === 'length' ? `/${lengthUnit}` :
-                       selectedItem.trackingType === 'area' ? `/${areaUnit}` :
-                       selectedItem.trackingType === 'volume' ? `/${volumeUnit}` : ''}
-                    </InputAdornment>
-                  }}
-                />
-              </Grid2>
-            </Grid2>
-
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
-                variant="outlined"
-                color="secondary"
-                onClick={handleAddItem}
-                disabled={createPurchase.isPending || updatePurchase.isPending}
-              >
-                Add to Purchase
-              </Button>
-            </Box>
-          </Paper>
-        )}
-
         {purchase.items.length > 0 ? (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Item</TableCell>
-                  <TableCell>Quantity/Weight</TableCell>
-                  <TableCell>Cost Per Unit</TableCell>
-                  <TableCell>Discount</TableCell>
-                  <TableCell align="right">Total Cost</TableCell>
-                  <TableCell width={80}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {purchase.items.map((item, index) => {
-                  const itemDetails = typeof item.item === 'object' ? item.item : itemLookup[item.item as string];
-                  return (
-                    <TableRow key={index}>
-                      <TableCell>{itemDetails ? itemDetails.name : 'Unknown Item'}</TableCell>
-                      <TableCell>
-                        {item.purchasedBy === 'weight' ? `${item.weight} ${item.weightUnit}` :
-                         item.purchasedBy === 'length' ? `${item.length} ${item.lengthUnit}` :
-                         item.purchasedBy === 'area' ? `${item.area} ${item.areaUnit}` :
-                         item.purchasedBy === 'volume' ? `${item.volume} ${item.volumeUnit}` :
-                         `${item.quantity} units`}
-                      </TableCell>
-                      <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
-                      <TableCell>
-                        <Grid2 container spacing={1} alignItems="center">
-                          <Grid2 size={{ xs: 6 }}>
-                            <TextField
-                              size="small"
-                              type="number"
-                              value={item.discountPercentage || 0}
-                              onChange={(e) => handleItemDiscountChange(index, 'percentage', parseFloat(e.target.value) || 0)}
-                              InputProps={{
-                                endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                              }}
-                            />
-                          </Grid2>
-                          <Grid2 size={{ xs: 6 }}>
-                            <TextField
-                              size="small"
-                              type="number"
-                              value={item.discountAmount || 0}
-                              onChange={(e) => handleItemDiscountChange(index, 'amount', parseFloat(e.target.value) || 0)}
-                              InputProps={{
-                                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                              }}
-                            />
-                          </Grid2>
-                        </Grid2>
-                      </TableCell>
-                      <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
-                      <TableCell>
-                        <IconButton size="small" onClick={() => handleRemoveItem(index)}>
-                          <DeleteOutline fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell width={50}></TableCell> {/* Drag handle column */}
+                    <TableCell>Item</TableCell>
+                    <TableCell>Quantity/Weight</TableCell>
+                    <TableCell>Original Cost</TableCell>
+                    <TableCell>Cost Per Unit</TableCell>
+                    <TableCell>Discount</TableCell>
+                    <TableCell align="right">Total Cost</TableCell>
+                    <TableCell width={80}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <Droppable droppableId="purchase-items" direction="vertical">
+                  {(provided) => (
+                    <TableBody ref={provided.innerRef} {...provided.droppableProps}>
+                      {purchase.items.map((item, index) => {
+                        const itemDetails = typeof item.item === 'object' ? item.item : itemLookup[item.item as string];
+                        return (
+                          <Draggable
+                            key={`item-${index}`}
+                            draggableId={`item-${index}`}
+                            index={index}
+                          >
+                            {(provided, snapshot) => (
+                              <TableRow
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                sx={{
+                                  backgroundColor: snapshot.isDragging ? 'rgba(63, 81, 181, 0.08)' : 'inherit',
+                                  '&:hover .drag-handle': {
+                                    opacity: 1,
+                                  }
+                                }}
+                              >
+                                <TableCell>
+                                  <Box {...provided.dragHandleProps}>
+                                    <DragIndicator
+                                      className="drag-handle"
+                                      sx={{
+                                        cursor: 'grab',
+                                        opacity: 0.3,
+                                        transition: 'opacity 0.2s'
+                                      }}
+                                    />
+                                  </Box>
+                                </TableCell>
+                                {/* ...existing table cell content... */}
+                                <TableCell>{itemDetails ? itemDetails.name : 'Unknown Item'}</TableCell>
+                                <TableCell>
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={
+                                      item.purchasedBy === 'weight' ? item.weight :
+                                        item.purchasedBy === 'length' ? item.length :
+                                          item.purchasedBy === 'area' ? item.area :
+                                            item.purchasedBy === 'volume' ? item.volume :
+                                              item.quantity
+                                    }
+                                    onChange={(e) => handleItemQuantityChange(index, parseFloat(e.target.value) || 0)}
+                                    InputProps={{
+                                      endAdornment: <InputAdornment position="end">
+                                        {item.purchasedBy === 'weight' ? item.weightUnit :
+                                          item.purchasedBy === 'length' ? item.lengthUnit :
+                                            item.purchasedBy === 'area' ? item.areaUnit :
+                                              item.purchasedBy === 'volume' ? item.volumeUnit : ''}
+                                      </InputAdornment>,
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={item.originalCost || 0}
+                                    onChange={(e) => handleItemOriginalCostChange(index, parseFloat(e.target.value) || 0)}
+                                    InputProps={{
+                                      startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
+                                <TableCell>
+                                  <Grid2 container spacing={1} alignItems="center">
+                                    <Grid2 size={{ xs: 6 }}>
+                                      <TextField
+                                        size="small"
+                                        type="number"
+                                        value={item.discountPercentage || 0}
+                                        onChange={(e) => handleItemDiscountChange(index, 'percentage', parseFloat(e.target.value) || 0)}
+                                        InputProps={{
+                                          endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                                        }}
+                                      />
+                                    </Grid2>
+                                    <Grid2 size={{ xs: 6 }}>
+                                      <TextField
+                                        size="small"
+                                        type="number"
+                                        value={item.discountAmount || 0}
+                                        onChange={(e) => handleItemDiscountChange(index, 'amount', parseFloat(e.target.value) || 0)}
+                                        InputProps={{
+                                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                        }}
+                                      />
+                                    </Grid2>
+                                  </Grid2>
+                                </TableCell>
+                                <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
+                                <TableCell>
+                                  <IconButton size="small" onClick={() => handleRemoveItem(index)}>
+                                    <DeleteOutline fontSize="small" />
+                                  </IconButton>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </TableBody>
+                  )}
+                </Droppable>
+              </Table>
+            </TableContainer>
+          </DragDropContext>
         ) : (
-          <Alert severity="info">No items added yet. Use the "Add Item" button to add inventory items to this purchase.</Alert>
+          <Alert severity="info">No items added yet. Use the "Add Items" button to add inventory items to this purchase.</Alert>
         )}
       </Paper>
 
@@ -965,7 +857,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
         <Divider sx={{ mb: 2 }} />
 
         <Grid2 container spacing={2}>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth margin="normal">
               <InputLabel>Payment Method</InputLabel>
               <Select
@@ -984,7 +876,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               </Select>
             </FormControl>
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth margin="normal">
               <InputLabel>Status</InputLabel>
               <Select
@@ -1001,7 +893,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               </Select>
             </FormControl>
           </Grid2>
-          <Grid2 size= {{ xs: 12 }}>
+          <Grid2 size={{ xs: 12 }}>
             <TextField
               fullWidth
               label="Notes"
@@ -1022,7 +914,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
         <Divider sx={{ mb: 2 }} />
 
         <Grid2 container spacing={2}>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Subtotal"
@@ -1035,7 +927,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               }}
             />
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Discount Amount"
@@ -1050,7 +942,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               }}
             />
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Tax Rate (%)"
@@ -1062,7 +954,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Tax Amount"
@@ -1075,7 +967,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               }}
             />
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Shipping Cost"
@@ -1090,7 +982,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               }}
             />
           </Grid2>
-          <Grid2 size= {{ xs: 12, md: 6 }}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Total"
@@ -1123,26 +1015,41 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
       <Dialog open={itemSelectDialogOpen} onClose={() => setItemSelectDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Select Item</Typography>
-            <Button
-              startIcon={<AddCircle />}
-              color="primary"
-              onClick={() => {
-                setCreateItemDialogOpen(true);
-              }}
-            >
-              Create New Item
-            </Button>
+            <Typography variant="h6">Select Items</Typography>
+            <Box>
+              <Button
+                startIcon={<AddCircle />}
+                color="primary"
+                onClick={() => {
+                  setCreateItemDialogOpen(true);
+                }}
+              >
+                Create New Item
+              </Button>
+            </Box>
           </Box>
         </DialogTitle>
         <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Select one or more items to add to your purchase. Click the add button when done.
+          </Typography>
           <List>
             {items.map((item) => (
               <ListItemButton
                 key={item._id}
-                onClick={() => handleItemSelect(item)}
+                onClick={() => handleItemSelectionToggle(item)}
                 divider
+                selected={isItemSelected(item)}
               >
+                <ListItemIcon>
+                  <Checkbox
+                    edge="start"
+                    checked={isItemSelected(item)}
+                    tabIndex={-1}
+                    disableRipple
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </ListItemIcon>
                 <ListItemAvatar>
                   <Avatar variant="rounded">
                     {item.imageUrl ? (
@@ -1159,33 +1066,26 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               </ListItemButton>
             ))}
           </List>
-          {selectedItem && (selectedItem.itemType === 'material' || selectedItem.itemType === 'both') &&
-            selectedItem.packInfo?.isPack && (
-            <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
-              <AlertTitle>Pack Information</AlertTitle>
-              <Typography variant="body2">
-                This material is purchased in packs of <strong>{selectedItem.packInfo.unitsPerPack}</strong> units.
-              </Typography>
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="body2">
-                  Ordering <strong>{quantity}</strong> packs will add <strong>{quantity * selectedItem.packInfo.unitsPerPack}</strong> individual units to inventory.
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 0.5 }}>
-                  Pack cost: {formatCurrency(selectedItem.packInfo.costPerUnit * selectedItem.packInfo.unitsPerPack)} |
-                  Cost per unit: {formatCurrency(selectedItem.packInfo.costPerUnit)}
-                </Typography>
-              </Box>
-            </Alert>
-          )}
         </DialogContent>
         <DialogActions>
+          <Typography variant="body2" sx={{ flexGrow: 1, ml: 2 }}>
+            {selectedItems.length} item(s) selected
+          </Typography>
           <Button onClick={() => setItemSelectDialogOpen(false)} color="primary">
             Cancel
+          </Button>
+          <Button
+            onClick={handleAddSelectedItems}
+            color="primary"
+            variant="contained"
+            disabled={selectedItems.length === 0}
+          >
+            Add Selected Items
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Create New Item Dialog */}
+      {/* Create New Item Dialog - updated */}
       <Dialog
         open={createItemDialogOpen}
         onClose={() => setCreateItemDialogOpen(false)}
@@ -1195,8 +1095,8 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
         <DialogTitle>Create New Item</DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>
-            Creating a new item will add it to your inventory and automatically add it to this purchase.
-            Enter the total purchase price and quantity to automatically calculate the price per unit.
+            Creating a new item will add it to your inventory.
+            You'll be able to add it to your purchase after creation.
           </Alert>
 
           <Grid2 container spacing={2}>
@@ -1225,32 +1125,30 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
               />
             </Grid2>
             <Grid2 size={{ xs: 12, md: 6 }}>
-              <FormControl fullWidth margin="normal" required error={!!newItemErrors.category}>
-                <InputLabel>Category</InputLabel>
-                <Select
-                  value={newItem.category}
-                  label="Category"
-                  onChange={(e) => handleNewItemChange('category', e.target.value)}
-                >
-                  {categories.map((category) => (
-                    <MenuItem key={category} value={category}>{category}</MenuItem>
-                  ))}
-                  <MenuItem value="new">
-                    <em>+ Add New Category</em>
-                  </MenuItem>
-                </Select>
-                {newItemErrors.category && <FormHelperText>{newItemErrors.category}</FormHelperText>}
-              </FormControl>
-            </Grid2>
-            {newItem.category === 'new' && (
-              <TextField
-                fullWidth
-                label="New Category Name"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                margin="normal"
+              <Autocomplete
+                freeSolo
+                options={categories}
+                value={newItem.category || ''}
+                onChange={(_, newValue) => {
+                  handleNewItemChange('category', newValue || '');
+                }}
+                onInputChange={(_, newInputValue) => {
+                  // This ensures text input is captured even when not selecting from options
+                  handleNewItemChange('category', newInputValue || '');
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Category"
+                    margin="normal"
+                    required
+                    error={!!newItemErrors.category}
+                    helperText={newItemErrors.category}
+                  />
+                )}
+                disabled={createItem.isPending}
               />
-            )}
+            </Grid2>
             <Grid2 size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth margin="normal" required>
                 <InputLabel>Item Type</InputLabel>
@@ -1283,31 +1181,17 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
                   {newItem.trackingType === 'quantity'
                     ? 'Track individual units in your inventory'
                     : newItem.trackingType === 'weight'
-                    ? 'Track the weight of your inventory'
-                    : newItem.trackingType === 'length'
-                    ? 'Track the length of your inventory'
-                    : newItem.trackingType === 'area'
-                    ? 'Track the area of your inventory'
-                    : 'Track the volume of your inventory'}
+                      ? 'Track the weight of your inventory'
+                      : newItem.trackingType === 'length'
+                        ? 'Track the length of your inventory'
+                        : newItem.trackingType === 'area'
+                          ? 'Track the area of your inventory'
+                          : 'Track the volume of your inventory'}
                 </FormHelperText>
               </FormControl>
             </Grid2>
 
-            {newItem.trackingType === 'quantity' ? (
-              <Grid2 size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  label="Quantity"
-                  type="number"
-                  value={newItem.quantity}
-                  onChange={(e) => handleNewItemChange('quantity', parseFloat(e.target.value) || 0)}
-                  margin="normal"
-                  required
-                  error={!!newItemErrors.quantity}
-                  helperText={newItemErrors.quantity}
-                />
-              </Grid2>
-            ) : newItem.trackingType === 'weight' ? (
+            {newItem.trackingType === 'weight' ? (
               <Grid2 size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
@@ -1400,7 +1284,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
                   }}
                 />
               </Grid2>
-            ) : (
+            ) : newItem.trackingType === 'volume' ? (
               <Grid2 size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
@@ -1432,78 +1316,7 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
                   }}
                 />
               </Grid2>
-            )}
-
-            <Grid2 size={{ xs: 12, md: 6 }}>
-              <TextField
-                fullWidth
-                label="Total Purchase Price"
-                type="number"
-                value={newItemTotalPrice}
-                onChange={(e) => setNewItemTotalPrice(parseFloat(e.target.value) || 0)}
-                margin="normal"
-                required
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                }}
-              />
-            </Grid2>
-
-            <Grid2 size={{ xs: 12, md: 6 }}>
-              <TextField
-                fullWidth
-                label="Price Per Unit"
-                type="number"
-                value={newItemUnitCost}
-                disabled
-                margin="normal"
-                InputProps={{
-                  readOnly: true,
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                  endAdornment: <InputAdornment position="end">per unit</InputAdornment>
-                }}
-              />
-            </Grid2>
-
-            <Grid2 size={{ xs: 12, md: 6 }}>
-              <TextField
-                fullWidth
-                label="Sale Price"
-                type="number"
-                value={newItem.price}
-                onChange={(e) => handleNewItemChange('price', parseFloat(e.target.value) || 0)}
-                margin="normal"
-                helperText="Set the retail selling price for this item"
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                }}
-              />
-            </Grid2>
-
-            <Grid2 size={{ xs: 12, md: 6 }}>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Price Type</InputLabel>
-                <Select
-                  value={newItem.priceType}
-                  label="Price Type"
-                  onChange={(e) => handleNewItemChange('priceType', e.target.value)}
-                >
-                  <MenuItem value="each">Price per Item</MenuItem>
-                  {newItem.trackingType === 'weight' && (
-                    <MenuItem value="per_weight_unit">Price per {newItem.weightUnit}</MenuItem>
-                  )}
-                  {newItem.trackingType === 'length' && (
-                    <MenuItem value="per_length_unit">Price per {newItem.lengthUnit}</MenuItem>
-                  )}
-                  {newItem.trackingType === 'area' && (
-                    <MenuItem value="per_area_unit">Price per {newItem.areaUnit}</MenuItem>
-                  )}
-                  {newItem.trackingType === 'volume' && (
-                    <MenuItem value="per_volume_unit">Price per {newItem.volumeUnit}</MenuItem>
-                  )}
-                </Select>
-              </FormControl>
-            </Grid2>
+            ) : null}
 
             <Grid2 size={{ xs: 12 }}>
               <TextField
@@ -1528,10 +1341,11 @@ const handleNewItemChange = (field: string, value: ItemFieldValue) => {
             color="primary"
             disabled={createItem.isPending}
           >
-            {createItem.isPending ? 'Creating...' : 'Create & Add to Purchase'}
+            {createItem.isPending ? 'Creating...' : 'Create Item'}
           </Button>
         </DialogActions>
       </Dialog>
+
     </Box>
   );
 }

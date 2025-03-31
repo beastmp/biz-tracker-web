@@ -29,6 +29,7 @@ import {
   Image as ImageIcon
 } from '@mui/icons-material';
 import { usePurchase, useDeletePurchase } from '@hooks/usePurchases';
+import { useItems } from '@hooks/useItems';
 import { formatCurrency, formatDate, formatPaymentMethod } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
@@ -39,7 +40,10 @@ export default function PurchaseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: purchase, isLoading, error } = usePurchase(id);
+  const { data: items = [] } = useItems();
   const deletePurchase = useDeletePurchase();
+
+  const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
 
   const handleDelete = async () => {
     if (!id || !window.confirm('Are you sure you want to delete this purchase? This will update inventory quantities.')) return;
@@ -63,9 +67,16 @@ export default function PurchaseDetail() {
   };
 
   const getTrackingType = (item: PurchaseItem) => {
-    return typeof item.item === 'object' && item.item?.trackingType
-      ? item.item.trackingType
-      : (item.weight ? 'weight' : 'quantity');
+    if (typeof item.item === 'object' && item.item?.trackingType) {
+      return item.item.trackingType;
+    }
+
+    if (typeof item.item === 'string' && itemLookup[item.item]?.trackingType) {
+      return itemLookup[item.item].trackingType;
+    }
+
+    return (item.weight ? 'weight' : item.length ? 'length' :
+      item.area ? 'area' : item.volume ? 'volume' : 'quantity');
   };
 
   if (isLoading) {
@@ -234,6 +245,7 @@ export default function PurchaseDetail() {
                     <TableCell width={60}>Image</TableCell>
                     <TableCell>Item</TableCell>
                     <TableCell>Measurement</TableCell>
+                    <TableCell>Original Cost</TableCell>
                     <TableCell>Cost Per Unit</TableCell>
                     <TableCell>Discount</TableCell>
                     <TableCell align="right">Total Cost</TableCell>
@@ -241,7 +253,14 @@ export default function PurchaseDetail() {
                 </TableHead>
                 <TableBody>
                   {purchase.items.map((item, index) => {
-                    const itemDetails = typeof item.item === 'object' ? item.item : null;
+                    let itemDetails = null;
+
+                    if (typeof item.item === 'object' && item.item !== null) {
+                      itemDetails = item.item;
+                    } else if (typeof item.item === 'string' && itemLookup[item.item]) {
+                      itemDetails = itemLookup[item.item];
+                    }
+
                     const itemName = itemDetails ? itemDetails.name : 'Unknown Item';
                     const trackingType = getTrackingType(item);
 
@@ -273,7 +292,7 @@ export default function PurchaseDetail() {
                           )}
                           {itemDetails?.tags && itemDetails.tags.length > 0 && (
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                              {itemDetails.tags.slice(0, 2).map(tag => (
+                              {itemDetails.tags.slice(0, 2).map((tag: string) => (
                                 <Chip key={tag} label={tag} size="small" variant="outlined" />
                               ))}
                               {itemDetails.tags.length > 2 && (
@@ -293,6 +312,9 @@ export default function PurchaseDetail() {
                               {(item.purchasedBy === 'quantity' || !item.purchasedBy) && `${item.quantity} units`}
                             </Box>
                           </Box>
+                        </TableCell>
+                        <TableCell>
+                          {item.originalCost ? formatCurrency(item.originalCost) : '-'}
                         </TableCell>
                         <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
                         <TableCell>
@@ -340,7 +362,6 @@ export default function PurchaseDetail() {
                 <Typography>{formatCurrency(purchase.shippingCost || 0)}</Typography>
               </Box>
 
-              {/* Calculate and display total item discounts */}
               {purchase.items.some(item => (item.discountAmount || 0) > 0) && (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '250px', mb: 1 }}>
                   <Typography>Item Discounts:</Typography>
@@ -350,7 +371,6 @@ export default function PurchaseDetail() {
                 </Box>
               )}
 
-              {/* Show purchase-level discount if present */}
               {(purchase.discountAmount || 0) > 0 && (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '250px', mb: 1 }}>
                   <Typography>Additional Discount:</Typography>
