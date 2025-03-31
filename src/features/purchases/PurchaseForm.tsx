@@ -34,7 +34,7 @@ import {
   SelectChangeEvent,
   FormHelperText,
 } from '@mui/material';
-import { Save, ArrowBack, Add, Delete, Image as ImageIcon, AddCircle } from '@mui/icons-material';
+import { Save, ArrowBack, Add, Image as ImageIcon, AddCircle, DeleteOutline } from '@mui/icons-material';
 import { usePurchase, useCreatePurchase, useUpdatePurchase } from '@hooks/usePurchases';
 import { useItems, useCreateItem, useNextSku, useCategories } from '@hooks/useItems';
 import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType, LengthUnit, AreaUnit, VolumeUnit } from '@custTypes/models';
@@ -50,7 +50,7 @@ export default function PurchaseForm() {
   // Queries
   const { data: existingPurchase, isLoading: purchaseLoading, error: purchaseError } = usePurchase(id);
   const { data: items = [], isLoading: itemsLoading, error: itemsError } = useItems();
-  const { data: nextSku } = useNextSku();
+  const { data: nextSku, refetch: refetchNextSku } = useNextSku();
   const { data: categories = [] } = useCategories();
   const createPurchase = useCreatePurchase();
   const updatePurchase = useUpdatePurchase(id);
@@ -116,6 +116,10 @@ export default function PurchaseForm() {
   const [newItemErrors, setNewItemErrors] = useState<Record<string, string>>({});
   const [newItemTotalPrice, setNewItemTotalPrice] = useState<number>(0);
   const [newItemUnitCost, setNewItemUnitCost] = useState<number>(0);
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
+
+  // Add a state to track manual vs. automatic updates
+  const [isManuallyEditing, setIsManuallyEditing] = useState<string | null>(null);
 
   // Load existing purchase data if in edit mode
   useEffect(() => {
@@ -151,49 +155,79 @@ export default function PurchaseForm() {
     }));
   }, [purchase.items, purchase.taxRate, purchase.discountAmount, purchase.shippingCost]);
 
-  // Update total cost when quantity, costPerUnit or weight changes
+  // First effect - update total cost when inputs change
   useEffect(() => {
-    if (selectedItem) {
+    if (selectedItem && isManuallyEditing !== 'totalCost') {
       switch (selectedItem.trackingType) {
         case 'weight':
+          setIsManuallyEditing('totalCost');
           setTotalCost(weight * costPerUnit);
+          setTimeout(() => setIsManuallyEditing(null), 0);
           break;
         case 'length':
+          setIsManuallyEditing('totalCost');
           setTotalCost(length * costPerUnit);
+          setTimeout(() => setIsManuallyEditing(null), 0);
           break;
         case 'area':
+          setIsManuallyEditing('totalCost');
           setTotalCost(area * costPerUnit);
+          setTimeout(() => setIsManuallyEditing(null), 0);
           break;
         case 'volume':
+          setIsManuallyEditing('totalCost');
           setTotalCost(volume * costPerUnit);
+          setTimeout(() => setIsManuallyEditing(null), 0);
           break;
         default: // quantity
+          setIsManuallyEditing('totalCost');
           setTotalCost(quantity * costPerUnit);
+          setTimeout(() => setIsManuallyEditing(null), 0);
       }
     }
-  }, [quantity, costPerUnit, weight, length, area, volume, selectedItem]);
+  }, [quantity, costPerUnit, weight, length, area, volume, selectedItem, isManuallyEditing]);
 
-  // Add new effect to calculate cost per unit when total cost or quantity changes
+  // Second effect - update cost per unit when total cost changes
   useEffect(() => {
-    if (selectedItem) {
+    if (selectedItem && isManuallyEditing !== 'costPerUnit') {
       switch (selectedItem.trackingType) {
         case 'weight':
-          if (weight > 0) setCostPerUnit(totalCost / weight);
+          if (weight > 0) {
+            setIsManuallyEditing('costPerUnit');
+            setCostPerUnit(totalCost / weight);
+            setTimeout(() => setIsManuallyEditing(null), 0);
+          }
           break;
         case 'length':
-          if (length > 0) setCostPerUnit(totalCost / length);
+          if (length > 0) {
+            setIsManuallyEditing('costPerUnit');
+            setCostPerUnit(totalCost / length);
+            setTimeout(() => setIsManuallyEditing(null), 0);
+          }
           break;
         case 'area':
-          if (area > 0) setCostPerUnit(totalCost / area);
+          if (area > 0) {
+            setIsManuallyEditing('costPerUnit');
+            setCostPerUnit(totalCost / area);
+            setTimeout(() => setIsManuallyEditing(null), 0);
+          }
           break;
         case 'volume':
-          if (volume > 0) setCostPerUnit(totalCost / volume);
+          if (volume > 0) {
+            setIsManuallyEditing('costPerUnit');
+            setCostPerUnit(totalCost / volume);
+            setTimeout(() => setIsManuallyEditing(null), 0);
+          }
           break;
         default: // quantity
-          if (quantity > 0) setCostPerUnit(totalCost / quantity);
+          if (quantity > 0) {
+            setIsManuallyEditing('costPerUnit');
+            setCostPerUnit(totalCost / quantity);
+            setTimeout(() => setIsManuallyEditing(null), 0);
+          }
       }
     }
-  }, [totalCost, quantity, weight, length, area, volume, selectedItem]);
+  }, [totalCost, quantity, weight, length, area, volume, selectedItem, isManuallyEditing]);
 
   // Add effect to calculate unit cost when total price or quantity changes
   useEffect(() => {
@@ -205,6 +239,12 @@ export default function PurchaseForm() {
       setNewItemUnitCost(0);
     }
   }, [newItemTotalPrice, newItem.quantity, newItem.weight, newItem.trackingType]);
+
+  useEffect(() => {
+    // Set price to 50% markup of cost
+    const markupPrice = newItemUnitCost * 1.5;
+    setNewItem(prev => ({...prev, price: markupPrice}));
+  }, [newItemUnitCost]);
 
   const handleTextChange = (field: string, value: string | number) => {
     if (field.startsWith('supplier.')) {
@@ -245,6 +285,8 @@ export default function PurchaseForm() {
       length: 0,
       area: 0,
       volume: 0,
+      discountAmount: 0,
+      discountPercentage: 0,
       purchasedBy: 'quantity' // Default tracking type
     };
 
@@ -306,15 +348,16 @@ export default function PurchaseForm() {
     setItemSelectDialogOpen(false);
   };
 
-  // New item handlers
-  const handleNewItemChange = (field: string, value: any) => {
-    setNewItem(prev => ({ ...prev, [field]: value }));
+  type ItemFieldValue = string | number | boolean | TrackingType | ItemType | WeightUnit | LengthUnit | AreaUnit | VolumeUnit;
 
-    // Clear validation error when field is changed
-    if (newItemErrors[field]) {
-      setNewItemErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
+const handleNewItemChange = (field: string, value: ItemFieldValue) => {
+  setNewItem(prev => ({ ...prev, [field]: value }));
+
+  // Clear validation error when field is changed
+  if (newItemErrors[field]) {
+    setNewItemErrors(prev => ({ ...prev, [field]: '' }));
+  }
+};
 
   const validateNewItem = () => {
     const errors: Record<string, string> = {};
@@ -362,11 +405,14 @@ export default function PurchaseForm() {
       // Set price from costPerUnit for the new item
       const itemWithCost = {
         ...newItem,
+        quantity: 0, // Set inventory quantity to 0
         cost: newItemUnitCost || 0,
-        price: newItem.price || 0 // Use the entered sale price
+        price: newItem.price || 0
       };
 
       const createdItem = await createItem.mutateAsync(itemWithCost as Item);
+      // Then use the original quantity value for the purchase
+      setQuantity(newItem.quantity || 1); // Default to 1 if quantity is not provided
 
       // Automatically select the new item
       setSelectedItem(createdItem);
@@ -387,10 +433,10 @@ export default function PurchaseForm() {
       setCreateItemDialogOpen(false);
       setItemSelectDialogOpen(false);
 
-      // Reset new item form
+      // Reset new item form with empty SKU temporarily
       setNewItem({
         name: '',
-        sku: nextSku || '',
+        sku: '', // Set to empty initially
         category: '',
         trackingType: 'quantity' as TrackingType,
         itemType: 'material' as ItemType,
@@ -411,6 +457,9 @@ export default function PurchaseForm() {
 
       setNewItemTotalPrice(0);
       setNewItemUnitCost(0);
+
+      // Refetch the next SKU
+      refetchNextSku();
 
     } catch (error) {
       console.error('Failed to create item:', error);
@@ -459,6 +508,74 @@ export default function PurchaseForm() {
 
   // Create a lookup object for items for efficient access
   const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
+
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newQuantity = parseInt(e.target.value) || 0;
+    setIsManuallyEditing('quantity');
+    setQuantity(newQuantity);
+    setTimeout(() => setIsManuallyEditing(null), 0);
+  };
+
+  const handleTotalCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTotalCost = parseFloat(e.target.value) || 0;
+    setIsManuallyEditing('totalCost');
+    setTotalCost(newTotalCost);
+    setTimeout(() => setIsManuallyEditing(null), 0);
+  };
+
+  const handleItemDiscountChange = (index: number, type: 'percentage' | 'amount', value: number) => {
+    const updatedItems = [...purchase.items];
+    const item = updatedItems[index];
+
+    if (type === 'percentage') {
+      // Update percentage discount
+      item.discountPercentage = value;
+
+      // Calculate discount amount based on percentage
+      const baseAmount = calculateItemBaseAmount(item);
+      item.discountAmount = (value / 100) * baseAmount;
+    } else {
+      // Update amount discount
+      item.discountAmount = value;
+
+      // Calculate percentage based on amount
+      const baseAmount = calculateItemBaseAmount(item);
+      item.discountPercentage = baseAmount > 0 ? (value / baseAmount) * 100 : 0;
+    }
+
+    // Recalculate total cost
+    item.totalCost = calculateItemTotalCost(item);
+
+    setPurchase({
+      ...purchase,
+      items: updatedItems
+    });
+  };
+
+  // Helper function to calculate item's base amount before discount
+  const calculateItemBaseAmount = (item: PurchaseItem): number => {
+    switch (item.purchasedBy) {
+      case 'quantity':
+        return item.quantity * item.costPerUnit;
+      case 'weight':
+        return item.weight * item.costPerUnit;
+      case 'length':
+        return item.length * item.costPerUnit;
+      case 'area':
+        return item.area * item.costPerUnit;
+      case 'volume':
+        return item.volume * item.costPerUnit;
+      default:
+        return item.quantity * item.costPerUnit;
+    }
+  };
+
+  // Helper function to calculate item's total cost after discount
+  const calculateItemTotalCost = (item: PurchaseItem): number => {
+    const baseAmount = calculateItemBaseAmount(item);
+    const discountAmount = item.discountAmount || 0;
+    return Math.max(0, baseAmount - discountAmount);
+  };
 
   return (
     <Box>
@@ -582,10 +699,7 @@ export default function PurchaseForm() {
                     label="Quantity"
                     type="number"
                     value={quantity}
-                    onChange={(e) => {
-                      const newQuantity = parseInt(e.target.value) || 0;
-                      setQuantity(newQuantity);
-                    }}
+                    onChange={handleQuantityChange}
                     disabled={createPurchase.isPending || updatePurchase.isPending}
                   />
                 </Grid2>
@@ -734,10 +848,7 @@ export default function PurchaseForm() {
                   label="Total Cost"
                   type="number"
                   value={totalCost}
-                  onChange={(e) => {
-                    const newTotalCost = parseFloat(e.target.value) || 0;
-                    setTotalCost(newTotalCost);
-                  }}
+                  onChange={handleTotalCostChange}
                   disabled={createPurchase.isPending || updatePurchase.isPending}
                   InputProps={{
                     startAdornment: <InputAdornment position="start">$</InputAdornment>,
@@ -787,6 +898,7 @@ export default function PurchaseForm() {
                   <TableCell>Item</TableCell>
                   <TableCell>Quantity/Weight</TableCell>
                   <TableCell>Cost Per Unit</TableCell>
+                  <TableCell>Discount</TableCell>
                   <TableCell align="right">Total Cost</TableCell>
                   <TableCell width={80}>Actions</TableCell>
                 </TableRow>
@@ -802,18 +914,39 @@ export default function PurchaseForm() {
                          item.purchasedBy === 'length' ? `${item.length} ${item.lengthUnit}` :
                          item.purchasedBy === 'area' ? `${item.area} ${item.areaUnit}` :
                          item.purchasedBy === 'volume' ? `${item.volume} ${item.volumeUnit}` :
-                         item.quantity}
+                         `${item.quantity} units`}
                       </TableCell>
                       <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
+                      <TableCell>
+                        <Grid2 container spacing={1} alignItems="center">
+                          <Grid2 size={{ xs: 6 }}>
+                            <TextField
+                              size="small"
+                              type="number"
+                              value={item.discountPercentage || 0}
+                              onChange={(e) => handleItemDiscountChange(index, 'percentage', parseFloat(e.target.value) || 0)}
+                              InputProps={{
+                                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                              }}
+                            />
+                          </Grid2>
+                          <Grid2 size={{ xs: 6 }}>
+                            <TextField
+                              size="small"
+                              type="number"
+                              value={item.discountAmount || 0}
+                              onChange={(e) => handleItemDiscountChange(index, 'amount', parseFloat(e.target.value) || 0)}
+                              InputProps={{
+                                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                              }}
+                            />
+                          </Grid2>
+                        </Grid2>
+                      </TableCell>
                       <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
                       <TableCell>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleRemoveItem(index)}
-                          disabled={createPurchase.isPending || updatePurchase.isPending}
-                        >
-                          <Delete />
+                        <IconButton size="small" onClick={() => handleRemoveItem(index)}>
+                          <DeleteOutline fontSize="small" />
                         </IconButton>
                       </TableCell>
                     </TableRow>
@@ -1109,6 +1242,15 @@ export default function PurchaseForm() {
                 {newItemErrors.category && <FormHelperText>{newItemErrors.category}</FormHelperText>}
               </FormControl>
             </Grid2>
+            {newItem.category === 'new' && (
+              <TextField
+                fullWidth
+                label="New Category Name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                margin="normal"
+              />
+            )}
             <Grid2 size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth margin="normal" required>
                 <InputLabel>Item Type</InputLabel>
