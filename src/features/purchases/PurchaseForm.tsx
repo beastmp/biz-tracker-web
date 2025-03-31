@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import {
   Box,
   Paper,
@@ -43,7 +44,6 @@ import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType, Lengt
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 
 // Utility function to round to 5 decimal places
 const roundToFiveDecimalPlaces = (num: number): number => {
@@ -587,7 +587,7 @@ export default function PurchaseForm() {
 
   // Handle drag end event for reordering
   const handleDragEnd = (result: DropResult) => {
-    // If dropped outside the list, do nothing
+    // If dropped outside the list or no destination, do nothing
     if (!result.destination) return;
 
     // If the item was dropped in the same position, do nothing
@@ -735,7 +735,10 @@ export default function PurchaseForm() {
                 </TableHead>
                 <Droppable droppableId="purchase-items" direction="vertical">
                   {(provided) => (
-                    <TableBody ref={provided.innerRef} {...provided.droppableProps}>
+                    <TableBody
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                    >
                       {purchase.items.map((item, index) => {
                         const itemDetails = typeof item.item === 'object' ? item.item : itemLookup[item.item as string];
                         return (
@@ -752,11 +755,23 @@ export default function PurchaseForm() {
                                   backgroundColor: snapshot.isDragging ? 'rgba(63, 81, 181, 0.08)' : 'inherit',
                                   '&:hover .drag-handle': {
                                     opacity: 1,
-                                  }
+                                  },
+                                  // Add styling to ensure the dragged item remains visible
+                                  ...(snapshot.isDragging && {
+                                    borderRadius: '4px',
+                                    outline: '1px solid #aaa',
+                                  })
                                 }}
                               >
                                 <TableCell>
-                                  <Box {...provided.dragHandleProps}>
+                                  <Box
+                                    {...provided.dragHandleProps}
+                                    sx={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                  >
                                     <DragIndicator
                                       className="drag-handle"
                                       sx={{
@@ -767,6 +782,7 @@ export default function PurchaseForm() {
                                     />
                                   </Box>
                                 </TableCell>
+
                                 {/* ...existing table cell content... */}
                                 <TableCell>{itemDetails ? itemDetails.name : 'Unknown Item'}</TableCell>
                                 <TableCell>
