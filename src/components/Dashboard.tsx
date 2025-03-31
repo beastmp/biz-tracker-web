@@ -14,7 +14,8 @@ import {
   TextField,
   InputAdornment,
   Grid2,
-  CardActionArea
+  CardActionArea,
+  Alert
 } from '@mui/material';
 import {
   AddCircleOutline,
@@ -23,7 +24,8 @@ import {
   LocalShippingOutlined,
   SearchOutlined,
   //TrendingUpOutlined,
-  ArrowForward
+  ArrowForward,
+  Construction
 } from '@mui/icons-material';
 import { useItems } from '@hooks/useItems';
 import { useSales } from '@hooks/useSales';
@@ -32,9 +34,13 @@ import { formatCurrency, formatDate } from '@utils/formatters';
 import StatusChip from '@components/ui/StatusChip';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import { useSettings } from '@hooks/useSettings';
+import CreateProductDialog from '@components/inventory/CreateProductDialog';
+import { Item } from '@custTypes/models';
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Fetch data using React Query hooks
   const { data: items = [], isLoading: itemsLoading } = useItems();
@@ -56,9 +62,9 @@ export default function Dashboard() {
 
       const threshold =
         item.weightUnit === 'kg' ? weightThresholds.kg :
-        item.weightUnit === 'g' ? weightThresholds.g :
-        item.weightUnit === 'lb' ? weightThresholds.lb :
-        item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+          item.weightUnit === 'g' ? weightThresholds.g :
+            item.weightUnit === 'lb' ? weightThresholds.lb :
+              item.weightUnit === 'oz' ? weightThresholds.oz : 5;
 
       if (item.weight <= threshold) return true;
     }
@@ -88,7 +94,7 @@ export default function Dashboard() {
   // Filter items based on search
   const filteredItems = items.filter(
     item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.sku.toLowerCase().includes(searchQuery.toLowerCase())
+      item.sku.toLowerCase().includes(searchQuery.toLowerCase())
   ).slice(0, 10);
 
   // Show loading if any data is still loading
@@ -96,8 +102,20 @@ export default function Dashboard() {
     return <LoadingScreen message="Loading dashboard data..." />;
   }
 
+  // Handler for product creation
+  const handleProductCreated = (product: Item) => {
+    setSuccessMessage(`Successfully created product: ${product.name}`);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
   return (
     <Box>
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage(null)}>
+          {successMessage}
+        </Alert>
+      )}
+
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" component="h1">
           Dashboard
@@ -198,6 +216,14 @@ export default function Dashboard() {
               </Button>
               <Button
                 variant="outlined"
+                startIcon={<Construction />}
+                onClick={() => setCreateProductDialogOpen(true)}
+                fullWidth
+              >
+                Create Product
+              </Button>
+              <Button
+                variant="outlined"
                 startIcon={<ShoppingCartOutlined />}
                 component={RouterLink}
                 to="/sales/new"
@@ -272,11 +298,10 @@ export default function Dashboard() {
                   >
                     <ListItemText
                       primary={item.name}
-                      secondary={`SKU: ${item.sku} | ${
-                        item.trackingType === 'quantity'
-                          ? `${item.quantity} in stock`
-                          : `${item.weight} ${item.weightUnit} in stock`
-                      } | ${formatCurrency(item.price)}`}
+                      secondary={`SKU: ${item.sku} | ${item.trackingType === 'quantity'
+                        ? `${item.quantity} in stock`
+                        : `${item.weight} ${item.weightUnit} in stock`
+                        } | ${formatCurrency(item.price)}`}
                     />
                   </ListItem>
                 ))
@@ -460,6 +485,13 @@ export default function Dashboard() {
           </Paper>
         </Grid2>
       </Grid2>
+
+      {/* Add CreateProductDialog */}
+      <CreateProductDialog
+        open={createProductDialogOpen}
+        onClose={() => setCreateProductDialogOpen(false)}
+        onProductCreated={handleProductCreated}
+      />
     </Box>
   );
 }

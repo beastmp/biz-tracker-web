@@ -50,6 +50,7 @@ import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import { useSettings } from '@hooks/useSettings';
+import CreateProductDialog from '@components/inventory/CreateProductDialog';
 
 export default function InventoryList() {
   const { data: items = [], isLoading, error } = useItems();
@@ -92,6 +93,16 @@ export default function InventoryList() {
   const [newVolume, setNewVolume] = useState<string>('');
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
   const updateItem = useUpdateItem(editingItem || undefined);
+
+  // Add state for create product dialog
+  const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false);
+
+  // Handle product creation
+  const handleProductCreated = (product: Item) => {
+    // Show success message
+    setUpdateSuccess(`Created product: ${product.name}`);
+    setTimeout(() => setUpdateSuccess(null), 3000);
+  };
 
   // Filter and sort items
   const filteredItems = useMemo(() => {
@@ -312,9 +323,9 @@ export default function InventoryList() {
         if (!lowStockAlertsEnabled) return 'success';
         const weightThreshold =
           item.weightUnit === 'kg' ? weightThresholds.kg :
-          item.weightUnit === 'g' ? weightThresholds.g :
-          item.weightUnit === 'lb' ? weightThresholds.lb :
-          item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+            item.weightUnit === 'g' ? weightThresholds.g :
+              item.weightUnit === 'lb' ? weightThresholds.lb :
+                item.weightUnit === 'oz' ? weightThresholds.oz : 5;
         if (item.weight <= weightThreshold) return 'warning';
         return 'success';
       }
@@ -348,9 +359,9 @@ export default function InventoryList() {
         if (item.weight <= 0) return 'Out of stock';
         const weightThreshold =
           item.weightUnit === 'kg' ? weightThresholds.kg :
-          item.weightUnit === 'g' ? weightThresholds.g :
-          item.weightUnit === 'lb' ? weightThresholds.lb :
-          item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+            item.weightUnit === 'g' ? weightThresholds.g :
+              item.weightUnit === 'lb' ? weightThresholds.lb :
+                item.weightUnit === 'oz' ? weightThresholds.oz : 5;
         if (lowStockAlertsEnabled && item.weight <= weightThreshold) return `Low: ${item.weight}${item.weightUnit}`;
         return `${item.weight}${item.weightUnit} in stock`;
       }
@@ -397,7 +408,7 @@ export default function InventoryList() {
 
   // Add item type chip to your table row or card view
   const getItemTypeChip = (itemType: ItemType) => {
-    switch(itemType) {
+    switch (itemType) {
       case 'material':
         return <Chip size="small" label="Material" color="primary" variant="outlined" />;
       case 'product':
@@ -518,6 +529,15 @@ export default function InventoryList() {
                 sx={{ mr: 1 }}
               >
                 Profit Analysis
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Construction />}
+                color="secondary"
+                onClick={() => setCreateProductDialogOpen(true)}
+                sx={{ mr: 1 }}
+              >
+                Create Product
               </Button>
               <Button
                 component={RouterLink}
@@ -764,7 +784,7 @@ export default function InventoryList() {
                       {viewMode === 'grid' && (
                         <Grid2 container spacing={3}>
                           {subgroupItems.map((item) => (
-                            <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3}} key={item._id}>
+                            <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item._id}>
                               {/* Existing card component */}
                               <Card sx={{
                                 height: '100%',
@@ -806,13 +826,13 @@ export default function InventoryList() {
                                           type="number"
                                           value={
                                             item.trackingType === 'quantity' ? newQuantity :
-                                            item.trackingType === 'weight' ? newWeight :
-                                            item.trackingType === 'length' ? newLength :
-                                            item.trackingType === 'area' ? newArea :
-                                            newVolume
+                                              item.trackingType === 'weight' ? newWeight :
+                                                item.trackingType === 'length' ? newLength :
+                                                  item.trackingType === 'area' ? newArea :
+                                                    newVolume
                                           }
                                           onChange={(e) => {
-                                            switch(item.trackingType) {
+                                            switch (item.trackingType) {
                                               case 'quantity':
                                                 setNewQuantity(e.target.value);
                                                 break;
@@ -1072,13 +1092,13 @@ export default function InventoryList() {
                                           type="number"
                                           value={
                                             item.trackingType === 'quantity' ? newQuantity :
-                                            item.trackingType === 'weight' ? newWeight :
-                                            item.trackingType === 'length' ? newLength :
-                                            item.trackingType === 'area' ? newArea :
-                                            newVolume
+                                              item.trackingType === 'weight' ? newWeight :
+                                                item.trackingType === 'length' ? newLength :
+                                                  item.trackingType === 'area' ? newArea :
+                                                    newVolume
                                           }
                                           onChange={(e) => {
-                                            switch(item.trackingType) {
+                                            switch (item.trackingType) {
                                               case 'quantity':
                                                 setNewQuantity(e.target.value);
                                                 break;
@@ -1210,7 +1230,7 @@ export default function InventoryList() {
                           filteredItems
                         ).map((item) => (
                           // Existing item card code
-                          <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3}} key={item._id}>
+                          <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item._id}>
                             <Card sx={{
                               height: '100%',
                               display: 'flex',
@@ -1251,13 +1271,13 @@ export default function InventoryList() {
                                         type="number"
                                         value={
                                           item.trackingType === 'quantity' ? newQuantity :
-                                          item.trackingType === 'weight' ? newWeight :
-                                          item.trackingType === 'length' ? newLength :
-                                          item.trackingType === 'area' ? newArea :
-                                          newVolume
+                                            item.trackingType === 'weight' ? newWeight :
+                                              item.trackingType === 'length' ? newLength :
+                                                item.trackingType === 'area' ? newArea :
+                                                  newVolume
                                         }
                                         onChange={(e) => {
-                                          switch(item.trackingType) {
+                                          switch (item.trackingType) {
                                             case 'quantity':
                                               setNewQuantity(e.target.value);
                                               break;
@@ -1521,13 +1541,13 @@ export default function InventoryList() {
                                       type="number"
                                       value={
                                         item.trackingType === 'quantity' ? newQuantity :
-                                        item.trackingType === 'weight' ? newWeight :
-                                        item.trackingType === 'length' ? newLength :
-                                        item.trackingType === 'area' ? newArea :
-                                        newVolume
+                                          item.trackingType === 'weight' ? newWeight :
+                                            item.trackingType === 'length' ? newLength :
+                                              item.trackingType === 'area' ? newArea :
+                                                newVolume
                                       }
                                       onChange={(e) => {
-                                        switch(item.trackingType) {
+                                        switch (item.trackingType) {
                                           case 'quantity':
                                             setNewQuantity(e.target.value);
                                             break;
@@ -1650,6 +1670,12 @@ export default function InventoryList() {
           )}
         </>
       )}
+      {/* Add CreateProductDialog */}
+      <CreateProductDialog
+        open={createProductDialogOpen}
+        onClose={() => setCreateProductDialogOpen(false)}
+        onProductCreated={handleProductCreated}
+      />
     </Box>
   );
 }
