@@ -1,93 +1,68 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import {
   Box,
-  Paper,
   Typography,
-  Grid2,
-  Divider,
+  Paper,
+  Grid,
+  Card,
+  CardContent,
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  SelectChangeEvent,
   Button,
-  TextField,
-  Alert,
+  IconButton,
+  Tooltip,
+  Divider,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Card,
-  CardContent,
+  TablePagination,
+  TableSortLabel,
+  Chip,
+  useTheme,
+  alpha,
   Tabs,
   Tab,
-  IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  SelectChangeEvent,
-  Tooltip
+  CircularProgress,
+  Alert
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
-  ArrowBack,
-  BarChart,
+  Print as PrintIcon,
+  FileDownload as FileDownloadIcon,
+  Refresh as RefreshIcon,
+  AttachMoney,
+  Inventory as InventoryIcon,
   ShowChart,
-  DateRange,
-  Search,
-  GetApp,
-  FilterList,
-  PieChart,
-  TrendingUp,
-  Store,
-  Scale,
-  Straighten,
-  SquareFoot,
-  LocalDrink,
-  Inventory,
+  Receipt,
+  LocalShipping,
   TrendingDown,
-  Print,
-  CompareArrows,
-  Category,
-  Domain
+  TrendingUp,
+  People,
+  Visibility,
+  FilterAlt,
+  Business,
+  ArrowForward,
+  PieChart as PieChartIcon
 } from '@mui/icons-material';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  BarChart as RechartBarChart,
-  Bar,
-  PieChart as RechartPieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import { usePurchasesReport, usePurchasesTrend } from '@hooks/usePurchases';
-import { formatCurrency, formatDate, formatUnit } from '@utils/formatters';
+import { usePurchasesReport } from '@hooks/usePurchases';
+import { formatCurrency, formatDate } from '@utils/formatters';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
 import LoadingScreen from '@components/ui/LoadingScreen';
+import ErrorFallback from '@components/ui/ErrorFallback';
+import { Link as RouterLink } from 'react-router-dom';
 import StatusChip from '@components/ui/StatusChip';
-import { PurchaseItem, TrackingType } from '@custTypes/models';
 
-// Create enums from the types so they can be used with Object.values
-const PurchaseStatus = {
-  PENDING: 'pending',
-  RECEIVED: 'received',
-  PARTIALLY_RECEIVED: 'partially_received',
-  CANCELLED: 'cancelled'
-} as const;
-
-const ItemType = {
-  MATERIAL: 'material',
-  PRODUCT: 'product',
-  BOTH: 'both'
-} as const;
-
-// Chart colors
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-// Tab panel for report sections
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -101,1356 +76,1457 @@ function TabPanel(props: TabPanelProps) {
     <div
       role="tabpanel"
       hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
+      id={`report-tabpanel-${index}`}
+      aria-labelledby={`report-tab-${index}`}
       {...other}
-      style={{ paddingTop: 20 }}
     >
-      {value === index && children}
+      {value === index && (
+        <Box sx={{ py: 3 }}>
+          {children}
+        </Box>
+      )}
     </div>
   );
 }
 
+// Active pie chart sector renderer
+const renderActiveShape = (props: any) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value } = props;
+  const sin = Math.sin(-midAngle * Math.PI / 180);
+  const cos = Math.cos(-midAngle * Math.PI / 180);
+  const sx = cx + (outerRadius + 10) * cos;
+  const sy = cy + (outerRadius + 10) * sin;
+  const mx = cx + (outerRadius + 30) * cos;
+  const my = cy + (outerRadius + 30) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+  const ey = my;
+  const textAnchor = cos >= 0 ? 'start' : 'end';
+
+  return (
+    <g>
+      <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} fontSize={14} fontWeight="bold">
+        {payload.name}
+      </text>
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+      />
+      <Sector
+        cx={cx}
+        cy={cy}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        innerRadius={outerRadius + 6}
+        outerRadius={outerRadius + 10}
+        fill={fill}
+      />
+      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" />
+      <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
+      <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333" fontSize={12}>
+        {`${formatCurrency(value)}`}
+      </text>
+      <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} dy={18} textAnchor={textAnchor} fill="#999" fontSize={12}>
+        {`(${(percent * 100).toFixed(2)}%)`}
+      </text>
+    </g>
+  );
+};
+
 export default function PurchasesReport() {
-  const [startDate, setStartDate] = useState<string>(() => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - 1);
-    return date.toISOString().split('T')[0];
-  });
-
-  const [endDate, setEndDate] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
-  });
-
-  const [shouldFetch, setShouldFetch] = useState(false);
+  const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
+  const [period, setPeriod] = useState('month');
+  const [startDate, setStartDate] = useState<Date | null>(
+    new Date(new Date().setMonth(new Date().getMonth() - 6))
+  );
+  const [endDate, setEndDate] = useState<Date | null>(new Date());
   const [supplierFilter, setSupplierFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [compareMode, setCompareMode] = useState<boolean>(false);
-  const [compareStartDate, setCompareStartDate] = useState<string>(() => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - 2);
-    return date.toISOString().split('T')[0];
-  });
-  const [compareEndDate, setCompareEndDate] = useState<string>(() => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - 1);
-    date.setDate(date.getDate() - 1);
-    return date.toISOString().split('T')[0];
-  });
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [itemTypeFilter, setItemTypeFilter] = useState<string>('all');
-  const [measurementTypeFilter, setMeasurementTypeFilter] = useState<string>('all');
+  const [activePieIndex, setActivePieIndex] = useState(0);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [orderBy, setOrderBy] = useState<string>('date');
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc');
 
-  // Get report data
-  const { data: reportData, isLoading, error } = usePurchasesReport(
-    shouldFetch ? startDate : undefined,
-    shouldFetch ? endDate : undefined
-  );
-
-  // Get trend data for charts
-  const { data: trendData, isLoading: trendLoading } = usePurchasesTrend(
-    shouldFetch ? startDate : undefined,
-    shouldFetch ? endDate : undefined
-  );
-
-  // Add comparison data query
-  const { data: compareData } = usePurchasesReport(
-    compareMode ? compareStartDate : undefined,
-    compareMode ? compareEndDate : undefined
-  );
-
-  // Run the report on initial load
-  useEffect(() => {
-    setShouldFetch(true);
-  }, []);
-
-  const fetchReport = () => {
-    if (!startDate || !endDate) {
-      return;
-    }
-    setShouldFetch(true);
-  };
-
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    fetchReport();
-  };
+  // Fetch report data with filters
+  const { data, isLoading, error, refetch } = usePurchasesReport({
+    startDate: startDate?.toISOString() || '',
+    endDate: endDate?.toISOString() || '',
+    period,
+    supplier: supplierFilter === 'all' ? undefined : supplierFilter,
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    category: categoryFilter === 'all' ? undefined : categoryFilter
+  });
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
-  const handleSupplierFilterChange = (event: SelectChangeEvent) => {
-    setSupplierFilter(event.target.value);
+  const handlePeriodChange = (event: SelectChangeEvent) => {
+    const newPeriod = event.target.value;
+    setPeriod(newPeriod);
+
+    // Auto-adjust date range based on period
+    const now = new Date();
+    let start = new Date();
+
+    switch (newPeriod) {
+      case 'day':
+        start = new Date(now.setDate(now.getDate() - 30)); // Last 30 days
+        break;
+      case 'week':
+        start = new Date(now.setDate(now.getDate() - 90)); // Last ~12 weeks
+        break;
+      case 'month':
+        start = new Date(now.setMonth(now.getMonth() - 12)); // Last 12 months
+        break;
+      case 'quarter':
+        start = new Date(now.setMonth(now.getMonth() - 24)); // Last 8 quarters (2 years)
+        break;
+      case 'year':
+        start = new Date(now.setFullYear(now.getFullYear() - 5)); // Last 5 years
+        break;
+      default:
+        start = new Date(now.setMonth(now.getMonth() - 6)); // Default to last 6 months
+    }
+
+    setStartDate(start);
+    setEndDate(new Date());
   };
 
-  const handleStatusFilterChange = (event: SelectChangeEvent) => {
-    setStatusFilter(event.target.value);
+  const handleChangePage = (_: unknown, newPage: number) => {
+    setPage(newPage);
   };
 
-  const handleCategoryFilterChange = (event: SelectChangeEvent) => {
-    setCategoryFilter(event.target.value);
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
-  const handleItemTypeFilterChange = (event: SelectChangeEvent) => {
-    setItemTypeFilter(event.target.value);
-  };
-
-  const handleMeasurementTypeFilterChange = (event: SelectChangeEvent) => {
-    setMeasurementTypeFilter(event.target.value);
-  };
-
-  const toggleCompareMode = () => {
-    setCompareMode(!compareMode);
+  const handleRequestSort = (property: string) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
   };
 
   const handlePrint = () => {
     window.print();
   };
 
-  // Get purchase data by status
-  const getStatusData = () => {
-    if (!reportData?.purchases || reportData.purchases.length === 0) return [];
+  // Export data to CSV
+  const exportToCSV = () => {
+    if (!data || !data.purchasesByPeriod) return;
 
-    const statusCounts: Record<string, number> = {};
-    reportData.purchases.forEach(purchase => {
-      const status = purchase.status || 'unknown';
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
-    });
+    const header = ['Period', 'Orders', 'Total Cost'];
+    const rows = data.purchasesByPeriod.map(item => [
+      item.period,
+      item.count,
+      item.total.toFixed(2)
+    ]);
 
-    return Object.entries(statusCounts).map(([status, count]) => ({
-      name: status,
-      value: count,
-      percentage: (count / reportData.purchases.length) * 100
-    }));
-  };
+    const csvContent = [
+      header.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
 
-  // Get purchase data by payment method
-  const getPaymentMethodData = () => {
-    if (!reportData?.purchases || reportData.purchases.length === 0) return [];
-
-    const methodCounts: Record<string, number> = {};
-    reportData.purchases.forEach(purchase => {
-      const method = purchase.paymentMethod || 'unknown';
-      methodCounts[method] = (methodCounts[method] || 0) + 1;
-    });
-
-    return Object.entries(methodCounts).map(([method, count]) => ({
-      name: method,
-      value: count,
-      percentage: (count / reportData.purchases.length) * 100
-    }));
-  };
-
-  // Get supplier data
-  const getSupplierData = () => {
-    if (!reportData?.purchases || reportData.purchases.length === 0) return [];
-
-    const supplierCounts: Record<string, { count: number, total: number }> = {};
-    reportData.purchases.forEach(purchase => {
-      const supplierName = purchase.supplier?.name || 'Unknown Supplier';
-      if (!supplierCounts[supplierName]) {
-        supplierCounts[supplierName] = { count: 0, total: 0 };
-      }
-      supplierCounts[supplierName].count += 1;
-      supplierCounts[supplierName].total += purchase.total || 0;
-    });
-
-    return Object.entries(supplierCounts)
-      .map(([name, { count, total }]) => ({
-        name,
-        count,
-        total,
-        percentage: (count / reportData.purchases.length) * 100
-      }))
-      .sort((a, b) => b.total - a.total);
-  };
-
-  // Get item statistics
-  const getItemStats = () => {
-    if (!reportData?.purchases || reportData.purchases.length === 0) return [];
-
-    const itemCounts: Record<string, { count: number, total: number }> = {};
-
-    reportData.purchases.forEach(purchase => {
-      if (!purchase.items) return;
-
-      purchase.items.forEach(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        const itemName = itemDetails?.name || 'Unknown Item';
-
-        if (!itemCounts[itemName]) {
-          itemCounts[itemName] = { count: 0, total: 0 };
-        }
-        itemCounts[itemName].count += 1;
-        itemCounts[itemName].total += item.totalCost || 0;
-      });
-    });
-
-    return Object.entries(itemCounts)
-      .map(([name, { count, total }]) => ({
-        name,
-        count,
-        total
-      }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 10); // Top 10 items
-  };
-
-
-  // Get measurement type data
-  const getMeasurementTypeData = () => {
-    if (!reportData?.purchases || reportData.purchases.length === 0) return [];
-
-    const measurementCounts: Record<string, { count: number, total: number }> = {
-      'quantity': { count: 0, total: 0 },
-      'weight': { count: 0, total: 0 },
-      'length': { count: 0, total: 0 },
-      'area': { count: 0, total: 0 },
-      'volume': { count: 0, total: 0 }
-    };
-
-    reportData.purchases.forEach(purchase => {
-      if (!purchase.items) return;
-
-      purchase.items.forEach(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        const trackingType = itemDetails?.trackingType || 'quantity';
-
-        if (!measurementCounts[trackingType]) {
-          measurementCounts[trackingType] = { count: 0, total: 0 };
-        }
-
-        measurementCounts[trackingType].count++;
-        measurementCounts[trackingType].total += item.totalCost || 0;
-      });
-    });
-
-    const totalPurchaseValue = reportData.purchases.reduce((sum, p) => sum + (p.total || 0), 0);
-
-    return Object.entries(measurementCounts)
-      .filter(([, { count }]) => count > 0)
-      .map(([type, { count, total }]) => ({
-        name: type,
-        count,
-        total,
-        percentage: totalPurchaseValue > 0 ? (total / totalPurchaseValue) * 100 : 0
-      }));
-  };
-
-  // Get category data
-  const getCategoryData = () => {
-    if (!reportData?.purchases) return [];
-
-    const categoryCounts: Record<string, { count: number, total: number }> = {};
-
-    reportData.purchases.forEach(purchase => {
-      purchase.items.forEach(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        const category = itemDetails?.category || 'Uncategorized';
-
-        if (!categoryCounts[category]) {
-          categoryCounts[category] = { count: 0, total: 0 };
-        }
-
-        categoryCounts[category].count++;
-        categoryCounts[category].total += item.totalCost;
-      });
-    });
-
-    return Object.entries(categoryCounts)
-      .map(([, { count, total }]) => ({
-        name,
-        count,
-        total,
-        percentage: total / reportData.purchases.reduce((sum, p) => sum + p.total, 0) * 100
-      }))
-      .sort((a, b) => b.total - a.total);
-  };
-
-  // Get item type data
-  const getItemTypeData = () => {
-    if (!reportData?.purchases) return [];
-
-    const typeCounts: Record<string, { count: number, total: number }> = {};
-
-    reportData.purchases.forEach(purchase => {
-      purchase.items.forEach(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        const itemType = itemDetails?.itemType || 'material';
-
-        if (!typeCounts[itemType]) {
-          typeCounts[itemType] = { count: 0, total: 0 };
-        }
-
-        typeCounts[itemType].count++;
-        typeCounts[itemType].total += item.totalCost;
-      });
-    });
-
-    return Object.entries(typeCounts)
-      .map(([, { count, total }]) => ({
-        name,
-        count,
-        total,
-        percentage: total / reportData.purchases.reduce((sum, p) => sum + p.total, 0) * 100
-      }));
-  };
-
-  // Filter purchases based on supplier and status filters
-  const filteredPurchases = useMemo(() => {
-    if (!reportData?.purchases) return [];
-
-    return reportData.purchases.filter(purchase => {
-      const supplierMatch = supplierFilter === 'all' ||
-        purchase.supplier?.name === supplierFilter;
-      const statusMatch = statusFilter === 'all' ||
-        purchase.status === statusFilter;
-      const categoryMatch = categoryFilter === 'all' || purchase.items.some(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        return itemDetails?.category === categoryFilter;
-      });
-      const itemTypeMatch = itemTypeFilter === 'all' || purchase.items.some(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        return itemDetails?.itemType === itemTypeFilter;
-      });
-      const measurementTypeMatch = measurementTypeFilter === 'all' || purchase.items.some(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        return itemDetails?.trackingType === measurementTypeFilter;
-      });
-
-      return supplierMatch && statusMatch && categoryMatch && itemTypeMatch && measurementTypeMatch;
-    });
-  }, [reportData, supplierFilter, statusFilter, categoryFilter, itemTypeFilter, measurementTypeFilter]);
-
-  // Get all supplier names for the filter
-  const supplierNames = useMemo(() => {
-    if (!reportData?.purchases) return [];
-
-    const suppliers = new Set<string>();
-    reportData.purchases.forEach(purchase => {
-      if (purchase.supplier?.name) {
-        suppliers.add(purchase.supplier.name);
-      }
-    });
-
-    return Array.from(suppliers).sort();
-  }, [reportData]);
-
-  // Get all categories for filtering
-  const categoryNames = useMemo(() => {
-    if (!reportData?.purchases) return [];
-
-    const categories = new Set<string>();
-    reportData.purchases.forEach(purchase => {
-      purchase.items.forEach(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        if (itemDetails?.category) {
-          categories.add(itemDetails.category);
-        }
-      });
-    });
-
-    return Array.from(categories).sort();
-  }, [reportData]);
-
-  // Get measurement icon based on type
-  const getMeasurementIcon = (trackingType: string) => {
-    switch (trackingType) {
-      case 'quantity': return <Inventory fontSize="small" />;
-      case 'weight': return <Scale fontSize="small" />;
-      case 'length': return <Straighten fontSize="small" />;
-      case 'area': return <SquareFoot fontSize="small" />;
-      case 'volume': return <LocalDrink fontSize="small" />;
-      default: return <Inventory fontSize="small" />;
-    }
-  };
-
-  // Format measurement value with unit
-  const formatMeasurement = (item: PurchaseItem): string => {
-    if (!item) return '';
-
-    const unit = (type: string, unitValue: string | undefined): string => {
-      return formatUnit(unitValue || '') || {
-        quantity: 'units',
-        weight: 'lb',
-        length: 'in',
-        area: 'sqft',
-        volume: 'l'
-      }[type as TrackingType] || '';
-    };
-
-    switch (item.purchasedBy || 'quantity') {
-      case 'weight':
-        return `${item.weight} ${unit('weight', item.weightUnit)}`;
-      case 'length':
-        return `${item.length} ${unit('length', item.lengthUnit)}`;
-      case 'area':
-        return `${item.area} ${unit('area', item.areaUnit)}`;
-      case 'volume':
-        return `${item.volume} ${unit('volume', item.volumeUnit)}`;
-      default:
-        return `${item.quantity} units`;
-    }
-  };
-
-  // Calculate comparison metrics
-  const comparisonMetrics = useMemo(() => {
-    if (!compareMode || !reportData || !compareData) {
-      return null;
-    }
-
-    const currentTotal = reportData.totalCost || 0;
-    const previousTotal = compareData.totalCost || 0;
-    const totalDiff = currentTotal - previousTotal;
-    const totalPercentChange = previousTotal > 0 ? (totalDiff / previousTotal) * 100 : 0;
-
-    const currentCount = reportData.totalPurchases || 0;
-    const previousCount = compareData.totalPurchases || 0;
-    const countDiff = currentCount - previousCount;
-    const countPercentChange = previousCount > 0 ? (countDiff / previousCount) * 100 : 0;
-
-    const currentAvg = reportData.averagePurchaseValue || 0;
-    const previousAvg = compareData.averagePurchaseValue || 0;
-    const avgDiff = currentAvg - previousAvg;
-    const avgPercentChange = previousAvg > 0 ? (avgDiff / previousAvg) * 100 : 0;
-
-    return {
-      totalDiff,
-      totalPercentChange,
-      countDiff,
-      countPercentChange,
-      avgDiff,
-      avgPercentChange
-    };
-  }, [compareMode, reportData, compareData]);
-
-  // Export report to CSV
-  const exportReportCSV = () => {
-    if (!reportData) return;
-
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Date,Supplier,Invoice Number,Items,Total,Status,Payment Method\n";
-
-    filteredPurchases.forEach(purchase => {
-      csvContent += `${purchase.purchaseDate ? formatDate(purchase.purchaseDate) : ''},`;
-      csvContent += `"${purchase.supplier?.name || 'Unknown Supplier'}",`;
-      csvContent += `${purchase.invoiceNumber || ''},`;
-      csvContent += `${purchase.items.length},`;
-      csvContent += `${purchase.total},`;
-      csvContent += `${purchase.status},`;
-      csvContent += `${purchase.paymentMethod}\n`;
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `purchases_report_${startDate}_to_${endDate}.csv`);
+    // Download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `purchases-report-${formatDate(new Date())}.csv`);
+    link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  if (isLoading || trendLoading) {
-    return <LoadingScreen />;
+  // Export detailed purchase data
+  const exportDetailedCSV = () => {
+    if (!data || !data.purchases) return;
+
+    // Create CSV headers and rows
+    const header = ['Date', 'Supplier', 'Items', 'Status', 'Total Cost'];
+    const rows = data.purchases.map(purchase => [
+      formatDate(new Date(purchase.purchaseDate)),
+      purchase.supplier?.name || 'Unknown',
+      purchase.items.length,
+      purchase.status,
+      purchase.total.toFixed(2)
+    ]);
+
+    const csvContent = [
+      header.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `purchases-detailed-${formatDate(new Date())}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Derived data for top suppliers
+  const topSuppliers = useMemo(() => {
+    if (!data?.topSuppliers) return [];
+    return [...data.topSuppliers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 10);
+  }, [data?.topSuppliers]);
+
+  // Derived data for top items
+  const topItems = useMemo(() => {
+    if (!data?.topItems) return [];
+    return [...data.topItems].sort((a, b) => b.totalCost - a.totalCost).slice(0, 10);
+  }, [data?.topItems]);
+
+  // Sort and filter purchases for the table
+  const sortedPurchases = useMemo(() => {
+    if (!data?.purchases) return [];
+
+    return [...data.purchases].sort((a, b) => {
+      if (orderBy === 'date') {
+        const dateA = new Date(a.purchaseDate);
+        const dateB = new Date(b.purchaseDate);
+        return order === 'asc' ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
+      } else if (orderBy === 'supplier') {
+        const supplierA = a.supplier?.name || '';
+        const supplierB = b.supplier?.name || '';
+        return order === 'asc'
+          ? supplierA.localeCompare(supplierB)
+          : supplierB.localeCompare(supplierA);
+      } else if (orderBy === 'total') {
+        return order === 'asc' ? a.total - b.total : b.total - a.total;
+      } else if (orderBy === 'items') {
+        return order === 'asc' ? a.items.length - b.items.length : b.items.length - a.items.length;
+      } else if (orderBy === 'status') {
+        return order === 'asc'
+          ? a.status.localeCompare(b.status)
+          : b.status.localeCompare(a.status);
+      }
+      return 0;
+    });
+  }, [data?.purchases, orderBy, order]);
+
+  // Paginated purchases for table display
+  const paginatedPurchases = useMemo(() => {
+    return sortedPurchases.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [sortedPurchases, page, rowsPerPage]);
+
+  // Format purchase data for charts
+  const trendData = useMemo(() => {
+    if (!data?.purchasesByPeriod) return [];
+
+    return data.purchasesByPeriod.map(item => ({
+      name: item.period,
+      amount: item.total,
+      count: item.count,
+      avgOrderValue: item.count > 0 ? item.total / item.count : 0
+    }));
+  }, [data?.purchasesByPeriod]);
+
+  // Format category data for pie chart
+  const categoryData = useMemo(() => {
+    if (!data?.purchasesByCategory) return [];
+
+    return Object.entries(data.purchasesByCategory || {})
+      .map(([category, amount]) => ({
+        name: category || 'Uncategorized',
+        value: amount
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [data?.purchasesByCategory]);
+
+  // Calculate forecast based on trends
+  const calculateForecast = () => {
+    if (!trendData || trendData.length < 3) return null;
+
+    // Simple average of last 3 periods for forecast
+    const lastThreePeriods = trendData.slice(-3);
+    const avgAmount = lastThreePeriods.reduce((sum, item) => sum + item.amount, 0) / lastThreePeriods.length;
+
+    // Calculate percentage change from previous month
+    const currentAmount = trendData[trendData.length - 1]?.amount || 0;
+    const previousAmount = trendData[trendData.length - 2]?.amount || 1; // Avoid division by zero
+    const percentageChange = ((currentAmount - previousAmount) / previousAmount) * 100;
+
+    return {
+      forecastAmount: avgAmount,
+      percentageChange,
+      increasing: percentageChange > 0
+    };
+  };
+
+  const forecast = calculateForecast();
+
+  // Available statuses for filter
+  const availableStatuses = useMemo(() => {
+    if (!data?.purchases) return [];
+
+    const statuses = new Set<string>();
+    data.purchases.forEach(purchase => {
+      statuses.add(purchase.status);
+    });
+
+    return Array.from(statuses);
+  }, [data?.purchases]);
+
+  // Available categories for filter
+  const availableCategories = useMemo(() => {
+    if (!data?.topItems) return [];
+
+    const categories = new Set<string>();
+    data.topItems.forEach(item => {
+      if (item.category) categories.add(item.category);
+    });
+
+    return Array.from(categories);
+  }, [data?.topItems]);
+
+  if (isLoading) {
+    return <LoadingScreen message="Generating purchase report..." />;
   }
 
+  if (error) {
+    return <ErrorFallback error={error as Error} message="Failed to generate purchase report" />;
+  }
+
+  const suppliers = data?.suppliers || [];
+
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
+    <Box className="fade-in">
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
           Purchases Report
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBack />}
-          component={RouterLink}
-          to="/purchases"
-        >
-          Back to Purchases
-        </Button>
+        <Typography color="text.secondary" variant="subtitle1">
+          Analyze your purchasing patterns and supplier data
+        </Typography>
       </Box>
 
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Grid2 container spacing={3} alignItems="center" component="form" onSubmit={handleSubmit}>
-          <Grid2 size={{ xs: 12, sm: compareMode ? 3 : 4 }}>
-            <TextField
-              fullWidth
-              label={compareMode ? "Current Period Start" : "Start Date"}
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, sm: compareMode ? 3 : 4 }}>
-            <TextField
-              fullWidth
-              label={compareMode ? "Current Period End" : "End Date"}
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid2>
-          {compareMode && (
-            <>
-              <Grid2 size={{ xs: 12, sm: 3 }}>
-                <TextField
-                  fullWidth
-                  label="Previous Period Start"
-                  type="date"
-                  value={compareStartDate}
-                  onChange={(e) => setCompareStartDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 3 }}>
-                <TextField
-                  fullWidth
-                  label="Previous Period End"
-                  type="date"
-                  value={compareEndDate}
-                  onChange={(e) => setCompareEndDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid2>
-            </>
-          )}
-          <Grid2 size={{ xs: 12, sm: compareMode ? 12 : 4 }} sx={{ display: 'flex', mt: compareMode ? 2 : 0, gap: 2 }}>
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              startIcon={<Search />}
-              onClick={fetchReport}
-              type="submit"
-              disabled={!startDate || !endDate || (compareMode && (!compareStartDate || !compareEndDate))}
-            >
-              Generate Report
-            </Button>
-            <Tooltip title="Toggle Comparison Mode">
-              <Button
-                variant="outlined"
-                color={compareMode ? "primary" : "inherit"}
-                onClick={toggleCompareMode}
-              >
-                <CompareArrows />
-              </Button>
-            </Tooltip>
-            <Tooltip title="Print Report">
-              <Button
-                variant="outlined"
-                onClick={handlePrint}
-              >
-                <Print />
-              </Button>
-            </Tooltip>
-          </Grid2>
-        </Grid2>
+      {/* Filters and Actions */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 4,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { xs: 'stretch', md: 'center' },
+          gap: 2,
+          borderRadius: 2,
+          boxShadow: theme.shadows[2]
+        }}
+      >
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Start Date"
+            value={startDate}
+            onChange={(newValue) => setStartDate(newValue)}
+            slotProps={{
+              textField: {
+                size: 'small',
+                fullWidth: true,
+                sx: { minWidth: 130 }
+              }
+            }}
+          />
+        </LocalizationProvider>
 
-        {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            Error loading report data. Please try again.
-          </Alert>
-        )}
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="End Date"
+            value={endDate}
+            onChange={(newValue) => setEndDate(newValue)}
+            slotProps={{
+              textField: {
+                size: 'small',
+                fullWidth: true,
+                sx: { minWidth: 130 }
+              }
+            }}
+          />
+        </LocalizationProvider>
+
+        <FormControl size="small" sx={{ minWidth: 120, flexGrow: { xs: 1, md: 0 } }}>
+          <InputLabel>Group By</InputLabel>
+          <Select
+            value={period}
+            onChange={handlePeriodChange}
+            label="Group By"
+          >
+            <MenuItem value="day">Day</MenuItem>
+            <MenuItem value="week">Week</MenuItem>
+            <MenuItem value="month">Month</MenuItem>
+            <MenuItem value="quarter">Quarter</MenuItem>
+            <MenuItem value="year">Year</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Tooltip title="More Filters">
+          <Button
+            startIcon={<FilterAlt />}
+            variant="outlined"
+            size="small"
+            onClick={() => {}}
+            sx={{ display: { xs: 'flex', md: 'none' } }}
+          >
+            Filters
+          </Button>
+        </Tooltip>
+
+        <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 2 }}>
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel>Supplier</InputLabel>
+            <Select
+              value={supplierFilter}
+              onChange={(e) => setSupplierFilter(e.target.value)}
+              label="Supplier"
+            >
+              <MenuItem value="all">All Suppliers</MenuItem>
+              {suppliers.map(supplier => (
+                <MenuItem key={supplier.id} value={supplier.id}>{supplier.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              label="Status"
+            >
+              <MenuItem value="all">All Statuses</MenuItem>
+              {availableStatuses.map(status => (
+                <MenuItem key={status} value={status}>{status}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Category</InputLabel>
+            <Select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              label="Category"
+            >
+              <MenuItem value="all">All Categories</MenuItem>
+              {availableCategories.map(category => (
+                <MenuItem key={category} value={category}>{category}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            marginLeft: { xs: 0, md: 'auto' },
+            mt: { xs: 1, md: 0 }
+          }}
+        >
+          <Tooltip title="Refresh Data">
+            <IconButton onClick={() => refetch()} color="primary">
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Export to CSV">
+            <IconButton onClick={exportToCSV} color="primary">
+              <FileDownloadIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Print Report">
+            <IconButton onClick={handlePrint} color="primary">
+              <PrintIcon />
+            </IconButton>
+          </Tooltip>
+        </Stack>
       </Paper>
 
-      {reportData && (
-        <>
-          <Grid2 container spacing={3} sx={{ mb: 4 }}>
-            <Grid2 size={{ xs: 12, sm: 4 }}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography color="text.secondary" gutterBottom>
-                      Total Purchases
-                    </Typography>
-                    <BarChart color="primary" />
-                  </Box>
-                  <Typography variant="h3" component="div">
-                    {reportData.totalPurchases}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {`From ${formatDate(startDate)} to ${formatDate(endDate)}`}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid2>
+      {/* Mobile Filters (Collapsed initially) */}
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, gap: 2, mb: 3, flexWrap: 'wrap' }}>
+        <FormControl size="small" sx={{ minWidth: '47%', flexGrow: 1 }}>
+          <InputLabel>Supplier</InputLabel>
+          <Select
+            value={supplierFilter}
+            onChange={(e) => setSupplierFilter(e.target.value)}
+            label="Supplier"
+          >
+            <MenuItem value="all">All Suppliers</MenuItem>
+            {suppliers.map(supplier => (
+              <MenuItem key={supplier.id} value={supplier.id}>{supplier.name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
-            <Grid2 size={{ xs: 12, sm: 4 }}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography color="text.secondary" gutterBottom>
-                      Total Cost
-                    </Typography>
-                    <ShowChart color="error" />
-                  </Box>
-                  <Typography variant="h3" component="div">
-                    {formatCurrency(reportData.totalCost)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {`From ${formatDate(startDate)} to ${formatDate(endDate)}`}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid2>
+        <FormControl size="small" sx={{ minWidth: '47%', flexGrow: 1 }}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            label="Status"
+          >
+            <MenuItem value="all">All Statuses</MenuItem>
+            {availableStatuses.map(status => (
+              <MenuItem key={status} value={status}>{status}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
-            <Grid2 size={{ xs: 12, sm: 4 }}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography color="text.secondary" gutterBottom>
-                      Average Purchase Value
-                    </Typography>
-                    <DateRange color="info" />
-                  </Box>
-                  <Typography variant="h3" component="div">
-                    {formatCurrency(reportData.averagePurchaseValue)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {`From ${formatDate(startDate)} to ${formatDate(endDate)}`}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid2>
-          </Grid2>
+        <FormControl size="small" sx={{ minWidth: '47%', flexGrow: 1 }}>
+          <InputLabel>Category</InputLabel>
+          <Select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            label="Category"
+          >
+            <MenuItem value="all">All Categories</MenuItem>
+            {availableCategories.map(category => (
+              <MenuItem key={category} value={category}>{category}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
 
-          {compareMode && comparisonMetrics && (
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h5" gutterBottom>
-                Period Comparison
-              </Typography>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, sm: 4 }}>
-                  <Card>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography color="text.secondary" gutterBottom>
-                          Purchase Count Change
-                        </Typography>
-                        {comparisonMetrics.countPercentChange >= 0 ? (
-                          <TrendingUp color="success" />
-                        ) : (
-                          <TrendingDown color="error" />
-                        )}
-                      </Box>
-                      <Typography variant="h4" component="div">
-                        {comparisonMetrics.countDiff > 0 ? '+' : ''}{comparisonMetrics.countDiff}
-                      </Typography>
-                      <Typography variant="body2" color={comparisonMetrics.countPercentChange >= 0 ? "success.main" : "error.main"}>
-                        {comparisonMetrics.countPercentChange > 0 ? '+' : ''}
-                        {comparisonMetrics.countPercentChange.toFixed(1)}% from previous period
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, sm: 4 }}>
-                  <Card>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography color="text.secondary" gutterBottom>
-                          Total Cost Change
-                        </Typography>
-                        {comparisonMetrics.totalPercentChange >= 0 ? (
-                          <TrendingUp color="success" />
-                        ) : (
-                          <TrendingDown color="error" />
-                        )}
-                      </Box>
-                      <Typography variant="h4" component="div">
-                        {formatCurrency(comparisonMetrics.totalDiff)}
-                      </Typography>
-                      <Typography variant="body2" color={comparisonMetrics.totalPercentChange >= 0 ? "success.main" : "error.main"}>
-                        {comparisonMetrics.totalPercentChange > 0 ? '+' : ''}
-                        {comparisonMetrics.totalPercentChange.toFixed(1)}% from previous period
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, sm: 4 }}>
-                  <Card>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography color="text.secondary" gutterBottom>
-                          Average Value Change
-                        </Typography>
-                        {comparisonMetrics.avgPercentChange >= 0 ? (
-                          <TrendingUp color="success" />
-                        ) : (
-                          <TrendingDown color="error" />
-                        )}
-                      </Box>
-                      <Typography variant="h4" component="div">
-                        {formatCurrency(comparisonMetrics.avgDiff)}
-                      </Typography>
-                      <Typography variant="body2" color={comparisonMetrics.avgPercentChange >= 0 ? "success.main" : "error.main"}>
-                        {comparisonMetrics.avgPercentChange > 0 ? '+' : ''}
-                        {comparisonMetrics.avgPercentChange.toFixed(1)}% from previous period
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid2>
-              </Grid2>
-            </Box>
-          )}
-
-          {/* Report Tabs */}
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Tabs value={tabValue} onChange={handleTabChange} aria-label="report tabs">
-                <Tab label="Summary" />
-                <Tab label="Trends" />
-                <Tab label="Suppliers" />
-                <Tab label="Items" />
-                <Tab label="Categories" />
-                <Tab label="Measurement Types" />
-              </Tabs>
-
-              <Box>
-                <Tooltip title="Export to CSV">
-                  <IconButton onClick={exportReportCSV}>
-                    <GetApp />
-                  </IconButton>
-                </Tooltip>
+      {/* Summary Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 2,
+                height: 56,
+                width: 56,
+                borderRadius: '50%',
+                bgcolor: alpha(theme.palette.info.main, 0.1),
+                color: theme.palette.info.main,
+                mx: 'auto',
+                alignItems: 'center'
+              }}>
+                <Receipt fontSize="large" />
               </Box>
-            </Box>
-            <Divider />
+              <Typography color="text.secondary" variant="subtitle1" gutterBottom>
+                Total Purchases
+              </Typography>
+              <Typography variant="h4" component="div" fontWeight="bold" color="info.main">
+                {data?.summary?.purchaseCount || 0}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Orders placed in selected period
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Summary Tab */}
-            <TabPanel value={tabValue} index={0}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Purchases by Status
-                      </Typography>
-                      <PieChart color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 2,
+                height: 56,
+                width: 56,
+                borderRadius: '50%',
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                color: theme.palette.primary.main,
+                mx: 'auto',
+                alignItems: 'center'
+              }}>
+                <AttachMoney fontSize="large" />
+              </Box>
+              <Typography color="text.secondary" variant="subtitle1" gutterBottom>
+                Total Spent
+              </Typography>
+              <Typography variant="h4" component="div" fontWeight="bold" color="primary">
+                {formatCurrency(data?.summary?.totalSpent || 0)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Across all suppliers
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
-                    <Box sx={{ height: 300 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 2,
+                height: 56,
+                width: 56,
+                borderRadius: '50%',
+                bgcolor: alpha(theme.palette.success.main, 0.1),
+                color: theme.palette.success.main,
+                mx: 'auto',
+                alignItems: 'center'
+              }}>
+                <InventoryIcon fontSize="large" />
+              </Box>
+              <Typography color="text.secondary" variant="subtitle1" gutterBottom>
+                Total Items
+              </Typography>
+              <Typography variant="h4" component="div" fontWeight="bold" color="success.main">
+                {data?.summary?.totalItems || 0}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Items purchased in this period
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 2,
+                height: 56,
+                width: 56,
+                borderRadius: '50%',
+                bgcolor: alpha(theme.palette.warning.main, 0.1),
+                color: theme.palette.warning.main,
+                mx: 'auto',
+                alignItems: 'center'
+              }}>
+                <Business fontSize="large" />
+              </Box>
+              <Typography color="text.secondary" variant="subtitle1" gutterBottom>
+                Avg. Order Value
+              </Typography>
+              <Typography variant="h4" component="div" fontWeight="bold" color="warning.main">
+                {formatCurrency(data?.summary?.purchaseCount ? data?.summary?.totalSpent / data?.summary?.purchaseCount : 0)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {data?.summary?.supplierCount || 0} different suppliers
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Report tabs */}
+      <Paper sx={{ borderRadius: 2, mb: 4 }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs
+            value={tabValue}
+            onChange={handleTabChange}
+            aria-label="purchase report tabs"
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            <Tab
+              label="Spend Analysis"
+              icon={<ShowChart />}
+              iconPosition="start"
+              sx={{ textTransform: 'none', fontWeight: tabValue === 0 ? 'bold' : 'normal' }}
+            />
+            <Tab
+              label="Supplier Analysis"
+              icon={<People />}
+              iconPosition="start"
+              sx={{ textTransform: 'none', fontWeight: tabValue === 1 ? 'bold' : 'normal' }}
+            />
+            <Tab
+              label="Items Analysis"
+              icon={<InventoryIcon />}
+              iconPosition="start"
+              sx={{ textTransform: 'none', fontWeight: tabValue === 2 ? 'bold' : 'normal' }}
+            />
+            <Tab
+              label="Purchases List"
+              icon={<Receipt />}
+              iconPosition="start"
+              sx={{ textTransform: 'none', fontWeight: tabValue === 3 ? 'bold' : 'normal' }}
+            />
+          </Tabs>
+        </Box>
+
+        {/* Spend Analysis Tab */}
+        <TabPanel value={tabValue} index={0}>
+          <Grid container spacing={3}>
+            {/* Purchase trend over time */}
+            <Grid item xs={12} lg={8}>
+              <Card sx={{ mb: 3, height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom fontWeight="bold">
+                    Purchase Spend Trend
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Total purchase spending over time
+                  </Typography>
+
+                  <Box sx={{ height: 350, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={trendData}
+                        margin={{
+                          top: 5,
+                          right: 30,
+                          left: 20,
+                          bottom: 30,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 12 }}
+                          tickMargin={10}
+                        />
+                        <YAxis
+                          tickFormatter={(value) => formatCurrency(value, false)}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <ChartTooltip
+                          formatter={(value: any) => formatCurrency(value)}
+                          labelFormatter={(label) => `Period: ${label}`}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="amount"
+                          name="Purchase Total"
+                          fill={alpha(theme.palette.primary.main, 0.3)}
+                          stroke={theme.palette.primary.main}
+                          activeDot={{ r: 6 }}
+                          strokeWidth={3}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Spend by Category Pie Chart */}
+            <Grid item xs={12} sm={12} lg={4}>
+              <Card sx={{ mb: 3, height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom fontWeight="bold">
+                    Spend by Category
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Distribution of purchases across categories
+                  </Typography>
+
+                  <Box sx={{ height: 350, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    {categoryData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
+                        <PieChart>
                           <Pie
-                            data={getStatusData()}
+                            activeIndex={activePieIndex}
+                            activeShape={renderActiveShape}
+                            data={categoryData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={90}
+                            fill="#8884d8"
                             dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
+                            onMouseEnter={(_, index) => setActivePieIndex(index)}
                           >
-                            {getStatusData().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            {categoryData.map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={COLORS[index % COLORS.length]}
+                                stroke={theme.palette.background.paper}
+                                strokeWidth={2}
+                              />
                             ))}
                           </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
+                          <ChartTooltip formatter={(value) => formatCurrency(value as number)} />
+                        </PieChart>
                       </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Purchases by Payment Method
-                      </Typography>
-                      <PieChart color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getPaymentMethodData()}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#82ca9d"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getPaymentMethodData().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-
-            {/* Trends Tab */}
-            <TabPanel value={tabValue} index={1}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Purchase Trends
-                      </Typography>
-                      <TrendingUp color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trendData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis />
-                          <RechartsTooltip />
-                          <Legend />
-                          <Line type="monotone" dataKey="totalPurchases" stroke="#8884d8" />
-                          <Line type="monotone" dataKey="totalCost" stroke="#82ca9d" />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Purchase Value Trends
-                      </Typography>
-                      <TrendingUp color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartBarChart data={trendData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis />
-                          <RechartsTooltip />
-                          <Legend />
-                          <Bar dataKey="totalPurchases" fill="#8884d8" />
-                          <Bar dataKey="totalCost" fill="#82ca9d" />
-                        </RechartBarChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-
-            {/* Suppliers Tab */}
-            <TabPanel value={tabValue} index={2}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Purchases by Supplier
-                      </Typography>
-                      <Store color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getSupplierData()}
-                            dataKey="total"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getSupplierData().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Supplier Filter
-                      </Typography>
-                      <FilterList color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <FormControl fullWidth>
-                      <InputLabel>Supplier</InputLabel>
-                      <Select
-                        value={supplierFilter}
-                        onChange={handleSupplierFilterChange}
-                        label="Supplier"
+                    ) : (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          height: '100%',
+                          flexDirection: 'column',
+                          gap: 2
+                        }}
                       >
-                        <MenuItem value="all">All Suppliers</MenuItem>
-                        {supplierNames.map((name) => (
-                          <MenuItem key={name} value={name}>
-                            {name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-
-            {/* Items Tab */}
-            <TabPanel value={tabValue} index={3}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Top 10 Items
-                      </Typography>
-                      <PieChart color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getItemStats()}
-                            dataKey="total"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            label={({ name, total }) => `${name} (${formatCurrency(total)})`}
-                          >
-                            {getItemStats().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Status Filter
-                      </Typography>
-                      <FilterList color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <FormControl fullWidth>
-                      <InputLabel>Status</InputLabel>
-                      <Select
-                        value={statusFilter}
-                        onChange={handleStatusFilterChange}
-                        label="Status"
-                      >
-                        <MenuItem value="all">All Statuses</MenuItem>
-                        {Object.values(PurchaseStatus).map((status) => (
-                          <MenuItem key={status} value={status}>
-                            {status}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-
-            {/* Categories Tab */}
-            <TabPanel value={tabValue} index={4}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Purchases by Category
-                      </Typography>
-                      <Category color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getCategoryData()}
-                            dataKey="total"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getCategoryData().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Category Filter
-                      </Typography>
-                      <FilterList color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <FormControl fullWidth>
-                      <InputLabel>Category</InputLabel>
-                      <Select
-                        value={categoryFilter}
-                        onChange={handleCategoryFilterChange}
-                        label="Category"
-                      >
-                        <MenuItem value="all">All Categories</MenuItem>
-                        {categoryNames.map((name) => (
-                          <MenuItem key={name} value={name}>
-                            {name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Purchases by Item Type
-                      </Typography>
-                      <Domain color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getItemTypeData()}
-                            dataKey="total"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#82ca9d"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getItemTypeData().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Item Type Filter
-                      </Typography>
-                      <FilterList color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <FormControl fullWidth>
-                      <InputLabel>Item Type</InputLabel>
-                      <Select
-                        value={itemTypeFilter}
-                        onChange={handleItemTypeFilterChange}
-                        label="Item Type"
-                      >
-                        <MenuItem value="all">All Types</MenuItem>
-                        {Object.values(ItemType).map((type) => (
-                          <MenuItem key={type} value={type}>
-                            {type}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-
-            {/* Measurement Types Tab */}
-            <TabPanel value={tabValue} index={5}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Purchases by Measurement Type
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Scale fontSize="small" />
-                        <Straighten fontSize="small" />
-                        <Inventory fontSize="small" />
+                        <PieChartIcon sx={{ fontSize: 50, color: 'text.secondary', opacity: 0.5 }} />
+                        <Typography color="text.secondary" align="center">
+                          No category data available.<br/>
+                          Try selecting a different time period.
+                        </Typography>
                       </Box>
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
 
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getMeasurementTypeData()}
-                            dataKey="total"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getMeasurementTypeData().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
+            {/* Order Count Trend */}
+            <Grid item xs={12} md={6}>
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom fontWeight="bold">
+                    Purchase Order Count
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Number of purchase orders over time
+                  </Typography>
 
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Measurement Type Filter
-                      </Typography>
-                      <FilterList color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <FormControl fullWidth>
-                      <InputLabel>Measurement Type</InputLabel>
-                      <Select
-                        value={measurementTypeFilter}
-                        onChange={handleMeasurementTypeFilterChange}
-                        label="Measurement Type"
+                  <Box sx={{ height: 300, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={trendData}
+                        margin={{
+                          top: 20,
+                          right: 30,
+                          left: 20,
+                          bottom: 30,
+                        }}
                       >
-                        <MenuItem value="all">All Types</MenuItem>
-                        <MenuItem value="quantity">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Inventory fontSize="small" />
-                            <span>Quantity</span>
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="weight">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Scale fontSize="small" />
-                            <span>Weight</span>
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="length">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Straighten fontSize="small" />
-                            <span>Length</span>
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="area">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <SquareFoot fontSize="small" />
-                            <span>Area</span>
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="volume">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <LocalDrink fontSize="small" />
-                            <span>Volume</span>
-                          </Box>
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Paper>
-                </Grid2>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 12 }}
+                          tickMargin={10}
+                        />
+                        <YAxis
+                          tickFormatter={(value) => value.toString()}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <ChartTooltip
+                          formatter={(value: any) => [`${value} orders`, 'Order Count']}
+                          labelFormatter={(label) => `Period: ${label}`}
+                        />
+                        <Bar
+                          dataKey="count"
+                          name="Order Count"
+                          fill={theme.palette.info.main}
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
 
-                <Grid2 size={{ xs: 12 }}>
-                  <Paper sx={{ p: 3 }}>
-                    <Typography variant="h6" gutterBottom>
-                      Items by Measurement Type
-                    </Typography>
-                    <Divider sx={{ mb: 2 }} />
+            {/* Average Order Value Trend */}
+            <Grid item xs={12} md={6}>
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom fontWeight="bold">
+                    Average Order Value
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Average value per purchase order
+                  </Typography>
 
-                    <TableContainer>
-                      <Table>
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Item Name</TableCell>
-                            <TableCell>Category</TableCell>
-                            <TableCell>Measurement Type</TableCell>
-                            <TableCell>Measurement</TableCell>
-                            <TableCell align="right">Unit Cost</TableCell>
-                            <TableCell align="right">Total Cost</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {filteredPurchases.flatMap(purchase =>
-                            purchase.items.map((item, idx) => {
-                              const itemDetails = typeof item.item === 'object' ? item.item : null;
-                              const trackingType = itemDetails?.trackingType || 'quantity';
-                              const itemName = itemDetails?.name || 'Unknown Item';
-                              const category = itemDetails?.category || 'Uncategorized';
-                              return (
-                                <TableRow key={`${purchase._id}-${idx}`}>
-                                  <TableCell>{itemName}</TableCell>
-                                  <TableCell>{category}</TableCell>
-                                  <TableCell>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                      {getMeasurementIcon(trackingType)}
-                                      <span>{trackingType}</span>
-                                    </Box>
-                                  </TableCell>
-                                  <TableCell>{formatMeasurement(item)}</TableCell>
-                                  <TableCell align="right">{formatCurrency(item.costPerUnit)}</TableCell>
-                                  <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
-                                </TableRow>
-                              );
-                            })
+                  <Box sx={{ height: 300, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={trendData}
+                        margin={{
+                          top: 20,
+                          right: 30,
+                          left: 20,
+                          bottom: 30,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 12 }}
+                          tickMargin={10}
+                        />
+                        <YAxis
+                          tickFormatter={(value) => formatCurrency(value, false)}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <ChartTooltip
+                          formatter={(value: any) => formatCurrency(value)}
+                          labelFormatter={(label) => `Period: ${label}`}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="avgOrderValue"
+                          name="Average Order Value"
+                          stroke={theme.palette.success.main}
+                          strokeWidth={3}
+                          dot={{ r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Forecast Card */}
+            {forecast && (
+              <Grid item xs={12}>
+                <Card sx={{
+                  bgcolor: alpha(theme.palette.info.main, 0.04),
+                  border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                }}>
+                  <CardContent>
+                    <Grid container alignItems="center" spacing={3}>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="h6" fontWeight="bold" color="info.main" gutterBottom>
+                          Spend Forecast
+                        </Typography>
+                        <Typography variant="body2" paragraph>
+                          Based on your recent purchase history
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4} sx={{ textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Estimated Next Period Spend
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold" color="info.main" gutterBottom>
+                          {formatCurrency(forecast.forecastAmount)}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4} sx={{ textAlign: { xs: 'center', md: 'right' } }}>
+                        <Stack direction="row" spacing={1} sx={{ justifyContent: { xs: 'center', md: 'flex-end' } }}>
+                          {forecast.increasing ? (
+                            <TrendingUp color="error" />
+                          ) : (
+                            <TrendingDown color="success" />
                           )}
-                          {filteredPurchases.length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={6} align="center">No items found with the selected filters.</TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-          </Paper>
+                          <Typography
+                            color={forecast.increasing ? 'error.main' : 'success.main'}
+                            fontWeight="medium"
+                          >
+                            {forecast.increasing ? '+' : ''}{forecast.percentageChange.toFixed(1)}%
+                            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
+                              from previous period
+                            </Typography>
+                          </Typography>
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                          This forecast is an estimate based on your purchase history
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+            )}
+          </Grid>
+        </TabPanel>
 
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>Purchase Details</Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Supplier</TableCell>
-                    <TableCell>Invoice #</TableCell>
-                    <TableCell>Items</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell align="right">Total</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredPurchases.map((purchase) => (
-                    <TableRow
-                      key={purchase._id}
-                      hover
-                      onClick={() => window.location.href = `/purchases/${purchase._id}`}
-                      style={{ cursor: 'pointer' }}
+        {/* Supplier Analysis Tab */}
+        <TabPanel value={tabValue} index={1}>
+          <Grid container spacing={3}>
+            {/* Top Suppliers */}
+            <Grid item xs={12} md={6}>
+              <Card sx={{ mb: 3, height: '100%' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold" gutterBottom>
+                        Top Suppliers by Spend
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Your highest-spend suppliers
+                      </Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      endIcon={<ArrowForward />}
+                      component={RouterLink}
+                      to="/suppliers"
                     >
-                      <TableCell>{purchase.purchaseDate && formatDate(purchase.purchaseDate)}</TableCell>
-                      <TableCell>{purchase.supplier?.name || 'Unknown Supplier'}</TableCell>
-                      <TableCell>{purchase.invoiceNumber || '-'}</TableCell>
-                      <TableCell>
-                        {purchase.items?.length > 0 ? (
-                          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-                            {purchase.items.some(i => (typeof i.item === 'object' ? i.item?.trackingType === 'quantity' : false)) && (
-                              <Tooltip title="Contains quantity items">
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <Inventory fontSize="small" color="action" />
-                                </Box>
+                      All Suppliers
+                    </Button>
+                  </Box>
+
+                  <Box sx={{ height: 350, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={topSuppliers}
+                        layout="vertical"
+                        margin={{
+                          top: 5,
+                          right: 30,
+                          left: 80,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <XAxis
+                          type="number"
+                          tickFormatter={(value) => formatCurrency(value, false)}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tick={{ fontSize: 12 }}
+                          width={80}
+                        />
+                        <ChartTooltip formatter={(value: any) => formatCurrency(value)} />
+                        <Bar
+                          dataKey="totalSpent"
+                          name="Total Spent"
+                          fill={theme.palette.primary.main}
+                          radius={[0, 4, 4, 0]}
+                          barSize={20}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Supplier Order Count */}
+            <Grid item xs={12} md={6}>
+              <Card sx={{ mb: 3, height: '100%' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold" gutterBottom>
+                        Suppliers by Order Count
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Frequency of orders by supplier
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ height: 350, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={topSuppliers}
+                        layout="vertical"
+                        margin={{
+                          top: 5,
+                          right: 30,
+                          left: 80,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <XAxis
+                          type="number"
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tick={{ fontSize: 12 }}
+                          width={80}
+                        />
+                        <ChartTooltip formatter={(value: any) => [`${value} orders`, 'Orders']} />
+                        <Bar
+                          dataKey="orderCount"
+                          name="Order Count"
+                          fill={theme.palette.info.main}
+                          radius={[0, 4, 4, 0]}
+                          barSize={20}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Supplier Table */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Supplier Performance
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Detailed breakdown of suppliers in this period
+                  </Typography>
+
+                  <TableContainer>
+                    <Table size="medium">
+                      <TableHead sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+                        <TableRow>
+                          <TableCell>Supplier</TableCell>
+                          <TableCell align="right">Orders</TableCell>
+                          <TableCell align="right">Items</TableCell>
+                          <TableCell align="right">Total Spend</TableCell>
+                          <TableCell align="right">Avg Order Value</TableCell>
+                          <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {topSuppliers.map((supplier, index) => (
+                          <TableRow
+                            key={supplier.id || index}
+                            sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                          >
+                            <TableCell component="th" scope="row">{supplier.name}</TableCell>
+                            <TableCell align="right">{supplier.orderCount}</TableCell>
+                            <TableCell align="right">{supplier.itemCount}</TableCell>
+                            <TableCell align="right">{formatCurrency(supplier.totalSpent)}</TableCell>
+                            <TableCell align="right">{formatCurrency(supplier.orderCount > 0 ? supplier.totalSpent / supplier.orderCount : 0)}</TableCell>
+                            <TableCell align="right">
+                              <Tooltip title="View Details">
+                                <IconButton
+                                  size="small"
+                                  component={RouterLink}
+                                  to={`/suppliers/${supplier.id}`}
+                                >
+                                  <Visibility fontSize="small" />
+                                </IconButton>
                               </Tooltip>
-                            )}
-                            {purchase.items.some(i => (typeof i.item === 'object' ? i.item?.trackingType === 'weight' : false)) && (
-                              <Tooltip title="Contains weight items">
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <Scale fontSize="small" color="action" />
-                                </Box>
-                              </Tooltip>
-                            )}
-                            {purchase.items.some(i => (typeof i.item === 'object' ? i.item?.trackingType === 'length' : false)) && (
-                              <Tooltip title="Contains length items">
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <Straighten fontSize="small" color="action" />
-                                </Box>
-                              </Tooltip>
-                            )}
-                            {purchase.items.some(i => (typeof i.item === 'object' ? i.item?.trackingType === 'area' : false)) && (
-                              <Tooltip title="Contains area items">
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <SquareFoot fontSize="small" color="action" />
-                                </Box>
-                              </Tooltip>
-                            )}
-                            {purchase.items.some(i => (typeof i.item === 'object' ? i.item?.trackingType === 'volume' : false)) && (
-                              <Tooltip title="Contains volume items">
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <LocalDrink fontSize="small" color="action" />
-                                </Box>
-                              </Tooltip>
-                            )}
-                            <span>{purchase.items?.length || 0}</span>
-                          </Box>
-                        ) : (
-                          '0'
+                            </TableCell>
+                          </TableRow>
+                        ))}
+
+                        {topSuppliers.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                              <Typography color="text.secondary">
+                                No supplier data available for the selected period
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </TableCell>
-                      <TableCell><StatusChip status={purchase.status} /></TableCell>
-                      <TableCell align="right">{formatCurrency(purchase.total)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {filteredPurchases.length === 0 && (
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </TabPanel>
+
+        {/* Items Analysis Tab */}
+        <TabPanel value={tabValue} index={2}>
+          <Grid container spacing={3}>
+            {/* Top Items */}
+            <Grid item xs={12} md={6}>
+              <Card sx={{ mb: 3, height: '100%' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold" gutterBottom>
+                        Top Items by Spend
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Highest expenditure on inventory items
+                      </Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      endIcon={<ArrowForward />}
+                      component={RouterLink}
+                      to="/inventory"
+                    >
+                      All Items
+                    </Button>
+                  </Box>
+
+                  <Box sx={{ height: 350, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={topItems}
+                        layout="vertical"
+                        margin={{
+                          top: 5,
+                          right: 30,
+                          left: 100,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <XAxis
+                          type="number"
+                          tickFormatter={(value) => formatCurrency(value, false)}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tick={{ fontSize: 12 }}
+                          width={100}
+                        />
+                        <ChartTooltip formatter={(value: any) => formatCurrency(value)} />
+                        <Bar
+                          dataKey="totalCost"
+                          name="Total Cost"
+                          fill={theme.palette.success.main}
+                          radius={[0, 4, 4, 0]}
+                          barSize={20}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Top Items by Quantity */}
+            <Grid item xs={12} md={6}>
+              <Card sx={{ mb: 3, height: '100%' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold" gutterBottom>
+                        Top Items by Quantity
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Items purchased in highest quantity
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ height: 350, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={topItems}
+                        layout="vertical"
+                        margin={{
+                          top: 5,
+                          right: 30,
+                          left: 100,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <XAxis
+                          type="number"
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tick={{ fontSize: 12 }}
+                          width={100}
+                        />
+                        <ChartTooltip formatter={(value: any) => [`${value} units`, 'Quantity']} />
+                        <Bar
+                          dataKey="quantity"
+                          name="Quantity"
+                          fill={theme.palette.warning.main}
+                          radius={[0, 4, 4, 0]}
+                          barSize={20}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Items Table */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Item Purchase Details
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Most frequently purchased items
+                  </Typography>
+
+                  <TableContainer>
+                    <Table size="medium">
+                      <TableHead sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+                        <TableRow>
+                          <TableCell>Item</TableCell>
+                          <TableCell>SKU</TableCell>
+                          <TableCell>Category</TableCell>
+                          <TableCell align="right">Quantity</TableCell>
+                          <TableCell align="right">Unit Cost</TableCell>
+                          <TableCell align="right">Total Cost</TableCell>
+                          <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {topItems.map((item, index) => (
+                          <TableRow
+                            key={item.id || index}
+                            sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                          >
+                            <TableCell component="th" scope="row">{item.name}</TableCell>
+                            <TableCell>{item.sku}</TableCell>
+                            <TableCell>{item.category || 'Uncategorized'}</TableCell>
+                            <TableCell align="right">{item.quantity}</TableCell>
+                            <TableCell align="right">{formatCurrency(item.unitCost)}</TableCell>
+                            <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
+                            <TableCell align="right">
+                              <Tooltip title="View Item">
+                                <IconButton
+                                  size="small"
+                                  component={RouterLink}
+                                  to={`/inventory/${item.id}`}
+                                >
+                                  <Visibility fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+
+                        {topItems.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                              <Typography color="text.secondary">
+                                No item data available for the selected period
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </TabPanel>
+
+        {/* Purchases List Tab */}
+        <TabPanel value={tabValue} index={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Purchase Orders
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Complete list of purchase orders in the selected period
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<FileDownloadIcon />}
+                  onClick={exportDetailedCSV}
+                >
+                  Export Detailed
+                </Button>
+              </Box>
+
+              <TableContainer>
+                <Table size="medium">
+                  <TableHead sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                     <TableRow>
-                      <TableCell colSpan={6} align="center">No purchases found in the selected date range.</TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={orderBy === 'date'}
+                          direction={orderBy === 'date' ? order : 'asc'}
+                          onClick={() => handleRequestSort('date')}
+                        >
+                          Date
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={orderBy === 'supplier'}
+                          direction={orderBy === 'supplier' ? order : 'asc'}
+                          onClick={() => handleRequestSort('supplier')}
+                        >
+                          Supplier
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell align="right">
+                        <TableSortLabel
+                          active={orderBy === 'items'}
+                          direction={orderBy === 'items' ? order : 'asc'}
+                          onClick={() => handleRequestSort('items')}
+                        >
+                          Items
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={orderBy === 'status'}
+                          direction={orderBy === 'status' ? order : 'asc'}
+                          onClick={() => handleRequestSort('status')}
+                        >
+                          Status
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell align="right">
+                        <TableSortLabel
+                          active={orderBy === 'total'}
+                          direction={orderBy === 'total' ? order : 'asc'}
+                          onClick={() => handleRequestSort('total')}
+                        >
+                          Total
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell align="right">Actions</TableCell>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </>
-      )}
+                  </TableHead>
+                  <TableBody>
+                    {paginatedPurchases.map((purchase) => (
+                      <TableRow key={purchase.id}>
+                        <TableCell>{formatDate(new Date(purchase.purchaseDate))}</TableCell>
+                        <TableCell>{purchase.supplier?.name || 'Unknown'}</TableCell>
+                        <TableCell align="right">{purchase.items.length}</TableCell>
+                        <TableCell>
+                          <StatusChip status={purchase.status} />
+                        </TableCell>
+                        <TableCell align="right">{formatCurrency(purchase.total)}</TableCell>
+                        <TableCell align="right">
+                          <Tooltip title="View Purchase">
+                            <IconButton
+                              size="small"
+                              component={RouterLink}
+                              to={`/purchases/${purchase.id}`}
+                            >
+                              <Visibility fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+
+                    {paginatedPurchases.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                          <Typography color="text.secondary">
+                            No purchases found for the selected filters
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                component="div"
+                count={sortedPurchases.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+      </Paper>
     </Box>
   );
 }

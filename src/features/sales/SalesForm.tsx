@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Paper,
   Typography,
   TextField,
   Button,
-  Grid2,
   Alert,
   InputAdornment,
   MenuItem,
@@ -17,6 +16,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableFooter,
   Divider,
   FormControl,
   InputLabel,
@@ -35,16 +35,38 @@ import {
   FormControlLabel,
   Switch,
   Slider,
+  Stack,
+  Card,
+  CardContent,
+  Badge,
+  Grid2
 } from '@mui/material';
-import { Save, ArrowBack, Add, Delete, Image as ImageIcon, Construction } from '@mui/icons-material';
+import {
+  Save,
+  ArrowBack,
+  Add,
+  Delete,
+  Image as ImageIcon,
+  Construction,
+  ShoppingCart,
+  ReceiptLong,
+  CalendarToday,
+  AttachMoney,
+  Payment,
+  NoteAdd
+} from '@mui/icons-material';
 import { useSale, useCreateSale, useUpdateSale } from '@hooks/useSales';
 import { useItems } from '@hooks/useItems';
 import { Sale, SaleItem, Item, WeightUnit, LengthUnit, AreaUnit, VolumeUnit } from '@custTypes/models';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import CreateProductDialog from '@components/inventory/CreateProductDialog';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 export default function SaleForm() {
+  // Keep all the existing state and hooks
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditMode = Boolean(id);
@@ -60,6 +82,7 @@ export default function SaleForm() {
     customerName: '',
     customerEmail: '',
     customerPhone: '',
+    saleDate: new Date(),
     items: [],
     subtotal: 0,
     taxRate: 7.5, // Default tax rate
@@ -75,6 +98,13 @@ export default function SaleForm() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<string>('1');
   const [selectedWeight, setSelectedWeight] = useState<string>('1');
+  const [selectedLength, setSelectedLength] = useState<string>('0');
+  const [selectedArea, setSelectedArea] = useState<string>('0');
+  const [selectedVolume, setSelectedVolume] = useState<string>('0');
+  const [selectedWeightUnit, setSelectedWeightUnit] = useState<WeightUnit>('lb');
+  const [selectedLengthUnit, setSelectedLengthUnit] = useState<LengthUnit>('in');
+  const [selectedAreaUnit, setSelectedAreaUnit] = useState<AreaUnit>('sqft');
+  const [selectedVolumeUnit, setSelectedVolumeUnit] = useState<VolumeUnit>('l');
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -164,14 +194,43 @@ export default function SaleForm() {
     });
   };
 
-  const [selectedLength, setSelectedLength] = useState<string>('0');
-  const [selectedArea, setSelectedArea] = useState<string>('0');
-  const [selectedVolume, setSelectedVolume] = useState<string>('0');
-  const [selectedWeightUnit, setSelectedWeightUnit] = useState<WeightUnit>('lb');
-  const [selectedLengthUnit, setSelectedLengthUnit] = useState<LengthUnit>('in');
-  const [selectedAreaUnit, setSelectedAreaUnit] = useState<AreaUnit>('sqft');
-  const [selectedVolumeUnit, setSelectedVolumeUnit] = useState<VolumeUnit>('l');
+  const handleDateChange = (date: Date | null) => {
+    setFormData(prev => ({
+      ...prev,
+      saleDate: date || new Date()
+    }));
+  };
 
+  // Calculate price based on measurement type
+  const calculateItemPrice = (
+    item: Item,
+    quantity: number,
+    weight: number,
+    length: number,
+    area: number,
+    volume: number
+  ): number => {
+    if (!item) return 0;
+
+    const basePrice = parseFloat(selectedItemPrice) || item.price || 0;
+
+    switch (item.priceType) {
+      case 'each':
+        return quantity > 0 ? basePrice * quantity : basePrice;
+      case 'per_weight_unit':
+        return weight > 0 ? basePrice * weight : basePrice;
+      case 'per_length_unit':
+        return length > 0 ? basePrice * length : basePrice;
+      case 'per_area_unit':
+        return area > 0 ? basePrice * area : basePrice;
+      case 'per_volume_unit':
+        return volume > 0 ? basePrice * volume : basePrice;
+      default:
+        return basePrice;
+    }
+  };
+
+  // Add item to sale
   const handleAddItem = () => {
     if (!selectedItem) return;
 
@@ -320,35 +379,6 @@ export default function SaleForm() {
     }
   };
 
-  // Helper function to calculate price based on measurement type
-  const calculateItemPrice = (
-    item: Item,
-    quantity: number,
-    weight: number,
-    length: number,
-    area: number,
-    volume: number
-  ): number => {
-    if (!item) return 0;
-
-    const basePrice = parseFloat(selectedItemPrice) || item.price || 0;
-
-    switch (item.priceType) {
-      case 'each':
-        return quantity > 0 ? basePrice * quantity : basePrice;
-      case 'per_weight_unit':
-        return weight > 0 ? basePrice * weight : basePrice;
-      case 'per_length_unit':
-        return length > 0 ? basePrice * length : basePrice;
-      case 'per_area_unit':
-        return area > 0 ? basePrice * area : basePrice;
-      case 'per_volume_unit':
-        return volume > 0 ? basePrice * volume : basePrice;
-      default:
-        return basePrice;
-    }
-  };
-
   const handleRemoveItem = (index: number) => {
     setFormData(prev => ({
       ...prev,
@@ -410,11 +440,6 @@ export default function SaleForm() {
     }
   };
 
-  if (saleLoading || itemsLoading) {
-    return <LoadingScreen />;
-  }
-
-  // Handle product created from dialog
   const handleProductCreated = (product: Item) => {
     const productPrice = product.price;
 
@@ -439,245 +464,326 @@ export default function SaleForm() {
     setError(null);
   };
 
+  if (saleLoading || itemsLoading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <Box>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
-          {isEditMode ? 'Edit Sale' : 'New Sale'}
-        </Typography>
-        <Button
-          startIcon={<ArrowBack />}
-          component="a"
-          href="/sales"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/sales');
-          }}
-        >
-          Back to Sales
-        </Button>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Grid2 container alignItems="center" spacing={2}>
+          <Grid2 size="auto">
+            <Button
+              component={RouterLink}
+              to="/sales"
+              startIcon={<ArrowBack />}
+              sx={{ mr: 1 }}
+            >
+              Back
+            </Button>
+          </Grid2>
+          <Grid2 size="grow">
+            <Typography variant="h4" component="h1">
+              {isEditMode ? 'Edit Sale' : 'New Sale'}
+            </Typography>
+          </Grid2>
+          <Grid2 size="auto">
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Save />}
+              onClick={handleSubmit}
+              disabled={(createSale.isPending || updateSale.isPending) || !formData.items?.length}
+            >
+              {createSale.isPending || updateSale.isPending ? 'Saving...' : isEditMode ? 'Update Sale' : 'Complete Sale'}
+            </Button>
+          </Grid2>
+        </Grid2>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
-      {/* Form content (identical to original) */}
       <Grid2 container spacing={3}>
+        {/* Left column - Sale details */}
         <Grid2 size={{ xs: 12, md: 8 }}>
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Customer Information
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
+          {/* Basic Information Card */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <ReceiptLong sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Basic Information</Typography>
+              </Box>
+              <Divider sx={{ mb: 3 }} />
 
-            <Grid2 container spacing={2}>
-              <Grid2 size={{ xs: 12, sm: 12 }}>
-                <TextField
-                  fullWidth
-                  label="Customer Name"
-                  name="customerName"
-                  value={formData.customerName || ''}
-                  onChange={handleInputChange}
-                  disabled={createSale.isPending || updateSale.isPending}
-                  placeholder="Optional"
-                />
+              <Grid2 container spacing={3}>
+                <Grid2 size={{ xs: 12 }}>
+                  <TextField
+                    fullWidth
+                    label="Customer Name"
+                    name="customerName"
+                    value={formData.customerName || ''}
+                    onChange={handleInputChange}
+                    disabled={createSale.isPending || updateSale.isPending}
+                    placeholder="Optional"
+                  />
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Email"
+                    name="customerEmail"
+                    value={formData.customerEmail || ''}
+                    onChange={handleInputChange}
+                    disabled={createSale.isPending || updateSale.isPending}
+                    placeholder="Optional"
+                  />
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Phone"
+                    name="customerPhone"
+                    value={formData.customerPhone || ''}
+                    onChange={handleInputChange}
+                    disabled={createSale.isPending || updateSale.isPending}
+                    placeholder="Optional"
+                  />
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DatePicker
+                      label="Sale Date"
+                      value={formData.saleDate}
+                      onChange={handleDateChange}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          InputProps: {
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <CalendarToday fontSize="small" color="action" />
+                              </InputAdornment>
+                            ),
+                          },
+                        },
+                      }}
+                    />
+                  </LocalizationProvider>
+                </Grid2>
               </Grid2>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  fullWidth
-                  label="Email"
-                  name="customerEmail"
-                  value={formData.customerEmail || ''}
-                  onChange={handleInputChange}
-                  disabled={createSale.isPending || updateSale.isPending}
-                  placeholder="Optional"
-                />
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  fullWidth
-                  label="Phone"
-                  name="customerPhone"
-                  value={formData.customerPhone || ''}
-                  onChange={handleInputChange}
-                  disabled={createSale.isPending || updateSale.isPending}
-                  placeholder="Optional"
-                />
-              </Grid2>
-            </Grid2>
-          </Paper>
+            </CardContent>
+          </Card>
 
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Sale Items
-              </Typography>
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                color="primary"
-                onClick={() => setItemDialogOpen(true)}
-                disabled={createSale.isPending || updateSale.isPending}
-                sx={{ mr: 1 }}
-              >
-                Add Item
-              </Button>
+          {/* Items Card */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <ShoppingCart sx={{ mr: 1, color: 'text.secondary' }} />
+                  <Typography variant="h6">Sale Items</Typography>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="contained"
+                    startIcon={<Add />}
+                    color="primary"
+                    onClick={() => setItemDialogOpen(true)}
+                    disabled={createSale.isPending || updateSale.isPending}
+                  >
+                    Add Item
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Construction />}
+                    onClick={() => setCreateProductDialogOpen(true)}
+                    disabled={createSale.isPending || updateSale.isPending}
+                  >
+                    Create Product
+                  </Button>
+                </Stack>
+              </Box>
+              <Divider sx={{ mb: 3 }} />
 
-              <Button
-                variant="contained"
-                startIcon={<Construction />}
-                color="secondary"
-                onClick={() => setCreateProductDialogOpen(true)}
-                disabled={createSale.isPending || updateSale.isPending}
-              >
-                Create Product
-              </Button>
-            </Box>
-            <Divider sx={{ mb: 2 }} />
-
-            {formData.items && formData.items.length > 0 ? (
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Item</TableCell>
-                      <TableCell align="right">Quantity/Amount</TableCell>
-                      <TableCell align="right">Unit Price</TableCell>
-                      <TableCell align="right">Total</TableCell>
-                      <TableCell align="right">Action</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {formData.items?.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{typeof item.item === 'string' ? item.name : item.item.name}</TableCell>
-                        <TableCell align="right">
-                          {item.soldBy === 'quantity' && `${item.quantity}`}
-                          {item.soldBy === 'weight' && `${item.weight} ${item.weightUnit}`}
-                          {item.soldBy === 'length' && `${item.length} ${item.lengthUnit}`}
-                          {item.soldBy === 'area' && `${item.area} ${item.areaUnit}`}
-                          {item.soldBy === 'volume' && `${item.volume} ${item.volumeUnit}`}
+              {formData.items && formData.items.length > 0 ? (
+                <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
+                  <Table>
+                    <TableHead sx={{ bgcolor: 'background.default' }}>
+                      <TableRow>
+                        <TableCell>Item</TableCell>
+                        <TableCell align="right">Quantity/Amount</TableCell>
+                        <TableCell align="right">Unit Price</TableCell>
+                        <TableCell align="right">Total</TableCell>
+                        <TableCell align="right">Action</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {formData.items?.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{typeof item.item === 'string' ? item.name : item.item.name}</TableCell>
+                          <TableCell align="right">
+                            {item.soldBy === 'quantity' && `${item.quantity}`}
+                            {item.soldBy === 'weight' && `${item.weight} ${item.weightUnit}`}
+                            {item.soldBy === 'length' && `${item.length} ${item.lengthUnit}`}
+                            {item.soldBy === 'area' && `${item.area} ${item.areaUnit}`}
+                            {item.soldBy === 'volume' && `${item.volume} ${item.volumeUnit}`}
+                          </TableCell>
+                          <TableCell align="right">{formatCurrency(item.priceAtSale)}</TableCell>
+                          <TableCell align="right">
+                            {formatCurrency(
+                              item.soldBy === 'quantity'
+                                ? item.priceAtSale * item.quantity
+                                : item.soldBy === 'weight'
+                                  ? item.priceAtSale * item.weight
+                                  : item.soldBy === 'length'
+                                    ? item.priceAtSale * item.length
+                                    : item.soldBy === 'area'
+                                      ? item.priceAtSale * item.area
+                                      : item.soldBy === 'volume'
+                                        ? item.priceAtSale * item.volume
+                                        : item.priceAtSale
+                            )}
+                          </TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleRemoveItem(index)}
+                              disabled={createSale.isPending || updateSale.isPending}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow>
+                        <TableCell colSpan={3} align="right">
+                          <Typography variant="subtitle2">Subtotal:</Typography>
                         </TableCell>
-                        <TableCell align="right">{formatCurrency(item.priceAtSale)}</TableCell>
-                        <TableCell align="right">
-                          {formatCurrency(
-                            item.soldBy === 'quantity'
-                              ? item.priceAtSale * item.quantity
-                              : item.soldBy === 'weight'
-                                ? item.priceAtSale * item.weight
-                                : item.soldBy === 'length'
-                                  ? item.priceAtSale * item.length
-                                  : item.soldBy === 'area'
-                                    ? item.priceAtSale * item.area
-                                    : item.soldBy === 'volume'
-                                      ? item.priceAtSale * item.volume
-                                      : item.priceAtSale
-                          )}
-                        </TableCell>
-                        <TableCell align="right">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleRemoveItem(index)}
-                            disabled={createSale.isPending || updateSale.isPending}
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
+                        <TableCell align="right" colSpan={2}>
+                          <Typography variant="subtitle2">{formatCurrency(formData.subtotal || 0)}</Typography>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Box sx={{ textAlign: 'center', py: 3 }}>
-                <Typography variant="body1" color="text.secondary">
-                  No items added yet. Click "Add Item" to add items to this sale.
-                </Typography>
+                    </TableFooter>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Box sx={{ py: 6, textAlign: 'center' }}>
+                  <Badge
+                    badgeContent="0"
+                    color="error"
+                    sx={{ '& .MuiBadge-badge': { fontSize: 18, height: 30, width: 30, borderRadius: '50%' } }}
+                  >
+                    <ShoppingCart sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+                  </Badge>
+                  <Typography variant="body1" color="text.secondary" gutterBottom>
+                    No items added yet
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Add />}
+                    onClick={() => setItemDialogOpen(true)}
+                    sx={{ mt: 1 }}
+                  >
+                    Add Items to Sale
+                  </Button>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Payment Information Card */}
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Payment sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Payment Information</Typography>
               </Box>
-            )}
-          </Paper>
+              <Divider sx={{ mb: 3 }} />
 
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Payment Information
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <Grid2 container spacing={2}>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Payment Method</InputLabel>
-                  <Select
-                    name="paymentMethod"
-                    value={formData.paymentMethod || 'cash'}
-                    label="Payment Method"
-                    onChange={handleSelectChange}
+              <Grid2 container spacing={3}>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Payment Method</InputLabel>
+                    <Select
+                      name="paymentMethod"
+                      value={formData.paymentMethod || 'cash'}
+                      label="Payment Method"
+                      onChange={handleSelectChange}
+                      disabled={createSale.isPending || updateSale.isPending}
+                    >
+                      <MenuItem value="cash">Cash</MenuItem>
+                      <MenuItem value="credit">Credit Card</MenuItem>
+                      <MenuItem value="debit">Debit Card</MenuItem>
+                      <MenuItem value="check">Check</MenuItem>
+                      <MenuItem value="other">Other</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      name="status"
+                      value={formData.status || 'completed'}
+                      label="Status"
+                      onChange={handleSelectChange}
+                      disabled={createSale.isPending || updateSale.isPending}
+                    >
+                      <MenuItem value="completed">Completed</MenuItem>
+                      <MenuItem value="refunded">Refunded</MenuItem>
+                      <MenuItem value="partially_refunded">Partially Refunded</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid2>
+                <Grid2 size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <NoteAdd sx={{ mr: 1, fontSize: 'small', color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">Notes</Typography>
+                  </Box>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    name="notes"
+                    value={formData.notes || ''}
+                    onChange={handleInputChange}
                     disabled={createSale.isPending || updateSale.isPending}
-                  >
-                    <MenuItem value="cash">Cash</MenuItem>
-                    <MenuItem value="credit">Credit Card</MenuItem>
-                    <MenuItem value="debit">Debit Card</MenuItem>
-                    <MenuItem value="check">Check</MenuItem>
-                    <MenuItem value="other">Other</MenuItem>
-                  </Select>
-                </FormControl>
+                    placeholder="Optional notes about this sale"
+                  />
+                </Grid2>
               </Grid2>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    name="status"
-                    value={formData.status || 'completed'}
-                    label="Status"
-                    onChange={handleSelectChange}
-                    disabled={createSale.isPending || updateSale.isPending}
-                  >
-                    <MenuItem value="completed">Completed</MenuItem>
-                    <MenuItem value="refunded">Refunded</MenuItem>
-                    <MenuItem value="partially_refunded">Partially Refunded</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid2>
-              <Grid2 size={{ xs: 12 }}>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={3}
-                  label="Notes"
-                  name="notes"
-                  value={formData.notes || ''}
-                  onChange={handleInputChange}
-                  disabled={createSale.isPending || updateSale.isPending}
-                  placeholder="Optional notes about this sale"
-                />
-              </Grid2>
-            </Grid2>
-          </Paper>
+            </CardContent>
+          </Card>
         </Grid2>
 
+        {/* Right column - Sale Summary */}
         <Grid2 size={{ xs: 12, md: 4 }}>
-          <Paper sx={{ p: 3, position: 'sticky', top: 20 }}>
-            <Typography variant="h6" gutterBottom>
-              Sale Summary
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
+          <Card sx={{ position: 'sticky', top: 16 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <AttachMoney sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Sale Summary</Typography>
+              </Box>
+              <Divider sx={{ mb: 3 }} />
 
-            <Box sx={{ mb: 2 }}>
-              <Grid2 container spacing={2}>
-                <Grid2 size={{ xs: 7 }}>
-                  <Typography variant="body1">Subtotal:</Typography>
+              <Grid2 container spacing={2} sx={{ mb: 2 }}>
+                <Grid2 size={{ xs: 6 }}>
+                  <Typography variant="body2" color="text.secondary">Subtotal</Typography>
                 </Grid2>
-                <Grid2 size={{ xs: 5 }}>
-                  <Typography variant="body1" align="right">
-                    {formatCurrency(formData.subtotal || 0)}
-                  </Typography>
+                <Grid2 size={{ xs: 6 }}>
+                  <Typography variant="body1" align="right">{formatCurrency(formData.subtotal || 0)}</Typography>
                 </Grid2>
 
-                <Grid2 size={{ xs: 7 }} sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body1" sx={{ mr: 1 }}>Tax Rate:</Typography>
+                <Grid2 size={{ xs: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>Tax Rate</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 6 }}>
                   <TextField
                     size="small"
                     name="taxRate"
@@ -689,17 +795,21 @@ export default function SaleForm() {
                       endAdornment: <InputAdornment position="end">%</InputAdornment>,
                       inputProps: { min: 0, max: 100, step: 0.1 }
                     }}
-                    sx={{ width: 80 }}
+                    sx={{ width: '100%' }}
                   />
                 </Grid2>
-                <Grid2 size={{ xs: 5 }}>
-                  <Typography variant="body1" align="right">
-                    {formatCurrency(formData.taxAmount || 0)}
-                  </Typography>
+
+                <Grid2 size={{ xs: 6 }}>
+                  <Typography variant="body2" color="text.secondary">Tax Amount</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 6 }}>
+                  <Typography variant="body1" align="right">{formatCurrency(formData.taxAmount || 0)}</Typography>
                 </Grid2>
 
-                <Grid2 size={{ xs: 7 }} sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body1" sx={{ mr: 1 }}>Discount:</Typography>
+                <Grid2 size={{ xs: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>Discount</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 6 }}>
                   <TextField
                     size="small"
                     name="discountAmount"
@@ -711,50 +821,43 @@ export default function SaleForm() {
                       startAdornment: <InputAdornment position="start">$</InputAdornment>,
                       inputProps: { min: 0, step: 0.01 }
                     }}
-                    sx={{ width: 100 }}
+                    sx={{ width: '100%' }}
                   />
                 </Grid2>
-                <Grid2 size={{ xs: 5 }}>
-                  <Typography variant="body1" align="right" color="error">
-                    -{formatCurrency(formData.discountAmount || 0)}
-                  </Typography>
-                </Grid2>
               </Grid2>
-            </Box>
 
-            <Divider sx={{ my: 2 }} />
+              <Divider sx={{ my: 2 }} />
 
-            <Box sx={{ mb: 3 }}>
-              <Grid2 container spacing={1}>
+              <Grid2 container spacing={2} sx={{ mb: 3 }}>
                 <Grid2 size={{ xs: 6 }}>
-                  <Typography variant="h6">Total:</Typography>
+                  <Typography variant="h6">Total</Typography>
                 </Grid2>
                 <Grid2 size={{ xs: 6 }}>
-                  <Typography variant="h6" align="right" color="primary">
-                    {formatCurrency(formData.total || 0)}
-                  </Typography>
+                  <Typography variant="h6" align="right" color="primary">{formatCurrency(formData.total || 0)}</Typography>
                 </Grid2>
               </Grid2>
-            </Box>
 
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              size="large"
-              startIcon={<Save />}
-              onClick={handleSubmit}
-              disabled={(createSale.isPending || updateSale.isPending) || !formData.items?.length}
-            >
-              {createSale.isPending || updateSale.isPending ? 'Saving...' : isEditMode ? 'Update Sale' : 'Complete Sale'}
-            </Button>
-          </Paper>
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                size="large"
+                startIcon={<Save />}
+                onClick={handleSubmit}
+                disabled={(createSale.isPending || updateSale.isPending) || !formData.items?.length}
+              >
+                {createSale.isPending || updateSale.isPending ? 'Saving...' : isEditMode ? 'Update Sale' : 'Complete Sale'}
+              </Button>
+            </CardContent>
+          </Card>
         </Grid2>
       </Grid2>
 
       {/* Item Selection Dialog */}
       <Dialog open={itemDialogOpen} onClose={() => setItemDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Select Item</DialogTitle>
+        <DialogTitle>
+          {selectedItem ? 'Item Details' : 'Select Item'}
+        </DialogTitle>
         <DialogContent>
           {items.length === 0 ? (
             <Typography>No items available in inventory</Typography>
@@ -771,17 +874,32 @@ export default function SaleForm() {
                   <Typography variant="body1">
                     {selectedItem.trackingType === 'quantity'
                       ? `Available: ${selectedItem.quantity} in stock`
-                      : `Available: ${selectedItem.weight} ${selectedItem.weightUnit} in stock`}
+                      : selectedItem.trackingType === 'weight'
+                      ? `Available: ${selectedItem.weight} ${selectedItem.weightUnit} in stock`
+                      : selectedItem.trackingType === 'length'
+                      ? `Available: ${selectedItem.length} ${selectedItem.lengthUnit} in stock`
+                      : selectedItem.trackingType === 'area'
+                      ? `Available: ${selectedItem.area} ${selectedItem.areaUnit} in stock`
+                      : `Available: ${selectedItem.volume} ${selectedItem.volumeUnit} in stock`}
                   </Typography>
                 </Grid2>
                 <Grid2 size={{ xs: 12 }}>
                   <Typography variant="body1">
                     Price: {formatCurrency(selectedItem.price)}
-                    {selectedItem.priceType === 'per_weight_unit' && `/${selectedItem.weightUnit}`}
+                    {selectedItem.priceType !== 'each' &&
+                      `/${selectedItem.priceType === 'per_weight_unit'
+                        ? selectedItem.weightUnit
+                        : selectedItem.priceType === 'per_length_unit'
+                        ? selectedItem.lengthUnit
+                        : selectedItem.priceType === 'per_area_unit'
+                        ? selectedItem.areaUnit
+                        : selectedItem.volumeUnit}`}
                   </Typography>
                 </Grid2>
-                <Grid2 size={{ xs: 12 }}>
-                  {selectedItem.trackingType === 'quantity' ? (
+
+                {/* Display appropriate input fields based on tracking type */}
+                {selectedItem.trackingType === 'quantity' && (
+                  <Grid2 size={{ xs: 12 }}>
                     <TextField
                       fullWidth
                       label="Quantity"
@@ -793,20 +911,42 @@ export default function SaleForm() {
                       }}
                       helperText={`Maximum available: ${selectedItem.quantity}`}
                     />
-                  ) : (
-                    <TextField
-                      fullWidth
-                      label={`Weight (${selectedItem.weightUnit})`}
-                      type="number"
-                      value={selectedWeight}
-                      onChange={(e) => setSelectedWeight(e.target.value)}
-                      InputProps={{
-                        inputProps: { min: 0.01, max: selectedItem.weight, step: 0.01 }
-                      }}
-                      helperText={`Maximum available: ${selectedItem.weight} ${selectedItem.weightUnit}`}
-                    />
-                  )}
-                </Grid2>
+                  </Grid2>
+                )}
+
+                {selectedItem.trackingType === 'weight' && (
+                  <Grid2 container spacing={2}>
+                    <Grid2 size={{ xs: 8 }}>
+                      <TextField
+                        fullWidth
+                        label={`Weight (${selectedItem.weightUnit})`}
+                        type="number"
+                        value={selectedWeight}
+                        onChange={(e) => setSelectedWeight(e.target.value)}
+                        InputProps={{
+                          inputProps: { min: 0.01, max: selectedItem.weight, step: 0.01 }
+                        }}
+                        helperText={`Maximum available: ${selectedItem.weight} ${selectedItem.weightUnit}`}
+                      />
+                    </Grid2>
+                    <Grid2 size={{ xs: 4 }}>
+                      <FormControl fullWidth>
+                        <InputLabel>Unit</InputLabel>
+                        <Select
+                          value={selectedWeightUnit}
+                          onChange={(e) => setSelectedWeightUnit(e.target.value as WeightUnit)}
+                          label="Unit"
+                        >
+                          <MenuItem value="oz">oz</MenuItem>
+                          <MenuItem value="lb">lb</MenuItem>
+                          <MenuItem value="g">g</MenuItem>
+                          <MenuItem value="kg">kg</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid2>
+                  </Grid2>
+                )}
+
                 {selectedItem.trackingType === 'length' && (
                   <Grid2 container spacing={2}>
                     <Grid2 size={{ xs: 8 }}>
@@ -910,40 +1050,8 @@ export default function SaleForm() {
                     </Grid2>
                   </Grid2>
                 )}
-                {selectedItem.trackingType === 'weight' && (
-                  <Grid2 container spacing={2}>
-                    <Grid2 size={{ xs: 8 }}>
-                      <TextField
-                        fullWidth
-                        label={`Weight (${selectedItem.weightUnit})`}
-                        type="number"
-                        value={selectedWeight}
-                        onChange={(e) => setSelectedWeight(e.target.value)}
-                        InputProps={{
-                          inputProps: { min: 0.01, max: selectedItem.weight, step: 0.01 }
-                        }}
-                        helperText={`Maximum available: ${selectedItem.weight} ${selectedItem.weightUnit}`}
-                      />
-                    </Grid2>
-                    <Grid2 size={{ xs: 4 }}>
-                      <FormControl fullWidth>
-                        <InputLabel>Unit</InputLabel>
-                        <Select
-                          value={selectedWeightUnit}
-                          onChange={(e) => setSelectedWeightUnit(e.target.value as WeightUnit)}
-                          label="Unit"
-                        >
-                          <MenuItem value="oz">oz</MenuItem>
-                          <MenuItem value="lb">lb</MenuItem>
-                          <MenuItem value="g">g</MenuItem>
-                          <MenuItem value="kg">kg</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid2>
-                  </Grid2>
-                )}
-              </Grid2>
-              <Grid2 container spacing={2} sx={{ mt: 2 }}>
+
+                {/* Markup controls */}
                 <Grid2 size={{ xs: 12 }}>
                   <FormControlLabel
                     control={
@@ -1044,12 +1152,25 @@ export default function SaleForm() {
                           <Typography component="span" variant="body2">
                             {item.trackingType === 'quantity'
                               ? `${item.quantity} in stock`
-                              : `${item.weight} ${item.weightUnit} in stock`}
+                              : item.trackingType === 'weight'
+                              ? `${item.weight} ${item.weightUnit} in stock`
+                              : item.trackingType === 'length'
+                              ? `${item.length} ${item.lengthUnit} in stock`
+                              : item.trackingType === 'area'
+                              ? `${item.area} ${item.areaUnit} in stock`
+                              : `${item.volume} ${item.volumeUnit} in stock`}
                           </Typography>
                           <br />
                           <Typography component="span" variant="body2">
                             {formatCurrency(item.price)}
-                            {item.priceType === 'per_weight_unit' && `/${item.weightUnit}`}
+                            {item.priceType !== 'each' &&
+                              `/${item.priceType === 'per_weight_unit'
+                                ? item.weightUnit
+                                : item.priceType === 'per_length_unit'
+                                ? item.lengthUnit
+                                : item.priceType === 'per_area_unit'
+                                ? item.areaUnit
+                                : item.volumeUnit}`}
                           </Typography>
                         </>
                       }
@@ -1077,7 +1198,7 @@ export default function SaleForm() {
         </DialogActions>
       </Dialog>
 
-      {/* Use the new CreateProductDialog component */}
+      {/* Create Product Dialog */}
       <CreateProductDialog
         open={createProductDialogOpen}
         onClose={() => setCreateProductDialogOpen(false)}

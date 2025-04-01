@@ -1,183 +1,159 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
-  Paper,
   Typography,
+  Button,
+  Card,
+  CardContent,
+  CardActions,
+  TextField,
+  InputAdornment,
+  Grid,
+  Divider,
+  IconButton,
+  Menu,
+  MenuItem,
+  Tooltip,
+  Stack,
+  Avatar,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Button,
-  IconButton,
-  TextField,
-  InputAdornment,
-  Card,
-  CardContent,
-  CardActions,
-  Divider,
-  Grid2,
-  Stack,
-  Tooltip,
-  Menu,
-  MenuItem,
-  FormControl,
-  Select,
-  SelectChangeEvent,
-  Chip,
+  TablePagination,
+  useTheme,
+  alpha,
+  ListItemIcon,
   ListItemText,
-  TablePagination
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Chip
 } from '@mui/material';
 import {
-  Add,
-  Delete,
-  Edit,
-  Search,
-  Visibility,
-  GridView as GridViewIcon,
-  List as ListViewIcon,
-  FilterList,
-  Sort,
-  GetApp,
-  ClearAll,
-  DateRange
+  Add as AddIcon,
+  Search as SearchIcon,
+  FilterList as FilterIcon,
+  Sort as SortIcon,
+  LocalShipping,
+  ViewList,
+  ViewModule,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  MoreVert as MoreVertIcon,
+  Business as BusinessIcon,
+  DateRange as DateRangeIcon,
+  ReceiptLong as ReceiptIcon
 } from '@mui/icons-material';
 import { usePurchases, useDeletePurchase } from '@hooks/usePurchases';
-import { formatCurrency, formatDate, formatPaymentMethod } from '@utils/formatters';
+import { formatCurrency, formatDate } from '@utils/formatters';
+import StatusChip from '@components/ui/StatusChip';
+import { useAppContext } from '@hooks/useAppContext';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
-import StatusChip from '@components/ui/StatusChip';
-import { useSettings } from '@hooks/useSettings';
-
-// Function to format purchase items for display
-const getPurchaseItemsDisplayText = (purchase: any) => {
-  if (!purchase.items || purchase.items.length === 0) return "No items";
-
-  // Calculate total items, accounting for all measurement types
-  const totalItems = purchase.items.length;
-
-  // Count total quantity across all measurement types
-  const totalQuantity = purchase.items.reduce((total: number, item: any) => {
-    if (item.purchasedBy === 'quantity') return total + (item.quantity || 0);
-    return total + 1; // Count each non-quantity item as 1
-  }, 0);
-
-  return `${totalItems} ${totalItems === 1 ? 'item' : 'items'} (${totalQuantity} units total)`;
-};
-
-// Helper function to ensure dates display correctly
-const adjustDateForDisplay = (dateString: string | undefined): string | undefined => {
-  if (!dateString) return undefined;
-
-  // Create a date object from the string
-  const date = new Date(dateString);
-
-  // Create a new date object using local year, month, and day to avoid timezone offset issues
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
-};
 
 export default function PurchasesList() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const theme = useTheme();
+  const { defaultViewMode } = useAppContext();
   const { data: purchases = [], isLoading, error } = usePurchases();
   const deletePurchase = useDeletePurchase();
-  const { defaultViewMode } = useSettings();
 
-  // Initialize view mode from settings
+  // State
+  const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(defaultViewMode);
-
-  // Add sorting, filtering, and pagination
-  const [sortOrder, setSortOrder] = useState<'date-desc' | 'date-asc' | 'total-desc' | 'total-asc'>('date-desc');
+  const [sortBy, setSortBy] = useState<string>('date-desc');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<{ start: string, end: string }>({
-    start: '',
-    end: ''
-  });
+  const [dateFilter, setDateFilter] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [purchaseToDelete, setPurchaseToDelete] = useState<string | null>(null);
 
-  // Menu state
-  const [filterMenuAnchor, setFilterMenuAnchor] = useState<null | HTMLElement>(null);
+  // Menus
   const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null);
-  const [dateMenuAnchor, setDateMenuAnchor] = useState<null | HTMLElement>(null);
+  const [filterMenuAnchor, setFilterMenuAnchor] = useState<null | HTMLElement>(null);
+  const [actionMenuAnchor, setActionMenuAnchor] = useState<{ element: HTMLElement | null, id: string | null }>({
+    element: null,
+    id: null
+  });
 
-  // Update view mode if settings change
-  useEffect(() => {
-    setViewMode(defaultViewMode);
-  }, [defaultViewMode]);
-
-  // Apply filters and sorting
+  // Filter and sort purchases
   const filteredPurchases = useMemo(() => {
-    // First apply text search
-    let filtered = searchQuery
-      ? purchases.filter(purchase =>
-        (purchase.supplier?.name && purchase.supplier.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (purchase.invoiceNumber && purchase.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-      : purchases;
+    return purchases
+      .filter(purchase => {
+        // Search query filter
+        if (searchQuery && !(
+          (purchase.supplier?.name && purchase.supplier.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (purchase.referenceNumber && purchase.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()))
+        )) {
+          return false;
+        }
 
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(purchase => purchase.status === statusFilter);
-    }
+        // Status filter
+        if (statusFilter !== 'all' && purchase.status !== statusFilter) {
+          return false;
+        }
 
-    // Apply payment method filter
-    if (paymentMethodFilter !== 'all') {
-      filtered = filtered.filter(purchase => purchase.paymentMethod === paymentMethodFilter);
-    }
+        // Date filter
+        if (dateFilter !== 'all') {
+          const purchaseDate = new Date(purchase.purchaseDate || 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
 
-    // Apply date filter
-    if (dateFilter.start) {
-      const startDate = new Date(dateFilter.start);
-      filtered = filtered.filter(purchase =>
-        purchase.purchaseDate ? new Date(purchase.purchaseDate) >= startDate : true
-      );
-    }
-    if (dateFilter.end) {
-      const endDate = new Date(dateFilter.end);
-      // Set end date to end of day
-      endDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(purchase =>
-        purchase.purchaseDate ? new Date(purchase.purchaseDate) <= endDate : true
-      );
-    }
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortOrder) {
-        case 'date-desc':
-          return new Date(b.purchaseDate || 0).getTime() - new Date(a.purchaseDate || 0).getTime();
-        case 'date-asc':
-          return new Date(a.purchaseDate || 0).getTime() - new Date(b.purchaseDate || 0).getTime();
-        case 'total-desc':
-          return b.total - a.total;
-        case 'total-asc':
-          return a.total - b.total;
-        default:
-          return 0;
-      }
+          const thisWeekStart = new Date(today);
+          thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
+
+          const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+          if (
+            (dateFilter === 'today' && purchaseDate < today) ||
+            (dateFilter === 'yesterday' && (purchaseDate < yesterday || purchaseDate >= today)) ||
+            (dateFilter === 'this-week' && purchaseDate < thisWeekStart) ||
+            (dateFilter === 'this-month' && purchaseDate < thisMonthStart)
+          ) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'date-desc':
+            return new Date(b.purchaseDate || 0).getTime() - new Date(a.purchaseDate || 0).getTime();
+          case 'date-asc':
+            return new Date(a.purchaseDate || 0).getTime() - new Date(b.purchaseDate || 0).getTime();
+          case 'total-desc':
+            return b.total - a.total;
+          case 'total-asc':
+            return a.total - b.total;
+          case 'supplier':
+            return (a.supplier?.name || '').localeCompare(b.supplier?.name || '');
+          default:
+            return 0;
+        }
+      });
+  }, [purchases, searchQuery, sortBy, statusFilter, dateFilter]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: purchases.length };
+    purchases.forEach(purchase => {
+      counts[purchase.status] = (counts[purchase.status] || 0) + 1;
     });
+    return counts;
+  }, [purchases]);
 
-    return filtered;
-  }, [purchases, searchQuery, statusFilter, paymentMethodFilter, dateFilter, sortOrder]);
-
-  // Get paginated data
-  const paginatedPurchases = useMemo(() => {
-    return filteredPurchases.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  }, [filteredPurchases, page, rowsPerPage]);
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this purchase? This will update inventory quantities.')) {
-      try {
-        await deletePurchase.mutateAsync(id);
-      } catch (error) {
-        console.error('Failed to delete purchase:', error);
-      }
-    }
-  };
-
+  // Handle page change
   const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -187,290 +163,318 @@ export default function PurchasesList() {
     setPage(0);
   };
 
-  const handleStatusFilterChange = (event: SelectChangeEvent) => {
-    setStatusFilter(event.target.value);
-    setPage(0);
+  // Calculate paginated data for current view
+  const paginatedPurchases = useMemo(() => {
+    return filteredPurchases.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [filteredPurchases, page, rowsPerPage]);
+
+  // Handle delete
+  const handleDeleteClick = (id: string) => {
+    setPurchaseToDelete(id);
+    setDeleteDialogOpen(true);
   };
 
-  const handlePaymentMethodFilterChange = (event: SelectChangeEvent) => {
-    setPaymentMethodFilter(event.target.value);
-    setPage(0);
-  };
-
-  const handleSortOrderChange = (newOrder: 'date-desc' | 'date-asc' | 'total-desc' | 'total-asc') => {
-    setSortOrder(newOrder);
-    setSortMenuAnchor(null);
-  };
-
-  const handleClearFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('all');
-    setPaymentMethodFilter('all');
-    setDateFilter({ start: '', end: '' });
-    setFilterMenuAnchor(null);
-  };
-
-  const handleDateFilterChange = (field: 'start' | 'end', value: string) => {
-    setDateFilter(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleExportCSV = () => {
-    // Create CSV content
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "ID,Date,Supplier,Invoice Number,Items,Total,Status,Payment Method\n";
-
-    filteredPurchases.forEach(purchase => {
-      csvContent += `${purchase._id || ''},`;
-      csvContent += `${purchase.purchaseDate ? formatDate(purchase.purchaseDate) : ''},`;
-      csvContent += `${(purchase.supplier?.name || 'Unknown Supplier').replace(',', ' ')},`;
-      csvContent += `${purchase.invoiceNumber || ''},`;
-      csvContent += `${purchase.items.length},`;
-      csvContent += `${purchase.total},`;
-      csvContent += `${purchase.status},`;
-      csvContent += `${purchase.paymentMethod}\n`;
-    });
-
-    // Create download link
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `purchases_export_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const calculateActiveFilters = (): number => {
-    let count = 0;
-    if (statusFilter !== 'all') count++;
-    if (paymentMethodFilter !== 'all') count++;
-    if (dateFilter.start || dateFilter.end) count++;
-    return count;
+  const confirmDelete = async () => {
+    if (purchaseToDelete) {
+      try {
+        await deletePurchase.mutateAsync(purchaseToDelete);
+        setSuccessMessage('Purchase deleted successfully');
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } catch (error) {
+        console.error('Failed to delete purchase:', error);
+      }
+      setDeleteDialogOpen(false);
+    }
   };
 
   if (isLoading) {
-    return <LoadingScreen />;
+    return <LoadingScreen message="Loading purchases data..." />;
   }
 
   if (error) {
-    return <ErrorFallback error={error as Error} message="Failed to load purchases" />;
+    return <ErrorFallback error={error as Error} message="Failed to load purchases data" />;
   }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
-          Purchases
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          {/* View Mode Toggles */}
-          <Stack direction="row" spacing={1}>
-            <Tooltip title="Grid View">
+    <Box className="fade-in">
+      {/* Header */}
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        mb: 3,
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: 2
+      }}>
+        <Box>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
+            Purchases
+          </Typography>
+          <Typography color="text.secondary" variant="subtitle1">
+            Manage purchase orders from suppliers
+          </Typography>
+        </Box>
+        <Button
+          component={RouterLink}
+          to="/purchases/new"
+          startIcon={<AddIcon />}
+          variant="contained"
+          sx={{
+            px: 4,
+            boxShadow: theme.shadows[4],
+            '&:hover': {
+              boxShadow: theme.shadows[6],
+              transform: 'translateY(-2px)'
+            },
+            transition: 'all 0.2s ease'
+          }}
+        >
+          New Purchase
+        </Button>
+      </Box>
+
+      {successMessage && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            mb: 3,
+            bgcolor: alpha(theme.palette.success.main, 0.1),
+            borderLeft: `4px solid ${theme.palette.success.main}`,
+            borderRadius: 1
+          }}
+        >
+          <Typography color="success.main">{successMessage}</Typography>
+        </Paper>
+      )}
+
+      {/* Filters Bar */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 3,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 2,
+          alignItems: 'center',
+          boxShadow: theme.shadows[2],
+          borderRadius: 2
+        }}
+      >
+        <TextField
+          placeholder="Search by supplier or reference number..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ flexGrow: 1 }}
+          InputProps={{
+            startAdornment: <InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>,
+            sx: {
+              borderRadius: 2,
+              bgcolor: alpha(theme.palette.common.black, 0.01),
+              '&:hover': {
+                bgcolor: alpha(theme.palette.common.black, 0.02),
+              }
+            }
+          }}
+          size="medium"
+        />
+
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            startIcon={<FilterIcon />}
+            onClick={(e) => setFilterMenuAnchor(e.currentTarget)}
+            variant="outlined"
+            sx={{ borderRadius: 2 }}
+          >
+            Filter
+          </Button>
+
+          <Button
+            startIcon={<SortIcon />}
+            onClick={(e) => setSortMenuAnchor(e.currentTarget)}
+            variant="outlined"
+            sx={{ borderRadius: 2 }}
+          >
+            Sort
+          </Button>
+
+          <Box sx={{
+            display: 'flex',
+            borderRadius: 2,
+            overflow: 'hidden',
+            border: `1px solid ${theme.palette.divider}`
+          }}>
+            <Tooltip title="Grid view">
               <IconButton
                 color={viewMode === 'grid' ? 'primary' : 'default'}
                 onClick={() => setViewMode('grid')}
               >
-                <GridViewIcon />
+                <ViewModule />
               </IconButton>
             </Tooltip>
-            <Tooltip title="List View">
+            <Tooltip title="List view">
               <IconButton
                 color={viewMode === 'list' ? 'primary' : 'default'}
                 onClick={() => setViewMode('list')}
               >
-                <ListViewIcon />
+                <ViewList />
               </IconButton>
             </Tooltip>
-          </Stack>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<Add />}
-            component={RouterLink}
-            to="/purchases/new"
-          >
-            New Purchase
-          </Button>
+          </Box>
         </Box>
-      </Box>
 
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <TextField
-          fullWidth
-          variant="outlined"
-          placeholder="Search by supplier name or invoice number..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search />
-              </InputAdornment>
-            ),
+        {/* Status filter chips for larger screens */}
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            display: { xs: 'none', lg: 'flex' },
+            '& .MuiChip-root': {
+              transition: 'all 0.2s ease'
+            }
           }}
-          size="small"
-        />
-
-        <Tooltip title="Filter">
-          <Button
-            variant="outlined"
-            startIcon={<FilterList />}
-            onClick={(e) => setFilterMenuAnchor(e.currentTarget)}
-          >
-            Filter
-            {calculateActiveFilters() > 0 && (
-              <Chip
-                size="small"
-                label={calculateActiveFilters()}
-                color="primary"
-                sx={{ ml: 1 }}
-              />
-            )}
-          </Button>
-        </Tooltip>
-
-        <Tooltip title="Date Range">
-          <Button
-            variant="outlined"
-            startIcon={<DateRange />}
-            onClick={(e) => setDateMenuAnchor(e.currentTarget)}
-            color={(dateFilter.start || dateFilter.end) ? "primary" : "inherit"}
-          >
-            Date
-          </Button>
-        </Tooltip>
-
-        <Tooltip title="Sort">
-          <Button
-            variant="outlined"
-            startIcon={<Sort />}
-            onClick={(e) => setSortMenuAnchor(e.currentTarget)}
-          >
-            Sort
-          </Button>
-        </Tooltip>
-
-        <Tooltip title="Export CSV">
-          <Button
-            variant="outlined"
-            startIcon={<GetApp />}
-            onClick={handleExportCSV}
-          >
-            Export
-          </Button>
-        </Tooltip>
-      </Box>
+        >
+          <Chip
+            label={`All (${statusCounts.all || 0})`}
+            onClick={() => setStatusFilter('all')}
+            color={statusFilter === 'all' ? 'primary' : 'default'}
+            variant={statusFilter === 'all' ? 'filled' : 'outlined'}
+          />
+          <Chip
+            label={`Ordered (${statusCounts.ordered || 0})`}
+            onClick={() => setStatusFilter('ordered')}
+            color={statusFilter === 'ordered' ? 'warning' : 'default'}
+            variant={statusFilter === 'ordered' ? 'filled' : 'outlined'}
+          />
+          <Chip
+            label={`Received (${statusCounts.received || 0})`}
+            onClick={() => setStatusFilter('received')}
+            color={statusFilter === 'received' ? 'success' : 'default'}
+            variant={statusFilter === 'received' ? 'filled' : 'outlined'}
+          />
+        </Stack>
+      </Paper>
 
       {/* Filter Menu */}
       <Menu
         anchorEl={filterMenuAnchor}
         open={Boolean(filterMenuAnchor)}
         onClose={() => setFilterMenuAnchor(null)}
-        sx={{ '& .MuiPaper-root': { width: 280, maxWidth: '100%', p: 1 } }}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
-        <Box sx={{ p: 1 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Status
-          </Typography>
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <Select
-              value={statusFilter}
-              onChange={handleStatusFilterChange}
-            >
-              <MenuItem value="all">All Statuses</MenuItem>
-              <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem value="received">Received</MenuItem>
-              <MenuItem value="partially_received">Partially Received</MenuItem>
-              <MenuItem value="cancelled">Cancelled</MenuItem>
-            </Select>
-          </FormControl>
+        <MenuItem disabled>
+          <Typography variant="subtitle2">Status</Typography>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setStatusFilter('all');
+            setFilterMenuAnchor(null);
+          }}
+          selected={statusFilter === 'all'}
+        >
+          <ListItemText>All Purchases</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setStatusFilter('ordered');
+            setFilterMenuAnchor(null);
+          }}
+          selected={statusFilter === 'ordered'}
+        >
+          <ListItemIcon>
+            <StatusChip status="ordered" size="small" />
+          </ListItemIcon>
+          <ListItemText>Ordered</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setStatusFilter('pending');
+            setFilterMenuAnchor(null);
+          }}
+          selected={statusFilter === 'pending'}
+        >
+          <ListItemIcon>
+            <StatusChip status="pending" size="small" />
+          </ListItemIcon>
+          <ListItemText>Pending</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setStatusFilter('received');
+            setFilterMenuAnchor(null);
+          }}
+          selected={statusFilter === 'received'}
+        >
+          <ListItemIcon>
+            <StatusChip status="received" size="small" />
+          </ListItemIcon>
+          <ListItemText>Received</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setStatusFilter('cancelled');
+            setFilterMenuAnchor(null);
+          }}
+          selected={statusFilter === 'cancelled'}
+        >
+          <ListItemIcon>
+            <StatusChip status="cancelled" size="small" />
+          </ListItemIcon>
+          <ListItemText>Cancelled</ListItemText>
+        </MenuItem>
 
-          <Typography variant="subtitle2" gutterBottom>
-            Payment Method
-          </Typography>
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <Select
-              value={paymentMethodFilter}
-              onChange={handlePaymentMethodFilterChange}
-            >
-              <MenuItem value="all">All Payment Methods</MenuItem>
-              <MenuItem value="cash">Cash</MenuItem>
-              <MenuItem value="credit">Credit Card</MenuItem>
-              <MenuItem value="debit">Debit Card</MenuItem>
-              <MenuItem value="check">Check</MenuItem>
-              <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-              <MenuItem value="other">Other</MenuItem>
-            </Select>
-          </FormControl>
+        <Divider sx={{ my: 1 }} />
 
-          <Button
-            fullWidth
-            startIcon={<ClearAll />}
-            onClick={handleClearFilters}
-            disabled={statusFilter === 'all' && paymentMethodFilter === 'all' && !dateFilter.start && !dateFilter.end}
-          >
-            Clear All Filters
-          </Button>
-        </Box>
-      </Menu>
-
-      {/* Date Filter Menu */}
-      <Menu
-        anchorEl={dateMenuAnchor}
-        open={Boolean(dateMenuAnchor)}
-        onClose={() => setDateMenuAnchor(null)}
-        sx={{ '& .MuiPaper-root': { width: 280, maxWidth: '100%', p: 1 } }}
-      >
-        <Box sx={{ p: 1 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Date Range
-          </Typography>
-
-          <TextField
-            fullWidth
-            label="Start Date"
-            type="date"
-            value={dateFilter.start}
-            onChange={(e) => handleDateFilterChange('start', e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{ mb: 2 }}
-          />
-
-          <TextField
-            fullWidth
-            label="End Date"
-            type="date"
-            value={dateFilter.end}
-            onChange={(e) => handleDateFilterChange('end', e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{ mb: 2 }}
-          />
-
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={() => setDateMenuAnchor(null)}
-          >
-            Apply
-          </Button>
-
-          <Button
-            fullWidth
-            sx={{ mt: 1 }}
-            onClick={() => {
-              setDateFilter({ start: '', end: '' });
-              setDateMenuAnchor(null);
-            }}
-            disabled={!dateFilter.start && !dateFilter.end}
-          >
-            Clear Dates
-          </Button>
-        </Box>
+        <MenuItem disabled>
+          <Typography variant="subtitle2">Date Range</Typography>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setDateFilter('all');
+            setFilterMenuAnchor(null);
+          }}
+          selected={dateFilter === 'all'}
+        >
+          <ListItemText>All Time</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setDateFilter('today');
+            setFilterMenuAnchor(null);
+          }}
+          selected={dateFilter === 'today'}
+        >
+          <ListItemText>Today</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setDateFilter('yesterday');
+            setFilterMenuAnchor(null);
+          }}
+          selected={dateFilter === 'yesterday'}
+        >
+          <ListItemText>Yesterday</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setDateFilter('this-week');
+            setFilterMenuAnchor(null);
+          }}
+          selected={dateFilter === 'this-week'}
+        >
+          <ListItemText>This Week</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setDateFilter('this-month');
+            setFilterMenuAnchor(null);
+          }}
+          selected={dateFilter === 'this-month'}
+        >
+          <ListItemText>This Month</ListItemText>
+        </MenuItem>
       </Menu>
 
       {/* Sort Menu */}
@@ -478,212 +482,354 @@ export default function PurchasesList() {
         anchorEl={sortMenuAnchor}
         open={Boolean(sortMenuAnchor)}
         onClose={() => setSortMenuAnchor(null)}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
         <MenuItem
-          selected={sortOrder === 'date-desc'}
-          onClick={() => handleSortOrderChange('date-desc')}
+          onClick={() => {
+            setSortBy('date-desc');
+            setSortMenuAnchor(null);
+          }}
+          selected={sortBy === 'date-desc'}
         >
-          <ListItemText primary="Newest First" />
+          <ListItemText>Newest First</ListItemText>
         </MenuItem>
         <MenuItem
-          selected={sortOrder === 'date-asc'}
-          onClick={() => handleSortOrderChange('date-asc')}
+          onClick={() => {
+            setSortBy('date-asc');
+            setSortMenuAnchor(null);
+          }}
+          selected={sortBy === 'date-asc'}
         >
-          <ListItemText primary="Oldest First" />
+          <ListItemText>Oldest First</ListItemText>
         </MenuItem>
         <MenuItem
-          selected={sortOrder === 'total-desc'}
-          onClick={() => handleSortOrderChange('total-desc')}
+          onClick={() => {
+            setSortBy('total-desc');
+            setSortMenuAnchor(null);
+          }}
+          selected={sortBy === 'total-desc'}
         >
-          <ListItemText primary="Highest Total" />
+          <ListItemText>Highest Amount</ListItemText>
         </MenuItem>
         <MenuItem
-          selected={sortOrder === 'total-asc'}
-          onClick={() => handleSortOrderChange('total-asc')}
+          onClick={() => {
+            setSortBy('total-asc');
+            setSortMenuAnchor(null);
+          }}
+          selected={sortBy === 'total-asc'}
         >
-          <ListItemText primary="Lowest Total" />
+          <ListItemText>Lowest Amount</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setSortBy('supplier');
+            setSortMenuAnchor(null);
+          }}
+          selected={sortBy === 'supplier'}
+        >
+          <ListItemText>Supplier Name</ListItemText>
         </MenuItem>
       </Menu>
 
-      {filteredPurchases.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="h6" color="textSecondary">
-            No purchases found
-          </Typography>
-          <Typography color="textSecondary" sx={{ mt: 1 }}>
-            {searchQuery || statusFilter !== 'all' || paymentMethodFilter !== 'all' || dateFilter.start || dateFilter.end
-              ? 'Try adjusting your search or filters'
-              : 'Click "New Purchase" to record your first purchase'}
-          </Typography>
-        </Paper>
-      ) : viewMode === 'list' ? (
-        <>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Supplier</TableCell>
-                  <TableCell>Invoice #</TableCell>
-                  <TableCell>Items</TableCell>
-                  <TableCell align="right">Total</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Payment</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedPurchases.map((purchase) => {
-                  // Get display text for items with all measurement types
-                  const itemsDisplay = getPurchaseItemsDisplayText(purchase);
+      {/* Action Menu */}
+      <Menu
+        anchorEl={actionMenuAnchor.element}
+        open={Boolean(actionMenuAnchor.element)}
+        onClose={() => setActionMenuAnchor({element: null, id: null})}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem
+          component={RouterLink}
+          to={`/purchases/${actionMenuAnchor.id}`}
+        >
+          <ListItemIcon>
+            <ReceiptIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View Details</ListItemText>
+        </MenuItem>
+        <MenuItem
+          component={RouterLink}
+          to={`/purchases/${actionMenuAnchor.id}/edit`}
+        >
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit Purchase</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => {
+          if (actionMenuAnchor.id) handleDeleteClick(actionMenuAnchor.id);
+          setActionMenuAnchor({element: null, id: null});
+        }}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText sx={{ color: 'error.main' }}>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
 
-                  return (
-                    <TableRow key={purchase._id} hover>
-                      <TableCell>
-                        {purchase.purchaseDate ? formatDate(adjustDateForDisplay(purchase.purchaseDate)) : 'Unknown'}
-                      </TableCell>
-                      <TableCell>
-                        <RouterLink to={`/purchases/${purchase._id}`} style={{ textDecoration: 'none', color: '#0a7ea4' }}>
-                          {purchase.supplier?.name || 'Unknown Supplier'}
-                        </RouterLink>
-                      </TableCell>
-                      <TableCell>{purchase.invoiceNumber || '-'}</TableCell>
-                      <TableCell>{itemsDisplay}</TableCell>
-                      <TableCell align="right">{formatCurrency(purchase.total)}</TableCell>
-                      <TableCell>
-                        <StatusChip status={purchase.status} />
-                      </TableCell>
-                      <TableCell>{formatPaymentMethod(purchase.paymentMethod)}</TableCell>
-                      <TableCell align="center">
-                        <IconButton
-                          component={RouterLink}
-                          to={`/purchases/${purchase._id}`}
-                          color="info"
-                          size="small"
-                          title="View details"
-                        >
-                          <Visibility fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          component={RouterLink}
-                          to={`/purchases/${purchase._id}/edit`}
-                          color="primary"
-                          size="small"
-                          title="Edit purchase"
-                        >
-                          <Edit fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          color="error"
-                          size="small"
-                          onClick={() => purchase._id && handleDelete(purchase._id)}
-                          title="Delete purchase"
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            component="div"
-            count={filteredPurchases.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </>
-      ) : (
-        <>
-          <Grid2 container spacing={3}>
-            {paginatedPurchases.map((purchase) => {
-              // Format items display for grid view
-              const itemsDisplay = getPurchaseItemsDisplayText(purchase);
+      {/* Grid View */}
+      {viewMode === 'grid' && (
+        <Box>
+          <Grid container spacing={3}>
+            {paginatedPurchases.length > 0 ? (
+              paginatedPurchases.map((purchase) => (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={purchase._id}>
+                  <Card
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      position: 'relative',
+                      overflow: 'visible',
+                    }}
+                  >
+                    {/* Status indicator */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: -8,
+                        right: 16,
+                        zIndex: 1
+                      }}
+                    >
+                      <StatusChip status={purchase.status} />
+                    </Box>
 
-              return (
-                <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={purchase._id}>
-                  <Card sx={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: 4
-                    }
-                  }}>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <Typography variant="h6" component="h2" noWrap>
-                          {purchase.supplier?.name || 'Unknown Supplier'}
-                        </Typography>
-                        <StatusChip status={purchase.status} />
+                    <CardContent sx={{ pb: 0, flexGrow: 1 }}>
+                      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar
+                          sx={{
+                            bgcolor: alpha(theme.palette.info.main, 0.1),
+                            color: theme.palette.info.main,
+                            width: 32,
+                            height: 32
+                          }}
+                        >
+                          <BusinessIcon fontSize="small" />
+                        </Avatar>
+                        <Box>
+                          <Typography
+                            variant="h6"
+                            component={RouterLink}
+                            to={`/purchases/${purchase._id}`}
+                            sx={{
+                              textDecoration: 'none',
+                              color: 'inherit',
+                              '&:hover': { color: 'primary.main' }
+                            }}
+                          >
+                            {purchase.supplier?.name || 'Unknown Supplier'}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <DateRangeIcon fontSize="small" color="action" sx={{ fontSize: '0.9rem' }} />
+                            <Typography variant="caption" color="text.secondary">
+                              {formatDate(purchase.purchaseDate || new Date())}
+                            </Typography>
+                          </Box>
+                        </Box>
                       </Box>
-
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        {purchase.purchaseDate && formatDate(adjustDateForDisplay(purchase.purchaseDate))}
-                      </Typography>
-
-                      {purchase.invoiceNumber && (
-                        <Typography variant="body2" color="text.secondary">
-                          Invoice: {purchase.invoiceNumber}
-                        </Typography>
-                      )}
 
                       <Divider sx={{ my: 1.5 }} />
 
-                      <Typography variant="body2">
-                        {itemsDisplay}
-                      </Typography>
-
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        Payment: {formatPaymentMethod(purchase.paymentMethod)}
-                      </Typography>
-
-                      <Typography variant="h5" color="primary" sx={{ mt: 2 }}>
-                        {formatCurrency(purchase.total)}
-                      </Typography>
+                      <Grid container spacing={1}>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color="text.secondary">Reference #</Typography>
+                          <Typography variant="body2" fontWeight={500}>
+                            {purchase.referenceNumber || 'N/A'}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color="text.secondary">Items</Typography>
+                          <Typography variant="body2" fontWeight={500}>
+                            {purchase.items?.length || 0} items
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Total</Typography>
+                          <Typography variant="h6" color="info.main" fontWeight={700}>
+                            {formatCurrency(purchase.total)}
+                          </Typography>
+                        </Grid>
+                      </Grid>
                     </CardContent>
+
                     <CardActions>
                       <Button
                         component={RouterLink}
                         to={`/purchases/${purchase._id}`}
                         size="small"
-                        startIcon={<Visibility />}
+                        sx={{ color: theme.palette.info.main }}
                       >
-                        View
+                        View Details
                       </Button>
-                      <Button
-                        component={RouterLink}
-                        to={`/purchases/${purchase._id}/edit`}
+                      <Box sx={{ flexGrow: 1 }} />
+                      <IconButton
                         size="small"
-                        startIcon={<Edit />}
+                        onClick={(e) => setActionMenuAnchor({
+                          element: e.currentTarget,
+                          id: purchase._id || ''
+                        })}
                       >
-                        Edit
-                      </Button>
-                      <Button
-                        size="small"
-                        color="error"
-                        startIcon={<Delete />}
-                        onClick={() => purchase._id && handleDelete(purchase._id)}
-                        sx={{ marginLeft: 'auto' }}
-                      >
-                        Delete
-                      </Button>
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
                     </CardActions>
                   </Card>
-                </Grid2>
-              );
-            })}
-          </Grid2>
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                </Grid>
+              ))
+            ) : (
+              <Grid item xs={12}>
+                <Paper
+                  sx={{
+                    py: 6,
+                    px: 4,
+                    textAlign: 'center',
+                    bgcolor: alpha(theme.palette.info.main, 0.03),
+                    borderRadius: 2
+                  }}
+                >
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    No Purchases Found
+                  </Typography>
+                  <Typography color="text.secondary" paragraph>
+                    {searchQuery || statusFilter !== 'all'
+                      ? "Try adjusting your search or filters"
+                      : "Get started by creating your first purchase order"}
+                  </Typography>
+                  <Button
+                    component={RouterLink}
+                    to="/purchases/new"
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    color="primary"
+                  >
+                    Create Purchase
+                  </Button>
+                </Paper>
+              </Grid>
+            )}
+          </Grid>
+        </Box>
+      )}
+
+      {/* List View */}
+      {viewMode === 'list' && (
+        <TableContainer
+          component={Paper}
+          elevation={0}
+          sx={{
+            borderRadius: 2,
+            overflow: 'hidden',
+            boxShadow: theme.shadows[2],
+          }}
+        >
+          <Table>
+            <TableHead sx={{ bgcolor: alpha(theme.palette.info.main, 0.04) }}>
+              <TableRow>
+                <TableCell>Supplier</TableCell>
+                <TableCell>Reference #</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Total</TableCell>
+                <TableCell align="center">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {paginatedPurchases.length > 0 ? (
+                paginatedPurchases.map((purchase) => (
+                  <TableRow
+                    key={purchase._id}
+                    sx={{
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.info.main, 0.02),
+                      },
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => {
+                      window.location.href = `/purchases/${purchase._id}`;
+                    }}
+                  >
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Avatar
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            mr: 1,
+                            bgcolor: alpha(theme.palette.info.main, 0.1),
+                            color: theme.palette.info.main,
+                          }}
+                        >
+                          <BusinessIcon />
+                        </Avatar>
+                        <Typography fontWeight={500}>
+                          {purchase.supplier?.name || 'Unknown Supplier'}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{purchase.referenceNumber || 'N/A'}</TableCell>
+                    <TableCell>{formatDate(purchase.purchaseDate || new Date())}</TableCell>
+                    <TableCell>
+                      <StatusChip status={purchase.status} />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography fontWeight={500} color="info.main">
+                        {formatCurrency(purchase.total)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <IconButton
+                          component={RouterLink}
+                          to={`/purchases/${purchase._id}/edit`}
+                          size="small"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          color="error"
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(purchase._id || '');
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} sx={{ textAlign: 'center', py: 6 }}>
+                    <Typography variant="h6" color="text.secondary" gutterBottom>
+                      No Purchases Found
+                    </Typography>
+                    <Typography color="text.secondary" paragraph>
+                      {searchQuery || statusFilter !== 'all'
+                        ? "Try adjusting your search or filters"
+                        : "Get started by creating your first purchase order"}
+                    </Typography>
+                    <Button
+                      component={RouterLink}
+                      to="/purchases/new"
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      color="primary"
+                    >
+                      Create Purchase
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          {paginatedPurchases.length > 0 && (
             <TablePagination
-              rowsPerPageOptions={[8, 16, 24, 32]}
+              rowsPerPageOptions={[10, 25, 50]}
               component="div"
               count={filteredPurchases.length}
               rowsPerPage={rowsPerPage}
@@ -691,9 +837,28 @@ export default function PurchasesList() {
               onPageChange={handleChangePage}
               onRowsPerPageChange={handleChangeRowsPerPage}
             />
-          </Box>
-        </>
+          )}
+        </TableContainer>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Delete Purchase</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this purchase? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={confirmDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

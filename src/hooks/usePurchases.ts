@@ -267,3 +267,36 @@ export function usePurchasesTrend(startDate?: string, endDate?: string) {
 
   return { data, isLoading, error };
 }
+
+/**
+ * Hook for updating the status of a purchase
+ * @param id Optional purchase ID to focus the update on
+ * @returns React Query mutation for updating purchase status
+ */
+export const useUpdatePurchaseStatus = (id?: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    Purchase,
+    Error,
+    { id: string; status: string }
+  >(
+    async ({ id, status }) => {
+      const response = await axios.patch(`/api/purchases/${id}/status`, { status });
+      return response.data;
+    },
+    {
+      onSuccess: (data, variables) => {
+        // Invalidate the specific purchase query if we have that ID
+        if (id) {
+          queryClient.invalidateQueries(['purchase', id]);
+        } else {
+          queryClient.invalidateQueries(['purchase', variables.id]);
+        }
+
+        // Invalidate the purchases list
+        queryClient.invalidateQueries('purchases');
+      }
+    }
+  );
+};

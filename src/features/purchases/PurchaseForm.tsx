@@ -7,7 +7,6 @@ import {
   Typography,
   TextField,
   Button,
-  Grid2,
   Alert,
   InputAdornment,
   MenuItem,
@@ -18,6 +17,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableFooter,
   Divider,
   Dialog,
   DialogActions,
@@ -37,6 +37,11 @@ import {
   ListItemIcon,
   Autocomplete,
   Stack,
+  Card,
+  CardContent,
+  Badge,
+  Chip,
+  Grid2
 } from '@mui/material';
 import {
   Save,
@@ -46,7 +51,19 @@ import {
   AddCircle,
   DeleteOutline,
   DragIndicator,
-  BusinessCenter
+  BusinessCenter,
+  Store,
+  LocalShipping,
+  AttachMoney,
+  Payment,
+  NoteAdd,
+  CalendarToday,
+  Inventory,
+  Search,
+  PersonOutline,
+  Email,
+  Phone,
+  Numbers
 } from '@mui/icons-material';
 import { usePurchase, useCreatePurchase, useUpdatePurchase } from '@hooks/usePurchases';
 import { useItems, useCreateItem, useNextSku, useCategories } from '@hooks/useItems';
@@ -55,6 +72,7 @@ import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType, Lengt
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
+import AssetSelectDialog from '@components/assets/AssetSelectDialog';
 
 // Utility function to round to 5 decimal places
 const roundToFiveDecimalPlaces = (num: number): number => {
@@ -100,6 +118,7 @@ export default function PurchaseForm() {
   // Item selection state
   const [selectedItems, setSelectedItems] = useState<Item[]>([]);
   const [itemSelectDialogOpen, setItemSelectDialogOpen] = useState(false);
+  const [itemSearchQuery, setItemSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   // Asset selection state
@@ -185,51 +204,31 @@ export default function PurchaseForm() {
 
   // First effect - update total cost when inputs change
   useEffect(() => {
-    if (selectedItems && isManuallyEditing !== 'totalCost') {
-      selectedItems.forEach(selectedItem => {
-        switch (selectedItem.trackingType) {
-          case 'weight':
-            setIsManuallyEditing('totalCost');
-            setTimeout(() => setIsManuallyEditing(null), 0);
-            break;
-          case 'length':
-            setIsManuallyEditing('totalCost');
-            setTimeout(() => setIsManuallyEditing(null), 0);
-            break;
-          case 'area':
-            setIsManuallyEditing('totalCost');
-            setTimeout(() => setIsManuallyEditing(null), 0);
-            break;
-          case 'volume':
-            setIsManuallyEditing('totalCost');
-            setTimeout(() => setIsManuallyEditing(null), 0);
-            break;
-          default: // quantity
-            setIsManuallyEditing('totalCost');
-            setTimeout(() => setIsManuallyEditing(null), 0);
-        }
-      });
+    if (selectedItems && selectedItems.length > 0 && isManuallyEditing !== 'totalCost') {
+      // Remove the setTimeout pattern that causes repeated renders
+      setIsManuallyEditing('totalCost');
     }
-  }, [selectedItems, isManuallyEditing]);
+  }, [selectedItems]); // Only depend on selectedItems, not isManuallyEditing
+
+  // Separate effect to reset the manual editing state once
+  useEffect(() => {
+    if (isManuallyEditing === 'totalCost') {
+      // Use a single timeout to reset the state
+      const timeoutId = setTimeout(() => {
+        setIsManuallyEditing(null);
+      }, 50);
+
+      return () => clearTimeout(timeoutId); // Clean up timeout
+    }
+  }, [isManuallyEditing]);
 
   // Second effect - update cost per unit when total cost changes
   useEffect(() => {
-    if (selectedItems && isManuallyEditing !== 'costPerUnit') {
-      selectedItems.forEach(selectedItem => {
-        switch (selectedItem.trackingType) {
-          case 'weight':
-            break;
-          case 'length':
-            break;
-          case 'area':
-            break;
-          case 'volume':
-            break;
-          default: // quantity
-        }
-      });
+    if (selectedItems && selectedItems.length > 0 && isManuallyEditing !== 'costPerUnit') {
+      // Only perform actions if needed, don't set state unnecessarily
+      // Remove empty implementations that may cause extra renders
     }
-  }, [selectedItems, isManuallyEditing]);
+  }, [selectedItems]); // Only depend on selectedItems, not isManuallyEditing
 
   // Add effect to calculate unit cost when total price or quantity changes
   useEffect(() => {
@@ -242,11 +241,17 @@ export default function PurchaseForm() {
     }
   }, [newItemTotalPrice, newItem.quantity, newItem.weight, newItem.trackingType]);
 
+  // Modify the useEffect that calculates markup to avoid potential loops
   useEffect(() => {
-    // Set price to 50% markup of cost
-    const markupPrice = roundToFiveDecimalPlaces(newItemUnitCost * 1.5);
-    setNewItem(prev => ({ ...prev, price: markupPrice }));
-  }, [newItemUnitCost]);
+    // Set price to 50% markup of cost - only if cost changed
+    if (newItemUnitCost > 0) {
+      const markupPrice = roundToFiveDecimalPlaces(newItemUnitCost * 1.5);
+      // Only update if the value is actually different to avoid unnecessary re-renders
+      if (newItem.price !== markupPrice) {
+        setNewItem(prev => ({ ...prev, price: markupPrice }));
+      }
+    }
+  }, [newItemUnitCost]); // Only depend on newItemUnitCost
 
   const handleTextChange = (field: string, value: string | number) => {
     if (field.startsWith('supplier.')) {
@@ -280,16 +285,6 @@ export default function PurchaseForm() {
       setSelectedItems(selectedItems.filter(selectedItem => selectedItem._id !== item._id));
     } else {
       setSelectedItems([...selectedItems, item]);
-    }
-  };
-
-  // Handle asset selection toggle
-  const handleAssetSelectionToggle = (asset: BusinessAsset) => {
-    const isSelected = selectedAssets.some(selectedAsset => selectedAsset._id === asset._id);
-    if (isSelected) {
-      setSelectedAssets(selectedAssets.filter(selectedAsset => selectedAsset._id !== asset._id));
-    } else {
-      setSelectedAssets([...selectedAssets, asset]);
     }
   };
 
@@ -350,12 +345,13 @@ export default function PurchaseForm() {
 
     // Reset selections and close dialog
     setSelectedItems([]);
+    setItemSearchQuery('');
     setItemSelectDialogOpen(false);
   };
 
   // Handle adding selected assets to the purchase
-  const handleAddSelectedAssets = () => {
-    if (selectedAssets.length === 0) return;
+  const handleAddSelectedAssets = (selectedAssets: BusinessAsset[]) => {
+    if (!selectedAssets.length) return;
 
     const newItems: PurchaseItem[] = selectedAssets.map(asset => {
       const assetItem: PurchaseItem = {
@@ -388,17 +384,11 @@ export default function PurchaseForm() {
       items: [...purchase.items, ...newItems]
     });
 
-    // Reset selections and close dialog
-    setSelectedAssets([]);
-    setAssetSelectDialogOpen(false);
+    // Close dialog is now handled by the AssetSelectDialog component
   };
 
   const isItemSelected = (item: Item): boolean => {
     return selectedItems.some(selectedItem => selectedItem._id === item._id);
-  };
-
-  const isAssetSelected = (asset: BusinessAsset): boolean => {
-    return selectedAssets.some(selectedAsset => selectedAsset._id === asset._id);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -616,6 +606,13 @@ export default function PurchaseForm() {
   // Create a lookup object for items for efficient access
   const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
 
+  // Filter items based on search query
+  const filteredItems = items.filter(item =>
+    item.name.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
+    item.sku?.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
+    item.category?.toLowerCase().includes(itemSearchQuery.toLowerCase())
+  );
+
   const handleItemDiscountChange = (index: number, type: 'percentage' | 'amount', value: number) => {
     const updatedItems = [...purchase.items];
     const item = updatedItems[index];
@@ -763,521 +760,700 @@ export default function PurchaseForm() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
-          {isEditMode ? 'Edit Purchase' : 'New Purchase'}
-        </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBack />}
-          component={RouterLink}
-          to="/purchases"
-        >
-          Back to Purchases
-        </Button>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Grid2 container alignItems="center" spacing={2}>
+          <Grid2 size="auto">
+            <Button
+              component={RouterLink}
+              to="/purchases"
+              startIcon={<ArrowBack />}
+              sx={{ mr: 1 }}
+            >
+              Back
+            </Button>
+          </Grid2>
+          <Grid2 size="grow">
+            <Typography variant="h4" component="h1">
+              {isEditMode ? 'Edit Purchase' : 'New Purchase'}
+            </Typography>
+          </Grid2>
+          <Grid2 size="auto">
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Save />}
+              onClick={handleSave}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
+              size="large"
+            >
+              {createPurchase.isPending || updatePurchase.isPending
+                ? 'Saving...'
+                : isEditMode ? 'Update Purchase' : 'Save Purchase'}
+            </Button>
+          </Grid2>
+        </Grid2>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Supplier Information</Typography>
-        <Divider sx={{ mb: 2 }} />
+      <Grid2 container spacing={3}>
+        {/* Left column */}
+        <Grid2 size={{ xs: 12, lg: 8 }}>
+          {/* Supplier Information Card */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Store sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Supplier Information</Typography>
+              </Box>
+              <Divider sx={{ mb: 3 }} />
 
-        <Grid2 container spacing={2}>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Supplier Name"
-              value={purchase.supplier.name || ''}
-              onChange={(e) => handleTextChange('supplier.name', e.target.value)}
-              margin="normal"
-              required
-              error={error?.includes('Supplier name')}
-              helperText={error?.includes('Supplier name') ? 'Supplier name is required' : ''}
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Contact Name"
-              value={purchase.supplier.contactName || ''}
-              onChange={(e) => handleTextChange('supplier.contactName', e.target.value)}
-              margin="normal"
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Email"
-              type="email"
-              value={purchase.supplier.email || ''}
-              onChange={(e) => handleTextChange('supplier.email', e.target.value)}
-              margin="normal"
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Phone"
-              value={purchase.supplier.phone || ''}
-              onChange={(e) => handleTextChange('supplier.phone', e.target.value)}
-              margin="normal"
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Invoice Number"
-              value={purchase.invoiceNumber || ''}
-              onChange={(e) => handleTextChange('invoiceNumber', e.target.value)}
-              margin="normal"
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Purchase Date"
-              type="date"
-              value={purchase.purchaseDate ? new Date(purchase.purchaseDate).toISOString().split('T')[0] : ''}
-              onChange={(e) => handleTextChange('purchaseDate', e.target.value)}
-              margin="normal"
-              InputLabelProps={{ shrink: true }}
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            />
-          </Grid2>
-        </Grid2>
-      </Paper>
+              <Grid2 container spacing={2}>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Supplier Name"
+                    value={purchase.supplier.name || ''}
+                    onChange={(e) => handleTextChange('supplier.name', e.target.value)}
+                    required
+                    error={error?.includes('Supplier name')}
+                    helperText={error?.includes('Supplier name') ? 'Supplier name is required' : ''}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Store fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Contact Name"
+                    value={purchase.supplier.contactName || ''}
+                    onChange={(e) => handleTextChange('supplier.contactName', e.target.value)}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PersonOutline fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Email"
+                    type="email"
+                    value={purchase.supplier.email || ''}
+                    onChange={(e) => handleTextChange('supplier.email', e.target.value)}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Email fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Phone"
+                    value={purchase.supplier.phone || ''}
+                    onChange={(e) => handleTextChange('supplier.phone', e.target.value)}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Phone fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Invoice Number"
+                    value={purchase.invoiceNumber || ''}
+                    onChange={(e) => handleTextChange('invoiceNumber', e.target.value)}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Numbers fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Purchase Date"
+                    type="date"
+                    value={purchase.purchaseDate ? new Date(purchase.purchaseDate).toISOString().split('T')[0] : ''}
+                    onChange={(e) => handleTextChange('purchaseDate', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <CalendarToday fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid2>
+              </Grid2>
+            </CardContent>
+          </Card>
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
-          <Typography variant="h6">Purchase Items</Typography>
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outlined"
-              startIcon={<BusinessCenter />}
-              onClick={() => setAssetSelectDialogOpen(true)}
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            >
-              Add Assets
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => setItemSelectDialogOpen(true)}
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            >
-              Add Items
-            </Button>
-          </Stack>
-        </Box>
-        <Divider sx={{ mb: 2 }} />
+          {/* Purchase Items Card */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Inventory sx={{ mr: 1, color: 'text.secondary' }} />
+                  <Typography variant="h6">Purchase Items</Typography>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<BusinessCenter />}
+                    onClick={() => setAssetSelectDialogOpen(true)}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                  >
+                    Add Assets
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<Add />}
+                    onClick={() => setItemSelectDialogOpen(true)}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                  >
+                    Add Items
+                  </Button>
+                </Stack>
+              </Box>
+              <Divider sx={{ mb: 3 }} />
 
-        {purchase.items.length > 0 ? (
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell width={50}></TableCell> {/* Drag handle column */}
-                    <TableCell>Item</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Quantity/Weight</TableCell>
-                    <TableCell>Original Cost</TableCell>
-                    <TableCell>Cost Per Unit</TableCell>
-                    <TableCell>Discount</TableCell>
-                    <TableCell align="right">Total Cost</TableCell>
-                    <TableCell width={80}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <Droppable droppableId="purchase-items" direction="vertical">
-                  {(provided) => (
-                    <TableBody
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                    >
-                      {purchase.items.map((item, index) => {
-                        const isAssetItem = item.isAsset === true;
-                        const itemDetails = !isAssetItem && typeof item.item === 'object' ? item.item : !isAssetItem && typeof item.item === 'string' ? itemLookup[item.item] : null;
-
-                        return (
-                          <Draggable
-                            key={`item-${index}`}
-                            draggableId={`item-${index}`}
-                            index={index}
+              {purchase.items.length > 0 ? (
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                    <Table>
+                      <TableHead sx={{ backgroundColor: theme => theme.palette.background.default }}>
+                        <TableRow>
+                          <TableCell width={50}></TableCell> {/* Drag handle column */}
+                          <TableCell>Item</TableCell>
+                          <TableCell>Type</TableCell>
+                          <TableCell>Quantity/Measurement</TableCell>
+                          <TableCell>Original Cost</TableCell>
+                          <TableCell>Cost Per Unit</TableCell>
+                          <TableCell>Discount</TableCell>
+                          <TableCell align="right">Total Cost</TableCell>
+                          <TableCell width={80}>Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <Droppable droppableId="purchase-items" direction="vertical">
+                        {(provided) => (
+                          <TableBody
+                            {...provided.droppableProps}
+                            ref={provided.innerRef}
                           >
-                            {(provided, snapshot) => (
-                              <TableRow
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                sx={{
-                                  backgroundColor: isAssetItem
-                                    ? (theme) => theme.palette.mode === 'dark'
-                                      ? 'rgba(144, 202, 249, 0.1)'
-                                      : 'rgba(33, 150, 243, 0.05)'
-                                    : snapshot.isDragging
-                                      ? 'rgba(63, 81, 181, 0.08)'
-                                      : 'inherit',
-                                  '&:hover .drag-handle': {
-                                    opacity: 1,
-                                  },
-                                  // Add styling to ensure the dragged item remains visible
-                                  ...(snapshot.isDragging && {
-                                    borderRadius: '4px',
-                                    outline: '1px solid #aaa',
-                                  })
-                                }}
-                              >
-                                <TableCell>
-                                  <Box
-                                    {...provided.dragHandleProps}
-                                    sx={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center'
-                                    }}
-                                  >
-                                    <DragIndicator
-                                      className="drag-handle"
+                            {purchase.items.map((item, index) => {
+                              const isAssetItem = item.isAsset === true;
+                              const itemDetails = !isAssetItem && typeof item.item === 'object'
+                                ? item.item
+                                : !isAssetItem && typeof item.item === 'string'
+                                  ? itemLookup[item.item]
+                                  : null;
+
+                              return (
+                                <Draggable
+                                  key={`item-${index}`}
+                                  draggableId={`item-${index}`}
+                                  index={index}
+                                >
+                                  {(provided, snapshot) => (
+                                    <TableRow
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
                                       sx={{
-                                        cursor: 'grab',
-                                        opacity: 0.3,
-                                        transition: 'opacity 0.2s'
+                                        backgroundColor: isAssetItem
+                                          ? (theme) => theme.palette.mode === 'dark'
+                                            ? 'rgba(144, 202, 249, 0.1)'
+                                            : 'rgba(33, 150, 243, 0.05)'
+                                          : snapshot.isDragging
+                                            ? 'rgba(63, 81, 181, 0.08)'
+                                            : 'inherit',
+                                        '&:hover .drag-handle': {
+                                          opacity: 1,
+                                        },
+                                        // Add styling to ensure the dragged item remains visible
+                                        ...(snapshot.isDragging && {
+                                          borderRadius: '4px',
+                                          outline: '1px solid #aaa',
+                                        })
                                       }}
-                                    />
-                                  </Box>
+                                    >
+                                      <TableCell>
+                                        <Box
+                                          {...provided.dragHandleProps}
+                                          sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                          }}
+                                        >
+                                          <DragIndicator
+                                            className="drag-handle"
+                                            sx={{
+                                              cursor: 'grab',
+                                              opacity: 0.3,
+                                              transition: 'opacity 0.2s'
+                                            }}
+                                          />
+                                        </Box>
+                                      </TableCell>
+                                      <TableCell>
+                                        {isAssetItem
+                                          ? (item.assetInfo?.name || 'Unnamed Asset')
+                                          : (itemDetails ? itemDetails.name : 'Unknown Item')
+                                        }
+                                      </TableCell>
+                                      <TableCell>
+                                        {isAssetItem
+                                          ? <Chip size="small" icon={<BusinessCenter fontSize="small" />} label="Asset" variant="outlined" color="primary" />
+                                          : (itemDetails?.itemType === 'product'
+                                              ? 'Product'
+                                              : itemDetails?.itemType === 'material'
+                                                ? 'Material'
+                                                : 'Both')
+                                        }
+                                      </TableCell>
+                                      <TableCell>
+                                        <TextField
+                                          size="small"
+                                          type="number"
+                                          value={
+                                            item.purchasedBy === 'weight' ? item.weight :
+                                              item.purchasedBy === 'length' ? item.length :
+                                                item.purchasedBy === 'area' ? item.area :
+                                                  item.purchasedBy === 'volume' ? item.volume :
+                                                    item.quantity
+                                          }
+                                          onChange={(e) => handleItemQuantityChange(index, parseFloat(e.target.value) || 0)}
+                                          InputProps={{
+                                            inputProps: { min: 0, step: 0.01 },
+                                            endAdornment: <InputAdornment position="end">
+                                              {item.purchasedBy === 'weight' ? item.weightUnit :
+                                                item.purchasedBy === 'length' ? item.lengthUnit :
+                                                  item.purchasedBy === 'area' ? item.areaUnit :
+                                                    item.purchasedBy === 'volume' ? item.volumeUnit : ''}
+                                            </InputAdornment>,
+                                          }}
+                                          sx={{ minWidth: '120px' }}
+                                        />
+                                      </TableCell>
+                                      <TableCell>
+                                        <TextField
+                                          size="small"
+                                          type="number"
+                                          value={item.originalCost || 0}
+                                          onChange={(e) => handleItemOriginalCostChange(index, parseFloat(e.target.value) || 0)}
+                                          InputProps={{
+                                            inputProps: { min: 0, step: 0.01 },
+                                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                          }}
+                                          sx={{ minWidth: '120px' }}
+                                        />
+                                      </TableCell>
+                                      <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
+                                      <TableCell>
+                                        <Grid2 container spacing={1} alignItems="center">
+                                          <Grid2 size={{ xs: 6 }}>
+                                            <TextField
+                                              size="small"
+                                              type="number"
+                                              value={item.discountPercentage || 0}
+                                              onChange={(e) => handleItemDiscountChange(index, 'percentage', parseFloat(e.target.value) || 0)}
+                                              InputProps={{
+                                                inputProps: { min: 0, max: 100, step: 0.1 },
+                                                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                                              }}
+                                            />
+                                          </Grid2>
+                                          <Grid2 size={{ xs: 6 }}>
+                                            <TextField
+                                              size="small"
+                                              type="number"
+                                              value={item.discountAmount || 0}
+                                              onChange={(e) => handleItemDiscountChange(index, 'amount', parseFloat(e.target.value) || 0)}
+                                              InputProps={{
+                                                inputProps: { min: 0, step: 0.01 },
+                                                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                              }}
+                                            />
+                                          </Grid2>
+                                        </Grid2>
+                                      </TableCell>
+                                      <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
+                                      <TableCell align="center">
+                                        <IconButton size="small" onClick={() => handleRemoveItem(index)}>
+                                          <DeleteOutline fontSize="small" />
+                                        </IconButton>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </Draggable>
+                              );
+                            })}
+                            {provided.placeholder}
+                            {purchase.items.length > 0 && (
+                              <TableRow sx={{ backgroundColor: theme => theme.palette.action.hover }}>
+                                <TableCell colSpan={7} align="right">
+                                  <Typography variant="subtitle2">Items Subtotal:</Typography>
                                 </TableCell>
-
-                                {/* ...existing table cell content... */}
-                                <TableCell>
-                                  {isAssetItem
-                                    ? (item.assetInfo?.name || 'Unnamed Asset')
-                                    : (itemDetails ? itemDetails.name : 'Unknown Item')
-                                  }
-                                </TableCell>
-
-                                <TableCell>
-                                  {isAssetItem
-                                    ? <Chip size="small" icon={<BusinessCenter fontSize="small" />} label="Asset" variant="outlined" color="primary" />
-                                    : (itemDetails?.itemType === 'product'
-                                        ? 'Product'
-                                        : itemDetails?.itemType === 'material'
-                                          ? 'Material'
-                                          : 'Both')
-                                  }
-                                </TableCell>
-
-                                <TableCell>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={
-                                      item.purchasedBy === 'weight' ? item.weight :
-                                        item.purchasedBy === 'length' ? item.length :
-                                          item.purchasedBy === 'area' ? item.area :
-                                            item.purchasedBy === 'volume' ? item.volume :
-                                              item.quantity
-                                    }
-                                    onChange={(e) => handleItemQuantityChange(index, parseFloat(e.target.value) || 0)}
-                                    InputProps={{
-                                      endAdornment: <InputAdornment position="end">
-                                        {item.purchasedBy === 'weight' ? item.weightUnit :
-                                          item.purchasedBy === 'length' ? item.lengthUnit :
-                                            item.purchasedBy === 'area' ? item.areaUnit :
-                                              item.purchasedBy === 'volume' ? item.volumeUnit : ''}
-                                      </InputAdornment>,
-                                    }}
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={item.originalCost || 0}
-                                    onChange={(e) => handleItemOriginalCostChange(index, parseFloat(e.target.value) || 0)}
-                                    InputProps={{
-                                      startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                                    }}
-                                  />
-                                </TableCell>
-                                <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
-                                <TableCell>
-                                  <Grid2 container spacing={1} alignItems="center">
-                                    <Grid2 size={{ xs: 6 }}>
-                                      <TextField
-                                        size="small"
-                                        type="number"
-                                        value={item.discountPercentage || 0}
-                                        onChange={(e) => handleItemDiscountChange(index, 'percentage', parseFloat(e.target.value) || 0)}
-                                        InputProps={{
-                                          endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                                        }}
-                                      />
-                                    </Grid2>
-                                    <Grid2 size={{ xs: 6 }}>
-                                      <TextField
-                                        size="small"
-                                        type="number"
-                                        value={item.discountAmount || 0}
-                                        onChange={(e) => handleItemDiscountChange(index, 'amount', parseFloat(e.target.value) || 0)}
-                                        InputProps={{
-                                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                                        }}
-                                      />
-                                    </Grid2>
-                                  </Grid2>
-                                </TableCell>
-                                <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
-                                <TableCell>
-                                  <IconButton size="small" onClick={() => handleRemoveItem(index)}>
-                                    <DeleteOutline fontSize="small" />
-                                  </IconButton>
+                                <TableCell align="right" colSpan={2}>
+                                  <Typography variant="subtitle2">{formatCurrency(purchase.subtotal)}</Typography>
                                 </TableCell>
                               </TableRow>
                             )}
-                          </Draggable>
-                        );
-                      })}
-                      {provided.placeholder}
-                    </TableBody>
-                  )}
-                </Droppable>
-              </Table>
-            </TableContainer>
-          </DragDropContext>
-        ) : (
-          <Alert severity="info">No items added yet. Use the "Add Items" button to add inventory items to this purchase.</Alert>
-        )}
-      </Paper>
+                          </TableBody>
+                        )}
+                      </Droppable>
+                    </Table>
+                  </TableContainer>
+                </DragDropContext>
+              ) : (
+                <Box sx={{ py: 6, textAlign: 'center' }}>
+                  <Badge
+                    badgeContent="0"
+                    color="error"
+                    sx={{ '& .MuiBadge-badge': { fontSize: 18, height: 30, width: 30, borderRadius: '50%' } }}
+                  >
+                    <Inventory sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+                  </Badge>
+                  <Typography variant="body1" color="text.secondary" gutterBottom>
+                    No items added to this purchase yet
+                  </Typography>
+                  <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 2 }}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<BusinessCenter />}
+                      onClick={() => setAssetSelectDialogOpen(true)}
+                    >
+                      Add Assets
+                    </Button>
+                    <Button
+                      variant="contained"
+                      startIcon={<Add />}
+                      onClick={() => setItemSelectDialogOpen(true)}
+                    >
+                      Add Items
+                    </Button>
+                  </Stack>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Payment Details</Typography>
-        <Divider sx={{ mb: 2 }} />
+          {/* Payment Details Card */}
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Payment sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Payment Details</Typography>
+              </Box>
+              <Divider sx={{ mb: 3 }} />
 
-        <Grid2 container spacing={2}>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Payment Method</InputLabel>
-              <Select
-                name="paymentMethod"
-                value={purchase.paymentMethod}
-                label="Payment Method"
-                onChange={handleSelectChange}
-                disabled={createPurchase.isPending || updatePurchase.isPending}
-              >
-                <MenuItem value="cash">Cash</MenuItem>
-                <MenuItem value="credit">Credit Card</MenuItem>
-                <MenuItem value="debit">Debit Card</MenuItem>
-                <MenuItem value="check">Check</MenuItem>
-                <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-                <MenuItem value="other">Other</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Status</InputLabel>
-              <Select
-                name="status"
-                value={purchase.status}
-                label="Status"
-                onChange={handleSelectChange}
-                disabled={createPurchase.isPending || updatePurchase.isPending}
-              >
-                <MenuItem value="pending">Pending</MenuItem>
-                <MenuItem value="received">Received</MenuItem>
-                <MenuItem value="partially_received">Partially Received</MenuItem>
-                <MenuItem value="cancelled">Cancelled</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid2>
-          <Grid2 size={{ xs: 12 }}>
-            <TextField
-              fullWidth
-              label="Notes"
-              name="notes"
-              value={purchase.notes || ''}
-              onChange={(e) => handleTextChange('notes', e.target.value)}
-              margin="normal"
-              multiline
-              rows={3}
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            />
-          </Grid2>
+              <Grid2 container spacing={3}>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Payment Method</InputLabel>
+                    <Select
+                      name="paymentMethod"
+                      value={purchase.paymentMethod}
+                      label="Payment Method"
+                      onChange={handleSelectChange}
+                      disabled={createPurchase.isPending || updatePurchase.isPending}
+                    >
+                      <MenuItem value="cash">Cash</MenuItem>
+                      <MenuItem value="credit">Credit Card</MenuItem>
+                      <MenuItem value="debit">Debit Card</MenuItem>
+                      <MenuItem value="check">Check</MenuItem>
+                      <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+                      <MenuItem value="other">Other</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      name="status"
+                      value={purchase.status}
+                      label="Status"
+                      onChange={handleSelectChange}
+                      disabled={createPurchase.isPending || updatePurchase.isPending}
+                    >
+                      <MenuItem value="pending">Pending</MenuItem>
+                      <MenuItem value="received">Received</MenuItem>
+                      <MenuItem value="partially_received">Partially Received</MenuItem>
+                      <MenuItem value="cancelled">Cancelled</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid2>
+                <Grid2 size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <NoteAdd sx={{ mr: 1, fontSize: 'small', color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">Notes</Typography>
+                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Notes"
+                    name="notes"
+                    value={purchase.notes || ''}
+                    onChange={(e) => handleTextChange('notes', e.target.value)}
+                    multiline
+                    rows={3}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    placeholder="Additional notes about this purchase"
+                  />
+                </Grid2>
+              </Grid2>
+            </CardContent>
+          </Card>
         </Grid2>
-      </Paper>
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Purchase Summary</Typography>
-        <Divider sx={{ mb: 2 }} />
+        {/* Right column - Purchase Summary */}
+        <Grid2 size={{ xs: 12, lg: 4 }}>
+          <Card sx={{ position: 'sticky', top: 16 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <AttachMoney sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Purchase Summary</Typography>
+              </Box>
+              <Divider sx={{ mb: 3 }} />
 
-        <Grid2 container spacing={2}>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Subtotal"
-              value={purchase.subtotal}
-              disabled
-              margin="normal"
-              InputProps={{
-                readOnly: true,
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              }}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Discount Amount"
-              type="number"
-              name="discountAmount"
-              value={purchase.discountAmount || 0}
-              onChange={(e) => handleTextChange('discountAmount', parseFloat(e.target.value) || 0)}
-              margin="normal"
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-              InputProps={{
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              }}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Tax Rate (%)"
-              type="number"
-              name="taxRate"
-              value={purchase.taxRate || 0}
-              onChange={(e) => handleTextChange('taxRate', parseFloat(e.target.value) || 0)}
-              margin="normal"
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Tax Amount"
-              value={purchase.taxAmount || 0}
-              disabled
-              margin="normal"
-              InputProps={{
-                readOnly: true,
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              }}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Shipping Cost"
-              type="number"
-              name="shippingCost"
-              value={purchase.shippingCost || 0}
-              onChange={(e) => handleTextChange('shippingCost', parseFloat(e.target.value) || 0)}
-              margin="normal"
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-              InputProps={{
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              }}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Total"
-              value={purchase.total}
-              disabled
-              margin="normal"
-              InputProps={{
-                readOnly: true,
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              }}
-            />
-          </Grid2>
+              <Grid2 container spacing={2} sx={{ mb: 2 }}>
+                <Grid2 size={{ xs: 6 }}>
+                  <Typography variant="body2" color="text.secondary">Subtotal</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 6 }}>
+                  <Typography variant="body1" align="right">{formatCurrency(purchase.subtotal)}</Typography>
+                </Grid2>
+
+                <Grid2 size={{ xs: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">Discount</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 6 }}>
+                  <TextField
+                    size="small"
+                    type="number"
+                    name="discountAmount"
+                    value={purchase.discountAmount || 0}
+                    onChange={(e) => handleTextChange('discountAmount', parseFloat(e.target.value) || 0)}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                      inputProps: { min: 0, step: 0.01 }
+                    }}
+                    sx={{ width: '100%' }}
+                  />
+                </Grid2>
+
+                <Grid2 size={{ xs: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">Tax Rate</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 6 }}>
+                  <TextField
+                    size="small"
+                    type="number"
+                    name="taxRate"
+                    value={purchase.taxRate || 0}
+                    onChange={(e) => handleTextChange('taxRate', parseFloat(e.target.value) || 0)}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                      inputProps: { min: 0, max: 100, step: 0.1 }
+                    }}
+                    sx={{ width: '100%' }}
+                  />
+                </Grid2>
+
+                <Grid2 size={{ xs: 6 }}>
+                  <Typography variant="body2" color="text.secondary">Tax Amount</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 6 }}>
+                  <Typography variant="body1" align="right">{formatCurrency(purchase.taxAmount || 0)}</Typography>
+                </Grid2>
+
+                <Grid2 size={{ xs: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">Shipping</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 6 }}>
+                  <TextField
+                    size="small"
+                    type="number"
+                    name="shippingCost"
+                    value={purchase.shippingCost || 0}
+                    onChange={(e) => handleTextChange('shippingCost', parseFloat(e.target.value) || 0)}
+                    disabled={createPurchase.isPending || updatePurchase.isPending}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                      inputProps: { min: 0, step: 0.01 }
+                    }}
+                    sx={{ width: '100%' }}
+                  />
+                </Grid2>
+              </Grid2>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Grid2 container spacing={2} sx={{ mb: 3 }}>
+                <Grid2 size={{ xs: 6 }}>
+                  <Typography variant="h6">Total</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 6 }}>
+                  <Typography variant="h6" align="right" color="primary">{formatCurrency(purchase.total)}</Typography>
+                </Grid2>
+              </Grid2>
+
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                size="large"
+                startIcon={<Save />}
+                onClick={handleSave}
+                disabled={createPurchase.isPending || updatePurchase.isPending || purchase.items.length === 0}
+              >
+                {createPurchase.isPending || updatePurchase.isPending
+                  ? 'Saving...'
+                  : isEditMode ? 'Update Purchase' : 'Save Purchase'}
+              </Button>
+
+              {purchase.items.length === 0 && (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  Add at least one item to save this purchase.
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
         </Grid2>
-      </Paper>
-
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<Save />}
-          onClick={handleSave}
-          disabled={createPurchase.isPending || updatePurchase.isPending}
-          size="large"
-        >
-          {createPurchase.isPending || updatePurchase.isPending ? 'Saving...' : isEditMode ? 'Update Purchase' : 'Save Purchase'}
-        </Button>
-      </Box>
+      </Grid2>
 
       {/* Item Selection Dialog */}
-      <Dialog open={itemSelectDialogOpen} onClose={() => setItemSelectDialogOpen(false)} maxWidth="md" fullWidth>
+      <Dialog
+        open={itemSelectDialogOpen}
+        onClose={() => setItemSelectDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">Select Items</Typography>
-            <Box>
-              <Button
-                startIcon={<AddCircle />}
-                color="primary"
-                onClick={() => {
-                  setCreateItemDialogOpen(true);
-                }}
-              >
-                Create New Item
-              </Button>
-            </Box>
+            <Button
+              startIcon={<AddCircle />}
+              color="primary"
+              onClick={() => {
+                setCreateItemDialogOpen(true);
+              }}
+            >
+              Create New Item
+            </Button>
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <TextField
+            fullWidth
+            label="Search Items"
+            value={itemSearchQuery}
+            onChange={(e) => setItemSearchQuery(e.target.value)}
+            margin="normal"
+            placeholder="Search by name, SKU, or category"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search />
+                </InputAdornment>
+              )
+            }}
+          />
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, mt: 1 }}>
             Select one or more items to add to your purchase. Click the add button when done.
           </Typography>
-          <List>
-            {items.map((item) => (
-              <ListItemButton
-                key={item._id}
-                onClick={() => handleItemSelectionToggle(item)}
-                divider
-                selected={isItemSelected(item)}
-              >
-                <ListItemIcon>
-                  <Checkbox
-                    edge="start"
-                    checked={isItemSelected(item)}
-                    tabIndex={-1}
-                    disableRipple
-                    onClick={(e) => e.stopPropagation()}
+
+          {filteredItems.length > 0 ? (
+            <List sx={{ maxHeight: '400px', overflow: 'auto' }}>
+              {filteredItems.map((item) => (
+                <ListItemButton
+                  key={item._id}
+                  onClick={() => handleItemSelectionToggle(item)}
+                  divider
+                  selected={isItemSelected(item)}
+                >
+                  <ListItemIcon>
+                    <Checkbox
+                      edge="start"
+                      checked={isItemSelected(item)}
+                      tabIndex={-1}
+                      disableRipple
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </ListItemIcon>
+                  <ListItemAvatar>
+                    <Avatar variant="rounded">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <ImageIcon />
+                      )}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body1">{item.name}</Typography>
+                        {item.itemType === 'material' && (
+                          <Chip size="small" label="Material" variant="outlined" color="secondary" />
+                        )}
+                      </Box>
+                    }
+                    secondary={`SKU: ${item.sku} | Price: ${formatCurrency(item.price)} | ${item.trackingType === 'quantity' ? `${item.quantity} in stock` : `${item.weight} ${item.weightUnit} in stock`}`}
                   />
-                </ListItemIcon>
-                <ListItemAvatar>
-                  <Avatar variant="rounded">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <ImageIcon />
-                    )}
-                  </Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={item.name}
-                  secondary={`SKU: ${item.sku} | Price: ${formatCurrency(item.price)} | ${item.trackingType === 'quantity' ? `${item.quantity} in stock` : `${item.weight} ${item.weightUnit} in stock`}`}
-                />
-              </ListItemButton>
-            ))}
-          </List>
+                </ListItemButton>
+              ))}
+            </List>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="body1" color="text.secondary">
+                {itemSearchQuery
+                  ? 'No items found matching your search. Try different keywords or create a new item.'
+                  : 'No items available. Add some items to your inventory first.'}
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Typography variant="body2" sx={{ flexGrow: 1, ml: 2 }}>
             {selectedItems.length} item(s) selected
           </Typography>
-          <Button onClick={() => setItemSelectDialogOpen(false)} color="primary">
+          <Button onClick={() => setItemSelectDialogOpen(false)} color="inherit">
             Cancel
           </Button>
           <Button
@@ -1291,7 +1467,7 @@ export default function PurchaseForm() {
         </DialogActions>
       </Dialog>
 
-      {/* Create New Item Dialog - updated */}
+      {/* Create New Item Dialog */}
       <Dialog
         open={createItemDialogOpen}
         onClose={() => setCreateItemDialogOpen(false)}
@@ -1300,7 +1476,7 @@ export default function PurchaseForm() {
       >
         <DialogTitle>Create New Item</DialogTitle>
         <DialogContent>
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert severity="info" sx={{ mb: 3, mt: 1 }}>
             Creating a new item will add it to your inventory.
             You'll be able to add it to your purchase after creation.
           </Alert>
@@ -1552,85 +1728,15 @@ export default function PurchaseForm() {
         </DialogActions>
       </Dialog>
 
-      {/* Asset Selection Dialog */}
-      <Dialog open={assetSelectDialogOpen} onClose={() => setAssetSelectDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Select Assets</Typography>
-            <Box>
-              <Button
-                startIcon={<AddCircle />}
-                color="primary"
-                onClick={() => {
-                  setCreateAssetDialogOpen(true);
-                }}
-              >
-                Create New Asset
-              </Button>
-            </Box>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Select one or more business assets to add to your purchase.
-          </Typography>
-          {assets.length > 0 ? (
-            <List>
-              {assets.map((asset) => (
-                <ListItemButton
-                  key={asset._id}
-                  onClick={() => handleAssetSelectionToggle(asset)}
-                  divider
-                  selected={isAssetSelected(asset)}
-                >
-                  <ListItemIcon>
-                    <Checkbox
-                      edge="start"
-                      checked={isAssetSelected(asset)}
-                      tabIndex={-1}
-                      disableRipple
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </ListItemIcon>
-                  <ListItemAvatar>
-                    <Avatar variant="rounded">
-                      {asset.imageUrl ? (
-                        <img src={asset.imageUrl} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <BusinessCenter />
-                      )}
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={asset.name}
-                    secondary={`Category: ${asset.category} | Value: ${formatCurrency(asset.currentValue)}`}
-                  />
-                </ListItemButton>
-              ))}
-            </List>
-          ) : (
-            <Alert severity="info">
-              No assets found. Create some assets first or click "Create New Asset" to add one now.
-            </Alert>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Typography variant="body2" sx={{ flexGrow: 1, ml: 2 }}>
-            {selectedAssets.length} asset(s) selected
-          </Typography>
-          <Button onClick={() => setAssetSelectDialogOpen(false)} color="primary">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleAddSelectedAssets}
-            color="primary"
-            variant="contained"
-            disabled={selectedAssets.length === 0}
-          >
-            Add Selected Assets
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Use the existing AssetSelectDialog component */}
+      <AssetSelectDialog
+        open={assetSelectDialogOpen}
+        onClose={() => setAssetSelectDialogOpen(false)}
+        onAssetsSelected={handleAddSelectedAssets}
+        multiSelect={true}
+        title="Select Assets for Purchase"
+        showCreateOption={true}
+      />
 
       {/* Create New Asset Dialog */}
       <Dialog
@@ -1759,7 +1865,6 @@ export default function PurchaseForm() {
           </Button>
         </DialogActions>
       </Dialog>
-
     </Box>
   );
 }

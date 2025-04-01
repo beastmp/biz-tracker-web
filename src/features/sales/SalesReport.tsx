@@ -1,79 +1,58 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import {
   Box,
-  Paper,
   Typography,
-  Grid2,
+  Paper,
+  Grid,
   Card,
   CardContent,
+  Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   TextField,
   Button,
-  Divider,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Alert,
-  Tabs,
-  Tab,
   IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  SelectChangeEvent,
-  Tooltip
+  Tooltip,
+  Stack,
+  useTheme,
+  Tab,
+  Tabs,
+  alpha,
+  SelectChangeEvent
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
-  ArrowBack,
-  BarChart,
-  ShowChart,
-  DateRange,
-  Search,
-  GetApp,
-  FilterList,
-  PieChart,
+  Print as PrintIcon,
+  FileDownload as FileDownloadIcon,
+  Refresh as RefreshIcon,
   TrendingUp,
+  AttachMoney,
+  ShoppingBasket,
+  LocalShipping,
+  CalendarToday,
+  ShowChart,
+  TableChart,
   Person,
-  Scale,
-  Straighten,
-  SquareFoot,
-  LocalDrink,
-  Inventory,
-  TrendingDown,
-  Print,
-  CompareArrows,
-  Category,
-  Domain
+  Inventory
 } from '@mui/icons-material';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  BarChart as RechartBarChart,
-  Bar,
-  PieChart as RechartPieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import { SaleItem, TrackingType } from '@custTypes/models';
-import { useSalesReport, useSalesTrend } from '@hooks/useSales';
-import { formatCurrency, formatDate, formatUnit } from '@utils/formatters';
+import { useSalesReport } from '@hooks/useSales';
+import { formatCurrency, formatDate } from '@utils/formatters';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector } from 'recharts';
 import LoadingScreen from '@components/ui/LoadingScreen';
-import StatusChip from '@components/ui/StatusChip';
+import ErrorFallback from '@components/ui/ErrorFallback';
 
-// Chart colors
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-// Tab panel for report sections
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -87,1422 +66,643 @@ function TabPanel(props: TabPanelProps) {
     <div
       role="tabpanel"
       hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
+      id={`report-tabpanel-${index}`}
+      aria-labelledby={`report-tab-${index}`}
       {...other}
-      style={{ paddingTop: 20 }}
     >
-      {value === index && children}
+      {value === index && (
+        <Box sx={{ py: 3 }}>
+          {children}
+        </Box>
+      )}
     </div>
   );
 }
 
 export default function SalesReport() {
-  const [startDate, setStartDate] = useState<string>(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    return date.toISOString().split('T')[0];
-  });
-
-  const [endDate, setEndDate] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
-  });
-
-  const [shouldFetch, setShouldFetch] = useState(false);
+  const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
-  const [customerFilter, setCustomerFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [compareMode, setCompareMode] = useState<boolean>(false);
-  const [compareStartDate, setCompareStartDate] = useState<string>(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 60);
-    return date.toISOString().split('T')[0];
+  const [period, setPeriod] = useState('month');
+  const [startDate, setStartDate] = useState<Date | null>(
+    new Date(new Date().setMonth(new Date().getMonth() - 1))
+  );
+  const [endDate, setEndDate] = useState<Date | null>(new Date());
+
+  const { data, isLoading, error, refetch } = useSalesReport({
+    startDate: startDate?.toISOString() || '',
+    endDate: endDate?.toISOString() || '',
+    period
   });
-  const [compareEndDate, setCompareEndDate] = useState<string>(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 31);
-    return date.toISOString().split('T')[0];
-  });
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [itemTypeFilter, setItemTypeFilter] = useState<string>('all');
-  const [measurementTypeFilter, setMeasurementTypeFilter] = useState<string>('all');
-
-  // Get report data
-  const { data: reportData, isLoading, error } = useSalesReport(
-    shouldFetch ? startDate : undefined,
-    shouldFetch ? endDate : undefined
-  );
-
-  // We'll need to create a useSalesTrend hook in the same way as usePurchasesTrend
-  const { data: trendData, isLoading: trendLoading } = useSalesTrend(
-    shouldFetch ? startDate : undefined,
-    shouldFetch ? endDate : undefined
-  );
-
-  // Add comparison data query
-  const { data: compareData, isLoading: compareLoading } = useSalesReport(
-    compareMode ? compareStartDate : undefined,
-    compareMode ? compareEndDate : undefined
-  );
-
-  // Run the report on initial load
-  useEffect(() => {
-    setShouldFetch(true);
-  }, []);
-
-  const fetchReport = () => {
-    if (!startDate || !endDate) {
-      return;
-    }
-    setShouldFetch(true);
-  };
-
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    fetchReport();
-  };
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
-  const handleCustomerFilterChange = (event: SelectChangeEvent) => {
-    setCustomerFilter(event.target.value);
-  };
+  const handlePeriodChange = (event: SelectChangeEvent) => {
+    const newPeriod = event.target.value;
+    setPeriod(newPeriod);
 
-  const handleStatusFilterChange = (event: SelectChangeEvent) => {
-    setStatusFilter(event.target.value);
-  };
+    // Auto-adjust date range based on period
+    const now = new Date();
+    let start = new Date();
 
-  const handleCategoryFilterChange = (event: SelectChangeEvent) => {
-    setCategoryFilter(event.target.value);
-  };
+    switch (newPeriod) {
+      case 'day':
+        start = new Date(now.setDate(now.getDate() - 30)); // Last 30 days
+        break;
+      case 'week':
+        start = new Date(now.setDate(now.getDate() - 90)); // Last ~12 weeks
+        break;
+      case 'month':
+        start = new Date(now.setMonth(now.getMonth() - 12)); // Last 12 months
+        break;
+      case 'year':
+        start = new Date(now.setFullYear(now.getFullYear() - 5)); // Last 5 years
+        break;
+      default:
+        start = new Date(now.setMonth(now.getMonth() - 1)); // Default to last month
+    }
 
-  const handleItemTypeFilterChange = (event: SelectChangeEvent) => {
-    setItemTypeFilter(event.target.value);
-  };
-
-  const handleMeasurementTypeFilterChange = (event: SelectChangeEvent) => {
-    setMeasurementTypeFilter(event.target.value);
-  };
-
-  const toggleCompareMode = () => {
-    setCompareMode(!compareMode);
+    setStartDate(start);
+    setEndDate(new Date());
   };
 
   const handlePrint = () => {
     window.print();
   };
 
-  // Get sales by status
-  const getStatusStats = () => {
-    if (!reportData?.sales || reportData.sales.length === 0) return [];
+  const exportToCSV = () => {
+    if (!data || !data.salesByPeriod) return;
 
-    const statusCounts: Record<string, number> = {};
-    reportData.sales.forEach(sale => {
-      const status = sale.status || 'unknown';
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
-    });
+    // Convert data to CSV
+    const header = ['Period', 'Orders', 'Total Sales'];
+    const rows = data.salesByPeriod.map(item => [
+      item.period,
+      item.count,
+      item.total.toFixed(2)
+    ]);
 
-    return Object.entries(statusCounts).map(([status, count]) => ({
-      name: status,
-      value: count,
-      percentage: (count / reportData.sales.length) * 100
-    }));
-  };
+    const csvContent = [
+      header.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
 
-  // Get sales by payment method
-  const getPaymentMethodStats = () => {
-    if (!reportData?.sales || reportData.sales.length === 0) return [];
-
-    const methodCounts: Record<string, number> = {};
-    reportData.sales.forEach(sale => {
-      const method = sale.paymentMethod;
-      methodCounts[method] = (methodCounts[method] || 0) + 1;
-    });
-
-    return Object.entries(methodCounts).map(([method, count]) => ({
-      name: method,
-      value: count,
-      percentage: (count / reportData.sales.length) * 100
-    }));
-  };
-
-  // Get customer data
-  const getCustomerData = () => {
-    if (!reportData?.sales) return [];
-
-    const customerCounts: Record<string, { count: number, total: number }> = {};
-    reportData.sales.forEach(sale => {
-      const customerName = sale.customerName || 'Walk-in Customer';
-      if (!customerCounts[customerName]) {
-        customerCounts[customerName] = { count: 0, total: 0 };
-      }
-      customerCounts[customerName].count++;
-      customerCounts[customerName].total += sale.total;
-    });
-
-    return Object.entries(customerCounts)
-      .map(([name, { count, total }]) => ({
-        name,
-        count,
-        total,
-        percentage: (count / reportData.sales.length) * 100
-      }))
-      .sort((a, b) => b.total - a.total);
-  };
-
-  // Get item statistics
-  const getItemStats = () => {
-    if (!reportData?.sales) return [];
-
-    const itemCounts: Record<string, { count: number, total: number }> = {};
-
-    reportData.sales.forEach(sale => {
-      sale.items.forEach(item => {
-        const itemName = typeof item.item === 'object' ? item.item.name : 'Unknown Item';
-        if (!itemCounts[itemName]) {
-          itemCounts[itemName] = { count: 0, total: 0 };
-        }
-        itemCounts[itemName].count++;
-
-        // Calculate the item total based on its measurement type
-        let itemTotal = 0;
-        if (item.soldBy === 'quantity') {
-          itemTotal = item.priceAtSale * item.quantity;
-        } else if (item.soldBy === 'weight') {
-          itemTotal = item.priceAtSale * item.weight;
-        } else if (item.soldBy === 'length') {
-          itemTotal = item.priceAtSale * item.length;
-        } else if (item.soldBy === 'area') {
-          itemTotal = item.priceAtSale * item.area;
-        } else if (item.soldBy === 'volume') {
-          itemTotal = item.priceAtSale * item.volume;
-        }
-
-        itemCounts[itemName].total += itemTotal;
-      });
-    });
-
-    return Object.entries(itemCounts)
-      .map(([name, { count, total }]) => ({
-        name,
-        count,
-        total
-      }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 10); // Top 10 items
-  };
-
-  // Get measurement type data
-  const getMeasurementTypeData = () => {
-    if (!reportData?.sales || reportData.sales.length === 0) return [];
-
-    const measurementCounts: Record<string, { count: number, total: number }> = {
-      'quantity': { count: 0, total: 0 },
-      'weight': { count: 0, total: 0 },
-      'length': { count: 0, total: 0 },
-      'area': { count: 0, total: 0 },
-      'volume': { count: 0, total: 0 }
-    };
-
-    reportData.sales.forEach(sale => {
-      if (!sale.items) return;
-
-      sale.items.forEach(item => {
-        const soldBy = item.soldBy || 'quantity';
-
-        if (!measurementCounts[soldBy]) {
-          measurementCounts[soldBy] = { count: 0, total: 0 };
-        }
-
-        measurementCounts[soldBy].count++;
-
-        // Calculate the item total based on its measurement type
-        let itemTotal = 0;
-        if (soldBy === 'quantity') {
-          itemTotal = (item.priceAtSale || 0) * (item.quantity || 0);
-        } else if (soldBy === 'weight') {
-          itemTotal = (item.priceAtSale || 0) * (item.weight || 0);
-        } else if (soldBy === 'length') {
-          itemTotal = (item.priceAtSale || 0) * (item.length || 0);
-        } else if (soldBy === 'area') {
-          itemTotal = (item.priceAtSale || 0) * (item.area || 0);
-        } else if (soldBy === 'volume') {
-          itemTotal = (item.priceAtSale || 0) * (item.volume || 0);
-        }
-
-        measurementCounts[soldBy].total += itemTotal;
-      });
-    });
-
-    const totalSalesValue = reportData.sales.reduce((sum, s) => sum + (s.total || 0), 0);
-
-    return Object.entries(measurementCounts)
-      .filter(([, { count }]) => count > 0)
-      .map(([type, { count, total }]) => ({
-        name: type,
-        count,
-        total,
-        percentage: totalSalesValue > 0 ? (total / totalSalesValue) * 100 : 0
-      }));
-  };
-
-  // Get category data
-  const getCategoryData = () => {
-    if (!reportData?.sales) return [];
-
-    const categoryCounts: Record<string, { count: number, total: number }> = {};
-
-    reportData.sales.forEach(sale => {
-      sale.items.forEach(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        const category = itemDetails?.category || 'Uncategorized';
-
-        if (!categoryCounts[category]) {
-          categoryCounts[category] = { count: 0, total: 0 };
-        }
-
-        categoryCounts[category].count++;
-
-        // Calculate the item total based on its measurement type
-        let itemTotal = 0;
-        if (item.soldBy === 'quantity') {
-          itemTotal = item.priceAtSale * item.quantity;
-        } else if (item.soldBy === 'weight') {
-          itemTotal = item.priceAtSale * item.weight;
-        } else if (item.soldBy === 'length') {
-          itemTotal = item.priceAtSale * item.length;
-        } else if (item.soldBy === 'area') {
-          itemTotal = item.priceAtSale * item.area;
-        } else if (item.soldBy === 'volume') {
-          itemTotal = item.priceAtSale * item.volume;
-        }
-
-        categoryCounts[category].total += itemTotal;
-      });
-    });
-
-    return Object.entries(categoryCounts)
-      .map(([category, { count, total }]) => ({
-        name: category,
-        count,
-        total,
-        percentage: total / reportData.sales.reduce((sum, s) => sum + s.total, 0) * 100
-      }))
-      .sort((a, b) => b.total - a.total);
-  };
-
-  // Get item type data
-  const getItemTypeData = () => {
-    if (!reportData?.sales) return [];
-
-    const typeCounts: Record<string, { count: number, total: number }> = {};
-
-    reportData.sales.forEach(sale => {
-      sale.items.forEach(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        const itemType = itemDetails?.itemType || 'product';
-
-        if (!typeCounts[itemType]) {
-          typeCounts[itemType] = { count: 0, total: 0 };
-        }
-
-        typeCounts[itemType].count++;
-
-        // Calculate the item total based on its measurement type
-        let itemTotal = 0;
-        if (item.soldBy === 'quantity') {
-          itemTotal = item.priceAtSale * item.quantity;
-        } else if (item.soldBy === 'weight') {
-          itemTotal = item.priceAtSale * item.weight;
-        } else if (item.soldBy === 'length') {
-          itemTotal = item.priceAtSale * item.length;
-        } else if (item.soldBy === 'area') {
-          itemTotal = item.priceAtSale * item.area;
-        } else if (item.soldBy === 'volume') {
-          itemTotal = item.priceAtSale * item.volume;
-        }
-
-        typeCounts[itemType].total += itemTotal;
-      });
-    });
-
-    return Object.entries(typeCounts)
-      .map(([type, { count, total }]) => ({
-        name: type,
-        count,
-        total,
-        percentage: total / reportData.sales.reduce((sum, s) => sum + s.total, 0) * 100
-      }));
-  };
-
-  // Filter sales based on filters
-  const filteredSales = useMemo(() => {
-    if (!reportData?.sales) return [];
-
-    return reportData.sales.filter(sale => {
-      const customerMatch = customerFilter === 'all' ||
-        (sale.customerName && sale.customerName === customerFilter);
-      const statusMatch = statusFilter === 'all' ||
-        sale.status === statusFilter;
-      const categoryMatch = categoryFilter === 'all' || sale.items.some(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        return itemDetails?.category === categoryFilter;
-      });
-      const itemTypeMatch = itemTypeFilter === 'all' || sale.items.some(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        return itemDetails?.itemType === itemTypeFilter;
-      });
-      const measurementTypeMatch = measurementTypeFilter === 'all' || sale.items.some(item => {
-        return item.soldBy === measurementTypeFilter;
-      });
-
-      return customerMatch && statusMatch && categoryMatch && itemTypeMatch && measurementTypeMatch;
-    });
-  }, [reportData, customerFilter, statusFilter, categoryFilter, itemTypeFilter, measurementTypeFilter]);
-
-  // Get all customer names for the filter
-  const customerNames = useMemo(() => {
-    if (!reportData?.sales) return [];
-
-    const customers = new Set<string>();
-    reportData.sales.forEach(sale => {
-      if (sale.customerName) {
-        customers.add(sale.customerName);
-      }
-    });
-
-    return Array.from(customers).sort();
-  }, [reportData]);
-
-  // Get all categories for filtering
-  const categoryNames = useMemo(() => {
-    if (!reportData?.sales) return [];
-
-    const categories = new Set<string>();
-    reportData.sales.forEach(sale => {
-      sale.items.forEach(item => {
-        const itemDetails = typeof item.item === 'object' ? item.item : null;
-        if (itemDetails?.category) {
-          categories.add(itemDetails.category);
-        }
-      });
-    });
-
-    return Array.from(categories).sort();
-  }, [reportData]);
-
-  // Get measurement icon based on type
-  const getMeasurementIcon = (trackingType: string) => {
-    switch (trackingType) {
-      case 'quantity': return <Inventory fontSize="small" />;
-      case 'weight': return <Scale fontSize="small" />;
-      case 'length': return <Straighten fontSize="small" />;
-      case 'area': return <SquareFoot fontSize="small" />;
-      case 'volume': return <LocalDrink fontSize="small" />;
-      default: return <Inventory fontSize="small" />;
-    }
-  };
-
-  // Format measurement value with unit
-  const formatMeasurement = (item: SaleItem) => {
-    if (!item) return '';
-
-    const unit = (type: TrackingType, unitValue: string | undefined) => {
-      return formatUnit(unitValue || '') || {
-        weight: 'lb',
-        length: 'in',
-        area: 'sqft',
-        volume: 'l',
-        quantity: 'units'
-      }[type] || '';
-    };
-
-    switch (item.soldBy) {
-      case 'weight':
-        return `${item.weight} ${unit('weight', item.weightUnit)}`;
-      case 'length':
-        return `${item.length} ${unit('length', item.lengthUnit)}`;
-      case 'area':
-        return `${item.area} ${unit('area', item.areaUnit)}`;
-      case 'volume':
-        return `${item.volume} ${unit('volume', item.volumeUnit)}`;
-      default: // quantity
-        return `${item.quantity} units`;
-    }
-  };
-
-  // Calculate comparison metrics
-  const comparisonMetrics = useMemo(() => {
-    if (!compareMode || !reportData || !compareData) {
-      return null;
-    }
-
-    const currentTotal = reportData.totalRevenue || 0;
-    const previousTotal = compareData.totalRevenue || 0;
-    const totalDiff = currentTotal - previousTotal;
-    const totalPercentChange = previousTotal > 0 ? (totalDiff / previousTotal) * 100 : 0;
-
-    const currentCount = reportData.totalSales || 0;
-    const previousCount = compareData.totalSales || 0;
-    const countDiff = currentCount - previousCount;
-    const countPercentChange = previousCount > 0 ? (countDiff / previousCount) * 100 : 0;
-
-    const currentAvg = reportData.averageOrderValue || 0;
-    const previousAvg = compareData.averageOrderValue || 0;
-    const avgDiff = currentAvg - previousAvg;
-    const avgPercentChange = previousAvg > 0 ? (avgDiff / previousAvg) * 100 : 0;
-
-    return {
-      totalDiff,
-      totalPercentChange,
-      countDiff,
-      countPercentChange,
-      avgDiff,
-      avgPercentChange
-    };
-  }, [compareMode, reportData, compareData]);
-
-  // Export report to CSV
-  const exportReportCSV = () => {
-    if (!reportData) return;
-
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Date,Customer,Items,Total,Status,Payment Method\n";
-
-    filteredSales.forEach(sale => {
-      csvContent += `${sale.createdAt ? formatDate(sale.createdAt) : ''},`;
-      csvContent += `"${sale.customerName || 'Walk-in Customer'}",`;
-      csvContent += `${sale.items.length},`;
-      csvContent += `${sale.total},`;
-      csvContent += `${sale.status},`;
-      csvContent += `${sale.paymentMethod}\n`;
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `sales_report_${startDate}_to_${endDate}.csv`);
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `sales-report-${formatDate(new Date())}.csv`);
+    link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  if (isLoading || trendLoading || (compareMode && compareLoading)) {
-    return <LoadingScreen />;
+  const topProducts = useMemo(() => {
+    if (!data || !data.topProducts) return [];
+    return [...data.topProducts].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 5);
+  }, [data]);
+
+  const topCustomers = useMemo(() => {
+    if (!data || !data.topCustomers) return [];
+    return [...data.topCustomers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 5);
+  }, [data]);
+
+  if (isLoading) {
+    return <LoadingScreen message="Generating report..." />;
+  }
+
+  if (error) {
+    return <ErrorFallback error={error as Error} message="Failed to generate sales report" />;
   }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
+    <Box className="fade-in">
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
           Sales Reports
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBack />}
-          component={RouterLink}
-          to="/sales"
-        >
-          Back to Sales
-        </Button>
+        <Typography color="text.secondary" variant="subtitle1">
+          Analyze your sales performance and trends
+        </Typography>
       </Box>
 
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Grid2 container spacing={3} alignItems="center" component="form" onSubmit={handleSubmit}>
-          <Grid2 size={{ xs: 12, sm: compareMode ? 3 : 4 }}>
-            <TextField
-              fullWidth
-              label={compareMode ? "Current Period Start" : "Start Date"}
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, sm: compareMode ? 3 : 4 }}>
-            <TextField
-              fullWidth
-              label={compareMode ? "Current Period End" : "End Date"}
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid2>
-          {compareMode && (
-            <>
-              <Grid2 size={{ xs: 12, sm: 3 }}>
-                <TextField
-                  fullWidth
-                  label="Previous Period Start"
-                  type="date"
-                  value={compareStartDate}
-                  onChange={(e) => setCompareStartDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 3 }}>
-                <TextField
-                  fullWidth
-                  label="Previous Period End"
-                  type="date"
-                  value={compareEndDate}
-                  onChange={(e) => setCompareEndDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid2>
-            </>
-          )}
-          <Grid2 size={{ xs: 12, sm: compareMode ? 12 : 4 }} sx={{ display: 'flex', mt: compareMode ? 2 : 0, gap: 2 }}>
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              startIcon={<Search />}
-              onClick={fetchReport}
-              type="submit"
-              disabled={!startDate || !endDate || (compareMode && (!compareStartDate || !compareEndDate))}
-            >
-              Generate Report
-            </Button>
-            <Tooltip title="Toggle Comparison Mode">
-              <Button
-                variant="outlined"
-                color={compareMode ? "primary" : "inherit"}
-                onClick={toggleCompareMode}
-              >
-                <CompareArrows />
-              </Button>
-            </Tooltip>
-            <Tooltip title="Print Report">
-              <Button
-                variant="outlined"
-                onClick={handlePrint}
-              >
-                <Print />
-              </Button>
-            </Tooltip>
-          </Grid2>
-        </Grid2>
+      {/* Filters and Actions */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 4,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { xs: 'stretch', md: 'center' },
+          gap: 2,
+          borderRadius: 2,
+          boxShadow: theme.shadows[2]
+        }}
+      >
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Start Date"
+            value={startDate}
+            onChange={(newValue) => setStartDate(newValue)}
+            slotProps={{
+              textField: {
+                size: 'small',
+                fullWidth: true,
+                sx: { minWidth: 130 }
+              }
+            }}
+          />
+        </LocalizationProvider>
 
-        {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            Error loading report data. Please try again.
-          </Alert>
-        )}
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="End Date"
+            value={endDate}
+            onChange={(newValue) => setEndDate(newValue)}
+            slotProps={{
+              textField: {
+                size: 'small',
+                fullWidth: true,
+                sx: { minWidth: 130 }
+              }
+            }}
+          />
+        </LocalizationProvider>
+
+        <FormControl size="small" sx={{ minWidth: 120, flexGrow: { xs: 1, md: 0 } }}>
+          <InputLabel>Group By</InputLabel>
+          <Select
+            value={period}
+            onChange={handlePeriodChange}
+            label="Group By"
+          >
+            <MenuItem value="day">Day</MenuItem>
+            <MenuItem value="week">Week</MenuItem>
+            <MenuItem value="month">Month</MenuItem>
+            <MenuItem value="year">Year</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            marginLeft: { xs: 0, md: 'auto' },
+            mt: { xs: 1, md: 0 }
+          }}
+        >
+          <Tooltip title="Refresh Data">
+            <IconButton onClick={() => refetch()} color="primary">
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Export to CSV">
+            <IconButton onClick={exportToCSV} color="primary">
+              <FileDownloadIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Print Report">
+            <IconButton onClick={handlePrint} color="primary">
+              <PrintIcon />
+            </IconButton>
+          </Tooltip>
+        </Stack>
       </Paper>
 
-      {reportData && (
-        <>
-          <Grid2 container spacing={3} sx={{ mb: 4 }}>
-            <Grid2 size={{ xs: 12, sm: 4 }}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography color="text.secondary" gutterBottom>
-                      Total Sales
-                    </Typography>
-                    <BarChart color="primary" />
-                  </Box>
-                  <Typography variant="h3" component="div">
-                    {reportData.totalSales}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {`From ${formatDate(startDate)} to ${formatDate(endDate)}`}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid2>
-
-            <Grid2 size={{ xs: 12, sm: 4 }}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography color="text.secondary" gutterBottom>
-                      Total Revenue
-                    </Typography>
-                    <ShowChart color="success" />
-                  </Box>
-                  <Typography variant="h3" component="div">
-                    {formatCurrency(reportData.totalRevenue)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {`From ${formatDate(startDate)} to ${formatDate(endDate)}`}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid2>
-
-            <Grid2 size={{ xs: 12, sm: 4 }}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography color="text.secondary" gutterBottom>
-                      Average Order Value
-                    </Typography>
-                    <DateRange color="info" />
-                  </Box>
-                  <Typography variant="h3" component="div">
-                    {formatCurrency(reportData.averageOrderValue)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {`From ${formatDate(startDate)} to ${formatDate(endDate)}`}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid2>
-          </Grid2>
-
-          {compareMode && comparisonMetrics && (
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h5" gutterBottom>
-                Period Comparison
+      {/* Summary Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 2,
+                height: 56,
+                width: 56,
+                borderRadius: '50%',
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                color: theme.palette.primary.main,
+                mx: 'auto',
+                alignItems: 'center'
+              }}>
+                <AttachMoney fontSize="large" />
+              </Box>
+              <Typography color="text.secondary" variant="subtitle1" gutterBottom>
+                Total Sales
               </Typography>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, sm: 4 }}>
-                  <Card>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography color="text.secondary" gutterBottom>
-                          Sales Count Change
-                        </Typography>
-                        {comparisonMetrics.countPercentChange >= 0 ? (
-                          <TrendingUp color="success" />
-                        ) : (
-                          <TrendingDown color="error" />
-                        )}
-                      </Box>
-                      <Typography variant="h4" component="div">
-                        {comparisonMetrics.countDiff > 0 ? '+' : ''}{comparisonMetrics.countDiff}
-                      </Typography>
-                      <Typography variant="body2" color={comparisonMetrics.countPercentChange >= 0 ? "success.main" : "error.main"}>
-                        {comparisonMetrics.countPercentChange > 0 ? '+' : ''}
-                        {comparisonMetrics.countPercentChange.toFixed(1)}% from previous period
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid2>
+              <Typography variant="h4" component="div" fontWeight="bold" color="primary">
+                {formatCurrency(data?.summary?.totalSales || 0)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 4 }}>
-                  <Card>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography color="text.secondary" gutterBottom>
-                          Revenue Change
-                        </Typography>
-                        {comparisonMetrics.totalPercentChange >= 0 ? (
-                          <TrendingUp color="success" />
-                        ) : (
-                          <TrendingDown color="error" />
-                        )}
-                      </Box>
-                      <Typography variant="h4" component="div">
-                        {formatCurrency(comparisonMetrics.totalDiff)}
-                      </Typography>
-                      <Typography variant="body2" color={comparisonMetrics.totalPercentChange >= 0 ? "success.main" : "error.main"}>
-                        {comparisonMetrics.totalPercentChange > 0 ? '+' : ''}
-                        {comparisonMetrics.totalPercentChange.toFixed(1)}% from previous period
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid2>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 2,
+                height: 56,
+                width: 56,
+                borderRadius: '50%',
+                bgcolor: alpha(theme.palette.success.main, 0.1),
+                color: theme.palette.success.main,
+                mx: 'auto',
+                alignItems: 'center'
+              }}>
+                <ShoppingBasket fontSize="large" />
+              </Box>
+              <Typography color="text.secondary" variant="subtitle1" gutterBottom>
+                Total Orders
+              </Typography>
+              <Typography variant="h4" component="div" fontWeight="bold" color="success.main">
+                {data?.summary?.totalOrders || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 4 }}>
-                  <Card>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography color="text.secondary" gutterBottom>
-                          Average Order Change
-                        </Typography>
-                        {comparisonMetrics.avgPercentChange >= 0 ? (
-                          <TrendingUp color="success" />
-                        ) : (
-                          <TrendingDown color="error" />
-                        )}
-                      </Box>
-                      <Typography variant="h4" component="div">
-                        {formatCurrency(comparisonMetrics.avgDiff)}
-                      </Typography>
-                      <Typography variant="body2" color={comparisonMetrics.avgPercentChange >= 0 ? "success.main" : "error.main"}>
-                        {comparisonMetrics.avgPercentChange > 0 ? '+' : ''}
-                        {comparisonMetrics.avgPercentChange.toFixed(1)}% from previous period
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid2>
-              </Grid2>
-            </Box>
-          )}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 2,
+                height: 56,
+                width: 56,
+                borderRadius: '50%',
+                bgcolor: alpha(theme.palette.info.main, 0.1),
+                color: theme.palette.info.main,
+                mx: 'auto',
+                alignItems: 'center'
+              }}>
+                <TrendingUp fontSize="large" />
+              </Box>
+              <Typography color="text.secondary" variant="subtitle1" gutterBottom>
+                Average Order Value
+              </Typography>
+              <Typography variant="h4" component="div" fontWeight="bold" color="info.main">
+                {formatCurrency(data?.summary?.averageOrderValue || 0)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
-          {/* Report Tabs */}
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Tabs value={tabValue} onChange={handleTabChange} aria-label="report tabs">
-                <Tab label="Summary" />
-                <Tab label="Trends" />
-                <Tab label="Customers" />
-                <Tab label="Items" />
-                <Tab label="Categories" />
-                <Tab label="Measurement Types" />
-              </Tabs>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 2,
+                height: 56,
+                width: 56,
+                borderRadius: '50%',
+                bgcolor: alpha(theme.palette.secondary.main, 0.1),
+                color: theme.palette.secondary.main,
+                mx: 'auto',
+                alignItems: 'center'
+              }}>
+                <Inventory fontSize="large" />
+              </Box>
+              <Typography color="text.secondary" variant="subtitle1" gutterBottom>
+                Total Items Sold
+              </Typography>
+              <Typography variant="h4" component="div" fontWeight="bold" color="secondary.main">
+                {data?.summary?.totalItemsSold || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-              <Box>
-                <Tooltip title="Export to CSV">
-                  <IconButton onClick={exportReportCSV}>
-                    <GetApp />
-                  </IconButton>
-                </Tooltip>
+      {/* Sales Chart Section */}
+      <Paper sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+          <Tabs value={tabValue} onChange={handleTabChange} aria-label="sales report tabs">
+            <Tab
+              icon={<ShowChart />}
+              label="Sales Trend"
+              iconPosition="start"
+              sx={{
+                px: 3,
+                minHeight: 48,
+                textTransform: 'none',
+                fontWeight: 600,
+              }}
+            />
+            <Tab
+              icon={<TableChart />}
+              label="Sales Breakdown"
+              iconPosition="start"
+              sx={{
+                px: 3,
+                minHeight: 48,
+                textTransform: 'none',
+                fontWeight: 600,
+              }}
+            />
+          </Tabs>
+        </Box>
+
+        {/* Sales Trend Tab */}
+        <TabPanel value={tabValue} index={0}>
+          <Box sx={{ height: 400 }}>
+            {data?.salesByPeriod && data.salesByPeriod.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={data.salesByPeriod}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 30 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="period"
+                    padding={{ left: 20, right: 20 }}
+                    tick={{ fontSize: 12 }}
+                    tickMargin={10}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tickFormatter={(value) => formatCurrency(value, false)}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    allowDecimals={false}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <ChartTooltip
+                    formatter={(value: any, name: string) => {
+                      if (name === 'Revenue') return formatCurrency(value);
+                      return value;
+                    }}
+                    labelFormatter={(label) => `Period: ${label}`}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: 15 }} />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="total"
+                    name="Revenue"
+                    stroke={theme.palette.primary.main}
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 7 }}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="count"
+                    name="Orders"
+                    stroke={theme.palette.success.main}
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <Box
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: alpha(theme.palette.info.main, 0.02),
+                  borderRadius: 2
+                }}
+              >
+                <Typography color="text.secondary">
+                  No sales data available for the selected period
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </TabPanel>
+
+        {/* Sales Breakdown Tab */}
+        <TabPanel value={tabValue} index={1}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+              gap: 3
+            }}
+          >
+            <Box>
+              <Typography variant="h6" fontWeight="600" gutterBottom>
+                Sales by Status
+              </Typography>
+              <Box sx={{ height: 350, width: '100%' }}>
+                {data?.salesByStatus && data.salesByStatus.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data.salesByStatus}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="value"
+                        nameKey="name"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {data.salesByStatus.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Box
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: alpha(theme.palette.info.main, 0.02),
+                      borderRadius: 2
+                    }}
+                  >
+                    <Typography color="text.secondary">
+                      No status data available
+                    </Typography>
+                  </Box>
+                )}
               </Box>
             </Box>
-            <Divider />
 
-            {/* Summary Tab */}
-            <TabPanel value={tabValue} index={0}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Sales by Status
-                      </Typography>
-                      <PieChart color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getStatusStats()}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getStatusStats().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Sales by Payment Method
-                      </Typography>
-                      <PieChart color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getPaymentMethodStats()}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#82ca9d"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getPaymentMethodStats().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-
-            {/* Trends Tab */}
-            <TabPanel value={tabValue} index={1}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Sales Trends
-                      </Typography>
-                      <TrendingUp color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trendData || []}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis />
-                          <RechartsTooltip />
-                          <Legend />
-                          <Line type="monotone" dataKey="totalSales" stroke="#8884d8" />
-                          <Line type="monotone" dataKey="totalRevenue" stroke="#82ca9d" />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Sales Value Trends
-                      </Typography>
-                      <TrendingUp color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartBarChart data={trendData || []}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis />
-                          <RechartsTooltip />
-                          <Legend />
-                          <Bar dataKey="totalSales" fill="#8884d8" />
-                          <Bar dataKey="totalRevenue" fill="#82ca9d" />
-                        </RechartBarChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-
-            {/* Customers Tab */}
-            <TabPanel value={tabValue} index={2}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Sales by Customer
-                      </Typography>
-                      <Person color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getCustomerData()}
-                            dataKey="total"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getCustomerData().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Customer Filter
-                      </Typography>
-                      <FilterList color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <FormControl fullWidth>
-                      <InputLabel>Customer</InputLabel>
-                      <Select
-                        value={customerFilter}
-                        onChange={handleCustomerFilterChange}
-                        label="Customer"
-                      >
-                        <MenuItem value="all">All Customers</MenuItem>
-                        {customerNames.map((name) => (
-                          <MenuItem key={name} value={name}>
-                            {name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-
-            {/* Items Tab */}
-            <TabPanel value={tabValue} index={3}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Top 10 Items
-                      </Typography>
-                      <PieChart color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getItemStats()}
-                            dataKey="total"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            label={({ name, total }) => `${name} (${formatCurrency(total)})`}
-                          >
-                            {getItemStats().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Status Filter
-                      </Typography>
-                      <FilterList color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <FormControl fullWidth>
-                      <InputLabel>Status</InputLabel>
-                      <Select
-                        value={statusFilter}
-                        onChange={handleStatusFilterChange}
-                        label="Status"
-                      >
-                        <MenuItem value="all">All Statuses</MenuItem>
-                        {['completed', 'refunded', 'partially_refunded'].map((status) => (
-                          <MenuItem key={status} value={status}>
-                            {status}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-
-            {/* Categories Tab */}
-            <TabPanel value={tabValue} index={4}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Sales by Category
-                      </Typography>
-                      <Category color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getCategoryData()}
-                            dataKey="total"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getCategoryData().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Category Filter
-                      </Typography>
-                      <FilterList color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <FormControl fullWidth>
-                      <InputLabel>Category</InputLabel>
-                      <Select
-                        value={categoryFilter}
-                        onChange={handleCategoryFilterChange}
-                        label="Category"
-                      >
-                        <MenuItem value="all">All Categories</MenuItem>
-                        {categoryNames.map((name) => (
-                          <MenuItem key={name} value={name}>
-                            {name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Sales by Item Type
-                      </Typography>
-                      <Domain color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getItemTypeData()}
-                            dataKey="total"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#82ca9d"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getItemTypeData().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Item Type Filter
-                      </Typography>
-                      <FilterList color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <FormControl fullWidth>
-                      <InputLabel>Item Type</InputLabel>
-                      <Select
-                        value={itemTypeFilter}
-                        onChange={handleItemTypeFilterChange}
-                        label="Item Type"
-                      >
-                        <MenuItem value="all">All Types</MenuItem>
-                        {['material', 'product', 'both'].map((type) => (
-                          <MenuItem key={type} value={type}>
-                            {type}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-
-            {/* Measurement Types Tab */}
-            <TabPanel value={tabValue} index={5}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Sales by Measurement Type
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Scale fontSize="small" />
-                        <Straighten fontSize="small" />
-                        <Inventory fontSize="small" />
-                      </Box>
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPieChart>
-                          <Pie
-                            data={getMeasurementTypeData()}
-                            dataKey="total"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
-                          >
-                            {getMeasurementTypeData().map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartPieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 6 }}>
-                  <Paper sx={{ p: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Measurement Type Filter
-                      </Typography>
-                      <FilterList color="primary" />
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <FormControl fullWidth>
-                      <InputLabel>Measurement Type</InputLabel>
-                      <Select
-                        value={measurementTypeFilter}
-                        onChange={handleMeasurementTypeFilterChange}
-                        label="Measurement Type"
-                      >
-                        <MenuItem value="all">All Types</MenuItem>
-                        <MenuItem value="quantity">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Inventory fontSize="small" />
-                            <span>Quantity</span>
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="weight">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Scale fontSize="small" />
-                            <span>Weight</span>
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="length">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Straighten fontSize="small" />
-                            <span>Length</span>
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="area">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <SquareFoot fontSize="small" />
-                            <span>Area</span>
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="volume">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <LocalDrink fontSize="small" />
-                            <span>Volume</span>
-                          </Box>
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Paper>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12 }}>
-                  <Paper sx={{ p: 3 }}>
-                    <Typography variant="h6" gutterBottom>
-                      Items by Measurement Type
+            <Box>
+              <Typography variant="h6" fontWeight="600" gutterBottom>
+                Sales by Payment Method
+              </Typography>
+              <Box sx={{ height: 350, width: '100%' }}>
+                {data?.salesByPaymentMethod && data.salesByPaymentMethod.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={data.salesByPaymentMethod}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 50 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="name"
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        tickFormatter={(value) => formatCurrency(value, false)}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <ChartTooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Legend wrapperStyle={{ paddingTop: 15 }} />
+                      <Bar
+                        dataKey="value"
+                        name="Amount"
+                        fill={theme.palette.info.main}
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Box
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: alpha(theme.palette.info.main, 0.02),
+                      borderRadius: 2
+                    }}
+                  >
+                    <Typography color="text.secondary">
+                      No payment method data available
                     </Typography>
-                    <Divider sx={{ mb: 2 }} />
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          </Box>
+        </TabPanel>
+      </Paper>
 
-                    <TableContainer>
-                      <Table>
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Item Name</TableCell>
-                            <TableCell>Category</TableCell>
-                            <TableCell>Measurement Type</TableCell>
-                            <TableCell>Measurement</TableCell>
-                            <TableCell align="right">Unit Price</TableCell>
-                            <TableCell align="right">Total</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {filteredSales.flatMap(sale =>
-                            sale.items.map((item, idx) => {
-                              const itemDetails = typeof item.item === 'object' ? item.item : null;
-                              const soldBy = item.soldBy || 'quantity';
-                              const itemName = itemDetails?.name || 'Unknown Item';
-                              const category = itemDetails?.category || 'Uncategorized';
-
-                              // Calculate the item total based on its measurement type
-                              let itemTotal = 0;
-                              if (soldBy === 'quantity') {
-                                itemTotal = item.priceAtSale * item.quantity;
-                              } else if (soldBy === 'weight') {
-                                itemTotal = item.priceAtSale * item.weight;
-                              } else if (soldBy === 'length') {
-                                itemTotal = item.priceAtSale * item.length;
-                              } else if (soldBy === 'area') {
-                                itemTotal = item.priceAtSale * item.area;
-                              } else if (soldBy === 'volume') {
-                                itemTotal = item.priceAtSale * item.volume;
-                              }
-
-                              return (
-                                <TableRow key={`${sale._id}-${idx}`}>
-                                  <TableCell>{itemName}</TableCell>
-                                  <TableCell>{category}</TableCell>
-                                  <TableCell>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                      {getMeasurementIcon(soldBy)}
-                                      <span>{soldBy}</span>
-                                    </Box>
-                                  </TableCell>
-                                  <TableCell>{formatMeasurement(item)}</TableCell>
-                                  <TableCell align="right">{formatCurrency(item.priceAtSale)}</TableCell>
-                                  <TableCell align="right">{formatCurrency(itemTotal)}</TableCell>
-                                </TableRow>
-                              );
-                            })
-                          )}
-                          {filteredSales.length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={6} align="center">No items found with the selected filters.</TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Paper>
-                </Grid2>
-              </Grid2>
-            </TabPanel>
-          </Paper>
-
-          <Paper sx={{ p: 3, mt: 3 }}>
-            <Typography variant="h6" gutterBottom>Recent Sales</Typography>
+      {/* Detailed Stats */}
+      <Grid container spacing={3}>
+        {/* Top Products */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+              <ShoppingBasket color="primary" sx={{ mr: 1 }} />
+              <Typography variant="h6" fontWeight="600">
+                Top Selling Products
+              </Typography>
+            </Box>
             <Divider sx={{ mb: 2 }} />
 
-            <TableContainer>
-              <Table>
+            <TableContainer sx={{ maxHeight: 400 }}>
+              <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Customer</TableCell>
-                    <TableCell>Items</TableCell>
-                    <TableCell align="right">Total</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Payment</TableCell>
+                    <TableCell>Product</TableCell>
+                    <TableCell align="right">Quantity</TableCell>
+                    <TableCell align="right">Revenue</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredSales.slice(0, 10).map((sale) => (
-                    <TableRow
-                      key={sale._id}
-                      hover
-                      onClick={() => window.location.href = `/sales/${sale._id}`}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <TableCell>{sale.createdAt && formatDate(sale.createdAt)}</TableCell>
-                      <TableCell>{sale.customerName || 'Walk-in Customer'}</TableCell>
-                      <TableCell>
-                        {sale.items?.length > 0 ? (
-                          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-                            {sale.items.some(i => i.soldBy === 'quantity') && (
-                              <Tooltip title="Contains quantity items">
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <Inventory fontSize="small" color="action" />
-                                </Box>
-                              </Tooltip>
-                            )}
-                            {sale.items.some(i => i.soldBy === 'weight') && (
-                              <Tooltip title="Contains weight items">
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <Scale fontSize="small" color="action" />
-                                </Box>
-                              </Tooltip>
-                            )}
-                            {sale.items.some(i => i.soldBy === 'length') && (
-                              <Tooltip title="Contains length items">
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <Straighten fontSize="small" color="action" />
-                                </Box>
-                              </Tooltip>
-                            )}
-                            {sale.items.some(i => i.soldBy === 'area') && (
-                              <Tooltip title="Contains area items">
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <SquareFoot fontSize="small" color="action" />
-                                </Box>
-                              </Tooltip>
-                            )}
-                            {sale.items.some(i => i.soldBy === 'volume') && (
-                              <Tooltip title="Contains volume items">
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <LocalDrink fontSize="small" color="action" />
-                                </Box>
-                              </Tooltip>
-                            )}
-                            <span>{sale.items?.length || 0}</span>
-                          </Box>
-                        ) : (
-                          '0'
-                        )}
-                      </TableCell>
-                      <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
-                      <TableCell><StatusChip status={sale.status} /></TableCell>
-                      <TableCell>{sale.paymentMethod.charAt(0).toUpperCase() + sale.paymentMethod.slice(1)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {filteredSales.length === 0 && (
+                  {topProducts.length > 0 ? (
+                    topProducts.map((product, index) => (
+                      <TableRow
+                        key={index}
+                        sx={{
+                          '&:last-child td, &:last-child th': { border: 0 },
+                          bgcolor: index % 2 === 0 ? alpha(theme.palette.primary.main, 0.02) : 'transparent'
+                        }}
+                      >
+                        <TableCell component="th" scope="row">
+                          {product.name}
+                        </TableCell>
+                        <TableCell align="right">{product.quantitySold}</TableCell>
+                        <TableCell align="right">{formatCurrency(product.totalRevenue)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">No sales found in the selected date range.</TableCell>
+                      <TableCell colSpan={3} align="center">
+                        <Typography color="text.secondary" sx={{ py: 2 }}>
+                          No product data available
+                        </Typography>
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </TableContainer>
           </Paper>
-        </>
-      )}
+        </Grid>
+
+        {/* Top Customers */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+              <Person color="primary" sx={{ mr: 1 }} />
+              <Typography variant="h6" fontWeight="600">
+                Top Customers
+              </Typography>
+            </Box>
+            <Divider sx={{ mb: 2 }} />
+
+            <TableContainer sx={{ maxHeight: 400 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Customer</TableCell>
+                    <TableCell align="right">Orders</TableCell>
+                    <TableCell align="right">Total Spent</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {topCustomers.length > 0 ? (
+                    topCustomers.map((customer, index) => (
+                      <TableRow
+                        key={index}
+                        sx={{
+                          '&:last-child td, &:last-child th': { border: 0 },
+                          bgcolor: index % 2 === 0 ? alpha(theme.palette.success.main, 0.02) : 'transparent'
+                        }}
+                      >
+                        <TableCell component="th" scope="row">
+                          {customer.name || 'Anonymous Customer'}
+                        </TableCell>
+                        <TableCell align="right">{customer.orderCount}</TableCell>
+                        <TableCell align="right">{formatCurrency(customer.totalSpent)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} align="center">
+                        <Typography color="text.secondary" sx={{ py: 2 }}>
+                          No customer data available
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

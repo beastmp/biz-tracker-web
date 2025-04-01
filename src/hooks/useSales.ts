@@ -263,3 +263,36 @@ export function useSalesTrend(startDate?: string, endDate?: string) {
 
   return { data, isLoading, error };
 }
+
+/**
+ * Hook for updating the status of a sale
+ * @param id Optional sale ID to focus the update on
+ * @returns React Query mutation for updating sale status
+ */
+export const useUpdateSaleStatus = (id?: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    Sale,
+    Error,
+    { id: string; status: string }
+  >(
+    async ({ id, status }) => {
+      const response = await axios.patch(`/api/sales/${id}/status`, { status });
+      return response.data;
+    },
+    {
+      onSuccess: (data, variables) => {
+        // Invalidate the specific sale query if we have that ID
+        if (id) {
+          queryClient.invalidateQueries(['sale', id]);
+        } else {
+          queryClient.invalidateQueries(['sale', variables.id]);
+        }
+
+        // Invalidate the sales list
+        queryClient.invalidateQueries('sales');
+      }
+    }
+  );
+};
