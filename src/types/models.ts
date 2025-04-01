@@ -28,6 +28,9 @@ export type SaleStatus = 'completed' | 'refunded' | 'partially_refunded';
 // Define purchase status
 export type PurchaseStatus = 'pending' | 'received' | 'partially_received' | 'cancelled';
 
+// Define asset status
+export type AssetStatus = 'active' | 'maintenance' | 'retired' | 'lost';
+
 // Define item interface
 /**
  * Interface representing an inventory item which can be either a material, product, or both
@@ -180,6 +183,14 @@ export interface PurchaseItem {
     };
     quantityPerPackage: number;
   };
+  // New fields for asset tracking
+  isAsset?: boolean;         // Whether this item should be tracked as an asset
+  assetInfo?: {
+    name?: string;           // Name for the asset (defaults to item name)
+    category?: string;       // Asset category
+    location?: string;       // Where the asset is stored/used
+    assignedTo?: string;     // Person responsible for the asset
+  };
 }
 
 export interface Purchase {
@@ -259,4 +270,39 @@ export interface PurchaseTrendItem {
   lengthTotal?: number;
   areaTotal?: number;
   volumeTotal?: number;
+}
+
+// Define business asset interface
+export interface BusinessAsset {
+  _id?: string;
+  name: string;
+  assetTag?: string;
+  category: string;
+  purchaseDate?: Date;
+  purchaseId?: string | Purchase; // Link to the purchase record
+  initialCost: number;
+  currentValue: number;
+  location?: string;
+  assignedTo?: string;
+  manufacturer?: string;
+  model?: string;
+  serialNumber?: string;
+  notes?: string;
+  status: AssetStatus;
+  maintenanceSchedule?: {
+    frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+    lastMaintenance?: Date;
+    nextMaintenance?: Date;
+  };
+  maintenanceHistory?: {
+    date: Date;
+    description: string;
+    cost: number;
+    performedBy: string;
+  }[];
+  imageUrl?: string;
+  tags?: string[];
+  createdAt?: Date;
+  updatedAt?: Date;
+  isInventoryItem: false; // Flag to distinguish from inventory items
 }

@@ -23,13 +23,14 @@ import {
   ShoppingCartOutlined,
   LocalShippingOutlined,
   SearchOutlined,
-  //TrendingUpOutlined,
   ArrowForward,
-  Construction
+  Construction,
+  BusinessCenter
 } from '@mui/icons-material';
 import { useItems } from '@hooks/useItems';
 import { useSales } from '@hooks/useSales';
 import { usePurchases } from '@hooks/usePurchases';
+import { useAssets } from '@hooks/useAssets';
 import { formatCurrency, formatDate } from '@utils/formatters';
 import StatusChip from '@components/ui/StatusChip';
 import LoadingScreen from '@components/ui/LoadingScreen';
@@ -46,6 +47,7 @@ export default function Dashboard() {
   const { data: items = [], isLoading: itemsLoading } = useItems();
   const { data: sales = [], isLoading: salesLoading } = useSales();
   const { data: purchases = [], isLoading: purchasesLoading } = usePurchases();
+  const { data: assets = [], isLoading: assetsLoading } = useAssets();
 
   // Get low stock threshold settings
   const { lowStockAlertsEnabled, quantityThreshold, weightThresholds } = useSettings();
@@ -98,7 +100,7 @@ export default function Dashboard() {
   ).slice(0, 10);
 
   // Show loading if any data is still loading
-  if (itemsLoading || salesLoading || purchasesLoading) {
+  if (itemsLoading || salesLoading || purchasesLoading || assetsLoading) {
     return <LoadingScreen message="Loading dashboard data..." />;
   }
 
@@ -203,6 +205,31 @@ export default function Dashboard() {
         </Grid2>
 
         <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card sx={{ height: '100%' }}>
+            <CardActionArea
+              component={RouterLink}
+              to="/assets"
+              sx={{ height: '100%' }}
+            >
+              <CardContent>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Business Assets
+                </Typography>
+                <Typography variant="h4" component="div" sx={{ mb: 1 }}>
+                  {assets.length} assets
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {assets.filter(a => a.status === 'maintenance').length} in maintenance
+                </Typography>
+                <Typography variant="h6" color="primary">
+                  {formatCurrency(assets.reduce((total, asset) => total + asset.currentValue, 0))}
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        </Grid2>
+
+        <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
           <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Button
@@ -239,6 +266,15 @@ export default function Dashboard() {
                 fullWidth
               >
                 New Purchase
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<BusinessCenter />}
+                component={RouterLink}
+                to="/assets/new"
+                fullWidth
+              >
+                Add Asset
               </Button>
             </CardContent>
           </Card>

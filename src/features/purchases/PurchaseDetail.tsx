@@ -14,7 +14,20 @@ import {
   TableHead,
   TableRow,
   Avatar,
-  Chip
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  InputAdornment,
+  Alert,
+  Tooltip,
+  IconButton
 } from '@mui/material';
 import {
   ArrowBack,
@@ -26,15 +39,17 @@ import {
   Straighten,
   SquareFoot,
   LocalDrink,
-  Image as ImageIcon
+  Image as ImageIcon,
+  BusinessCenter
 } from '@mui/icons-material';
-import { usePurchase, useDeletePurchase } from '@hooks/usePurchases';
+import { usePurchase, useDeletePurchase, useCreateAssetFromPurchase } from '@hooks/usePurchases';
 import { useItems } from '@hooks/useItems';
 import { formatCurrency, formatDate, formatPaymentMethod } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import StatusChip from '@components/ui/StatusChip';
-import { PurchaseItem } from '@custTypes/models';
+import { PurchaseItem, BusinessAsset, AssetStatus } from '@custTypes/models';
+import { useState, useEffect } from 'react';
 
 export default function PurchaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -42,8 +57,65 @@ export default function PurchaseDetail() {
   const { data: purchase, isLoading, error } = usePurchase(id);
   const { data: items = [] } = useItems();
   const deletePurchase = useDeletePurchase();
+  const createAssetFromPurchase = useCreateAssetFromPurchase();
+
+  const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false);
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  const [assetFormData, setAssetFormData] = useState<Partial<BusinessAsset>>({
+    name: '',
+    category: 'Equipment',
+    status: 'active',
+  });
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
+
+  // Reset form when dialog opens or closes
+  useEffect(() => {
+    if (!createAssetDialogOpen) {
+      setSelectedItemIndex(null);
+      setAssetFormData({
+        name: '',
+        category: 'Equipment',
+        status: 'active',
+      });
+    } else if (selectedItemIndex !== null && purchase?.items?.[selectedItemIndex]) {
+      const purchaseItem = purchase.items[selectedItemIndex];
+      const itemId = typeof purchaseItem.item === 'string' ? purchaseItem.item : purchaseItem.item?._id;
+      const itemData = itemId ? itemLookup[itemId] : null;
+
+      setAssetFormData({
+        name: itemData?.name || '',
+        category: 'Equipment',
+        status: 'active',
+        initialCost: purchaseItem.totalCost,
+        currentValue: purchaseItem.totalCost,
+      });
+    }
+  }, [createAssetDialogOpen, selectedItemIndex, purchase, itemLookup]);
+
+  const handleCreateAsset = async () => {
+    if (selectedItemIndex === null || !id) return;
+
+    try {
+      await createAssetFromPurchase.mutateAsync({
+        purchaseId: id,
+        itemIndex: selectedItemIndex,
+        assetData: assetFormData
+      });
+
+      setCreateAssetDialogOpen(false);
+      setSuccessMessage('Asset created successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      console.error('Failed to create asset:', error);
+    }
+  };
+
+  const openAssetDialog = (index: number) => {
+    setSelectedItemIndex(index);
+    setCreateAssetDialogOpen(true);
+  };
 
   const handleDelete = async () => {
     if (!id || !window.confirm('Are you sure you want to delete this purchase? This will update inventory quantities.')) return;
@@ -153,6 +225,12 @@ export default function PurchaseDetail() {
         </Stack>
       </Box>
 
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage(null)}>
+          {successMessage}
+        </Alert>
+      )}
+
       <Grid2 container spacing={3}>
         <Grid2 size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
@@ -249,6 +327,8 @@ export default function PurchaseDetail() {
                     <TableCell>Cost Per Unit</TableCell>
                     <TableCell>Discount</TableCell>
                     <TableCell align="right">Total Cost</TableCell>
+                    <TableCell>Asset Status</TableCell>
+                    <TableCell align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -328,6 +408,40 @@ export default function PurchaseDetail() {
                           )}
                         </TableCell>
                         <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
+                        <TableCell>
+                          {item.isAsset ? (
+                            <Tooltip title={`Asset: ${item.assetInfo?.name || itemName}`}>
+                              <Chip
+                                icon={<BusinessCenter fontSize="small" />}
+                                label="Asset"
+                                color="primary"
+                                size="small"
+                                variant="outlined"
+                              />
+                            </Tooltip>
+                          ) : (
+                            <Tooltip title="Convert to Asset">
+                              <IconButton
+                                onClick={() => openAssetDialog(index)}
+                                size="small"
+                                color="primary"
+                              >
+                                <BusinessCenter fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="Add as Business Asset">
+                            <IconButton
+                              onClick={() => openAssetDialog(index)}
+                              size="small"
+                              color="primary"
+                            >
+                              <BusinessCenter fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -388,6 +502,131 @@ export default function PurchaseDetail() {
           </Paper>
         </Grid2>
       </Grid2>
+
+      {/* Create Asset Dialog */}
+      <Dialog
+        open={createAssetDialogOpen}
+        onClose={() => setCreateAssetDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Create Business Asset from Purchase Item
+        </DialogTitle>
+        <DialogContent dividers>
+          <Grid2 container spacing={3}>
+            <Grid2 item xs={12}>
+              <TextField
+                fullWidth
+                required
+                label="Asset Name"
+                value={assetFormData.name || ''}
+                onChange={(e) => setAssetFormData({ ...assetFormData, name: e.target.value })}
+                margin="normal"
+              />
+            </Grid2>
+            <Grid2 item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                label="Category"
+                value={assetFormData.category || ''}
+                onChange={(e) => setAssetFormData({ ...assetFormData, category: e.target.value })}
+                margin="normal"
+                helperText="E.g. Equipment, Furniture, Computer, Vehicle"
+              />
+            </Grid2>
+            <Grid2 item xs={12} sm={6}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={assetFormData.status || 'active'}
+                  onChange={(e) => setAssetFormData({ ...assetFormData, status: e.target.value as AssetStatus })}
+                  label="Status"
+                >
+                  <MenuItem value="active">Active</MenuItem>
+                  <MenuItem value="maintenance">Maintenance</MenuItem>
+                  <MenuItem value="retired">Retired</MenuItem>
+                  <MenuItem value="lost">Lost</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid2>
+            <Grid2 item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Location"
+                value={assetFormData.location || ''}
+                onChange={(e) => setAssetFormData({ ...assetFormData, location: e.target.value })}
+                margin="normal"
+              />
+            </Grid2>
+            <Grid2 item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Assigned To"
+                value={assetFormData.assignedTo || ''}
+                onChange={(e) => setAssetFormData({ ...assetFormData, assignedTo: e.target.value })}
+                margin="normal"
+              />
+            </Grid2>
+            <Grid2 item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                type="number"
+                label="Initial Cost"
+                value={assetFormData.initialCost || 0}
+                onChange={(e) => setAssetFormData({ ...assetFormData, initialCost: parseFloat(e.target.value) || 0, currentValue: parseFloat(e.target.value) || 0 })}
+                margin="normal"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+                disabled
+              />
+            </Grid2>
+            <Grid2 item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                type="number"
+                label="Current Value"
+                value={assetFormData.currentValue || 0}
+                onChange={(e) => setAssetFormData({ ...assetFormData, currentValue: parseFloat(e.target.value) || 0 })}
+                margin="normal"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+              />
+            </Grid2>
+            <Grid2 item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Notes"
+                value={assetFormData.notes || ''}
+                onChange={(e) => setAssetFormData({ ...assetFormData, notes: e.target.value })}
+                margin="normal"
+              />
+            </Grid2>
+          </Grid2>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateAssetDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleCreateAsset}
+            variant="contained"
+            color="primary"
+            disabled={
+              !assetFormData.name ||
+              !assetFormData.category ||
+              createAssetFromPurchase.isPending
+            }
+          >
+            {createAssetFromPurchase.isPending ? "Creating..." : "Create Asset"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

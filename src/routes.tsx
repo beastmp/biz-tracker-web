@@ -25,6 +25,11 @@ const PurchaseDetail = lazy(() => import('@features/purchases/PurchaseDetail'));
 const PurchaseForm = lazy(() => import('@features/purchases/PurchaseForm'));
 const PurchasesReport = lazy(() => import('@features/purchases/PurchasesReport'));
 
+// Asset components
+const AssetsList = lazy(() => import('@features/assets/AssetsList'));
+const AssetDetail = lazy(() => import('@features/assets/AssetDetail'));
+const AssetForm = lazy(() => import('@features/assets/AssetForm'));
+
 // Settings page
 const Settings = lazy(() => import('@components/Settings'));
 
@@ -56,6 +61,17 @@ export const routes: RouteObject[] = [
           { path: ':id', element: withSuspense(InventoryDetail) },
           { path: ':id/edit', element: withSuspense(InventoryForm) },
           { path: 'profit-analysis', element: withSuspense(InventoryProfitReport) }
+        ]
+      },
+
+      // Business Assets routes
+      {
+        path: 'assets',
+        children: [
+          { index: true, element: withSuspense(AssetsList) },
+          { path: 'new', element: withSuspense(AssetForm) },
+          { path: ':id', element: withSuspense(AssetDetail) },
+          { path: ':id/edit', element: withSuspense(AssetForm) }
         ]
       },
 

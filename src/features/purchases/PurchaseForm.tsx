@@ -36,11 +36,22 @@ import {
   Checkbox,
   ListItemIcon,
   Autocomplete,
+  Stack,
 } from '@mui/material';
-import { Save, ArrowBack, Add, Image as ImageIcon, AddCircle, DeleteOutline, DragIndicator } from '@mui/icons-material';
+import {
+  Save,
+  ArrowBack,
+  Add,
+  Image as ImageIcon,
+  AddCircle,
+  DeleteOutline,
+  DragIndicator,
+  BusinessCenter
+} from '@mui/icons-material';
 import { usePurchase, useCreatePurchase, useUpdatePurchase } from '@hooks/usePurchases';
 import { useItems, useCreateItem, useNextSku, useCategories } from '@hooks/useItems';
-import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType, LengthUnit, AreaUnit, VolumeUnit } from '@custTypes/models';
+import { useAssets, useAssetCategories, useCreateAsset } from '@hooks/useAssets';
+import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType, LengthUnit, AreaUnit, VolumeUnit, BusinessAsset, AssetStatus } from '@custTypes/models';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
@@ -58,11 +69,14 @@ export default function PurchaseForm() {
   // Queries
   const { data: existingPurchase, isLoading: purchaseLoading, error: purchaseError } = usePurchase(id);
   const { data: items = [], isLoading: itemsLoading, error: itemsError } = useItems();
+  const { data: assets = [], isLoading: assetsLoading } = useAssets();
   const { data: nextSku, refetch: refetchNextSku } = useNextSku();
   const { data: categories = [] } = useCategories();
+  const { data: assetCategories = [] } = useAssetCategories();
   const createPurchase = useCreatePurchase();
   const updatePurchase = useUpdatePurchase(id);
   const createItem = useCreateItem();
+  const createAsset = useCreateAsset();
 
   // Form state
   const [purchase, setPurchase] = useState<Purchase>({
@@ -87,6 +101,10 @@ export default function PurchaseForm() {
   const [selectedItems, setSelectedItems] = useState<Item[]>([]);
   const [itemSelectDialogOpen, setItemSelectDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Asset selection state
+  const [selectedAssets, setSelectedAssets] = useState<BusinessAsset[]>([]);
+  const [assetSelectDialogOpen, setAssetSelectDialogOpen] = useState(false);
 
   // New item form state
   const [createItemDialogOpen, setCreateItemDialogOpen] = useState(false);
@@ -116,6 +134,20 @@ export default function PurchaseForm() {
 
   // Add a state to track manual vs. automatic updates
   const [isManuallyEditing, setIsManuallyEditing] = useState<string | null>(null);
+
+  // New asset form state
+  const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false);
+  const [newAsset, setNewAsset] = useState<Partial<BusinessAsset>>({
+    name: '',
+    category: 'Equipment',
+    status: 'active' as AssetStatus,
+    initialCost: 0,
+    currentValue: 0,
+    isInventoryItem: false,
+    tags: []
+  });
+
+  const [newAssetErrors, setNewAssetErrors] = useState<Record<string, string>>({});
 
   // Load existing purchase data if in edit mode
   useEffect(() => {
@@ -251,6 +283,16 @@ export default function PurchaseForm() {
     }
   };
 
+  // Handle asset selection toggle
+  const handleAssetSelectionToggle = (asset: BusinessAsset) => {
+    const isSelected = selectedAssets.some(selectedAsset => selectedAsset._id === asset._id);
+    if (isSelected) {
+      setSelectedAssets(selectedAssets.filter(selectedAsset => selectedAsset._id !== asset._id));
+    } else {
+      setSelectedAssets([...selectedAssets, asset]);
+    }
+  };
+
   const handleAddSelectedItems = () => {
     if (selectedItems.length === 0) return;
 
@@ -311,8 +353,52 @@ export default function PurchaseForm() {
     setItemSelectDialogOpen(false);
   };
 
+  // Handle adding selected assets to the purchase
+  const handleAddSelectedAssets = () => {
+    if (selectedAssets.length === 0) return;
+
+    const newItems: PurchaseItem[] = selectedAssets.map(asset => {
+      const assetItem: PurchaseItem = {
+        item: asset._id || '', // Use asset ID directly
+        costPerUnit: asset.currentValue || 0,
+        originalCost: asset.currentValue || 0,
+        totalCost: asset.currentValue || 0,
+        quantity: 1,
+        weight: 0,
+        length: 0,
+        area: 0,
+        volume: 0,
+        discountAmount: 0,
+        discountPercentage: 0,
+        purchasedBy: 'quantity',
+        isAsset: true, // Mark as an asset
+        assetInfo: {
+          name: asset.name,
+          category: asset.category,
+          location: asset.location,
+          assignedTo: asset.assignedTo
+        }
+      };
+
+      return assetItem;
+    });
+
+    setPurchase({
+      ...purchase,
+      items: [...purchase.items, ...newItems]
+    });
+
+    // Reset selections and close dialog
+    setSelectedAssets([]);
+    setAssetSelectDialogOpen(false);
+  };
+
   const isItemSelected = (item: Item): boolean => {
     return selectedItems.some(selectedItem => selectedItem._id === item._id);
+  };
+
+  const isAssetSelected = (asset: BusinessAsset): boolean => {
+    return selectedAssets.some(selectedAsset => selectedAsset._id === asset._id);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -422,6 +508,56 @@ export default function PurchaseForm() {
     }
   };
 
+  // Validate new asset
+  const validateNewAsset = () => {
+    const errors: Record<string, string> = {};
+
+    if (!newAsset.name) errors.name = 'Name is required';
+    if (!newAsset.category) errors.category = 'Category is required';
+
+    setNewAssetErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Create new asset handler
+  const handleCreateNewAsset = async () => {
+    if (!validateNewAsset()) return;
+
+    try {
+      const createdAsset = await createAsset.mutateAsync(newAsset as BusinessAsset);
+
+      // Close create dialog and go back to selection dialog
+      setCreateAssetDialogOpen(false);
+
+      // Add the newly created asset to selected assets
+      setSelectedAssets(prev => [...prev, createdAsset]);
+
+      // Reset new asset form
+      setNewAsset({
+        name: '',
+        category: 'Equipment',
+        status: 'active' as AssetStatus,
+        initialCost: 0,
+        currentValue: 0,
+        isInventoryItem: false,
+        tags: []
+      });
+    } catch (error) {
+      console.error('Failed to create asset:', error);
+      setError('Failed to create new asset. Please try again.');
+    }
+  };
+
+  // Handle new asset field changes
+  const handleNewAssetChange = (field: string, value: any) => {
+    setNewAsset(prev => ({ ...prev, [field]: value }));
+
+    // Clear validation error when field is changed
+    if (newAssetErrors[field]) {
+      setNewAssetErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
   // Enhance the validateForm function to check for whitespace-only strings
   const validateForm = (): string | null => {
     if (!purchase.supplier?.name || purchase.supplier.name.trim() === '') return 'Supplier name is required';
@@ -469,7 +605,7 @@ export default function PurchaseForm() {
     }
   };
 
-  if (purchaseLoading || itemsLoading) {
+  if (purchaseLoading || itemsLoading || assetsLoading) {
     return <LoadingScreen />;
   }
 
@@ -724,14 +860,24 @@ export default function PurchaseForm() {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
           <Typography variant="h6">Purchase Items</Typography>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => setItemSelectDialogOpen(true)}
-            disabled={createPurchase.isPending || updatePurchase.isPending}
-          >
-            Add Items
-          </Button>
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              startIcon={<BusinessCenter />}
+              onClick={() => setAssetSelectDialogOpen(true)}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
+            >
+              Add Assets
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => setItemSelectDialogOpen(true)}
+              disabled={createPurchase.isPending || updatePurchase.isPending}
+            >
+              Add Items
+            </Button>
+          </Stack>
         </Box>
         <Divider sx={{ mb: 2 }} />
 
@@ -743,6 +889,7 @@ export default function PurchaseForm() {
                   <TableRow>
                     <TableCell width={50}></TableCell> {/* Drag handle column */}
                     <TableCell>Item</TableCell>
+                    <TableCell>Type</TableCell>
                     <TableCell>Quantity/Weight</TableCell>
                     <TableCell>Original Cost</TableCell>
                     <TableCell>Cost Per Unit</TableCell>
@@ -758,7 +905,9 @@ export default function PurchaseForm() {
                       ref={provided.innerRef}
                     >
                       {purchase.items.map((item, index) => {
-                        const itemDetails = typeof item.item === 'object' ? item.item : itemLookup[item.item as string];
+                        const isAssetItem = item.isAsset === true;
+                        const itemDetails = !isAssetItem && typeof item.item === 'object' ? item.item : !isAssetItem && typeof item.item === 'string' ? itemLookup[item.item] : null;
+
                         return (
                           <Draggable
                             key={`item-${index}`}
@@ -770,7 +919,13 @@ export default function PurchaseForm() {
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 sx={{
-                                  backgroundColor: snapshot.isDragging ? 'rgba(63, 81, 181, 0.08)' : 'inherit',
+                                  backgroundColor: isAssetItem
+                                    ? (theme) => theme.palette.mode === 'dark'
+                                      ? 'rgba(144, 202, 249, 0.1)'
+                                      : 'rgba(33, 150, 243, 0.05)'
+                                    : snapshot.isDragging
+                                      ? 'rgba(63, 81, 181, 0.08)'
+                                      : 'inherit',
                                   '&:hover .drag-handle': {
                                     opacity: 1,
                                   },
@@ -802,7 +957,24 @@ export default function PurchaseForm() {
                                 </TableCell>
 
                                 {/* ...existing table cell content... */}
-                                <TableCell>{itemDetails ? itemDetails.name : 'Unknown Item'}</TableCell>
+                                <TableCell>
+                                  {isAssetItem
+                                    ? (item.assetInfo?.name || 'Unnamed Asset')
+                                    : (itemDetails ? itemDetails.name : 'Unknown Item')
+                                  }
+                                </TableCell>
+
+                                <TableCell>
+                                  {isAssetItem
+                                    ? <Chip size="small" icon={<BusinessCenter fontSize="small" />} label="Asset" variant="outlined" color="primary" />
+                                    : (itemDetails?.itemType === 'product'
+                                        ? 'Product'
+                                        : itemDetails?.itemType === 'material'
+                                          ? 'Material'
+                                          : 'Both')
+                                  }
+                                </TableCell>
+
                                 <TableCell>
                                   <TextField
                                     size="small"
@@ -1376,6 +1548,214 @@ export default function PurchaseForm() {
             disabled={createItem.isPending}
           >
             {createItem.isPending ? 'Creating...' : 'Create Item'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Asset Selection Dialog */}
+      <Dialog open={assetSelectDialogOpen} onClose={() => setAssetSelectDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Select Assets</Typography>
+            <Box>
+              <Button
+                startIcon={<AddCircle />}
+                color="primary"
+                onClick={() => {
+                  setCreateAssetDialogOpen(true);
+                }}
+              >
+                Create New Asset
+              </Button>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Select one or more business assets to add to your purchase.
+          </Typography>
+          {assets.length > 0 ? (
+            <List>
+              {assets.map((asset) => (
+                <ListItemButton
+                  key={asset._id}
+                  onClick={() => handleAssetSelectionToggle(asset)}
+                  divider
+                  selected={isAssetSelected(asset)}
+                >
+                  <ListItemIcon>
+                    <Checkbox
+                      edge="start"
+                      checked={isAssetSelected(asset)}
+                      tabIndex={-1}
+                      disableRipple
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </ListItemIcon>
+                  <ListItemAvatar>
+                    <Avatar variant="rounded">
+                      {asset.imageUrl ? (
+                        <img src={asset.imageUrl} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <BusinessCenter />
+                      )}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={asset.name}
+                    secondary={`Category: ${asset.category} | Value: ${formatCurrency(asset.currentValue)}`}
+                  />
+                </ListItemButton>
+              ))}
+            </List>
+          ) : (
+            <Alert severity="info">
+              No assets found. Create some assets first or click "Create New Asset" to add one now.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Typography variant="body2" sx={{ flexGrow: 1, ml: 2 }}>
+            {selectedAssets.length} asset(s) selected
+          </Typography>
+          <Button onClick={() => setAssetSelectDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAddSelectedAssets}
+            color="primary"
+            variant="contained"
+            disabled={selectedAssets.length === 0}
+          >
+            Add Selected Assets
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create New Asset Dialog */}
+      <Dialog
+        open={createAssetDialogOpen}
+        onClose={() => setCreateAssetDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Create New Asset</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Create a new business asset to add to your purchase.
+          </Alert>
+
+          <Grid2 container spacing={2}>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Asset Name"
+                value={newAsset.name}
+                onChange={(e) => handleNewAssetChange('name', e.target.value)}
+                margin="normal"
+                required
+                error={!!newAssetErrors.name}
+                helperText={newAssetErrors.name}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <Autocomplete
+                freeSolo
+                options={assetCategories || []}
+                value={newAsset.category || ''}
+                onChange={(_, newValue) => {
+                  handleNewAssetChange('category', newValue || 'Equipment');
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Category"
+                    margin="normal"
+                    required
+                    error={!!newAssetErrors.category}
+                    helperText={newAssetErrors.category}
+                  />
+                )}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={newAsset.status || 'active'}
+                  label="Status"
+                  onChange={(e) => handleNewAssetChange('status', e.target.value)}
+                >
+                  <MenuItem value="active">Active</MenuItem>
+                  <MenuItem value="maintenance">Maintenance</MenuItem>
+                  <MenuItem value="retired">Retired</MenuItem>
+                  <MenuItem value="lost">Lost</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid2>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Location"
+                value={newAsset.location || ''}
+                onChange={(e) => handleNewAssetChange('location', e.target.value)}
+                margin="normal"
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Initial Cost"
+                type="number"
+                value={newAsset.initialCost || 0}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value) || 0;
+                  handleNewAssetChange('initialCost', value);
+                  handleNewAssetChange('currentValue', value);
+                }}
+                margin="normal"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Current Value"
+                type="number"
+                value={newAsset.currentValue || 0}
+                onChange={(e) => handleNewAssetChange('currentValue', parseFloat(e.target.value) || 0)}
+                margin="normal"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Notes"
+                value={newAsset.notes || ''}
+                onChange={(e) => handleNewAssetChange('notes', e.target.value)}
+                margin="normal"
+              />
+            </Grid2>
+          </Grid2>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateAssetDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateNewAsset}
+            variant="contained"
+            color="primary"
+            disabled={createAsset.isPending}
+          >
+            {createAsset.isPending ? 'Creating...' : 'Create Asset'}
           </Button>
         </DialogActions>
       </Dialog>
