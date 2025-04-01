@@ -296,6 +296,16 @@ export default function InventoryDetail() {
                   sx={{ ml: 1 }}
                 />
               )}
+              {/* Add a chip to show if this item is derived */}
+              {data?.derivedFrom && isPopulatedItem(data.derivedFrom.item) && (
+                <Chip
+                  label="Derived Item"
+                  size="small"
+                  color="secondary"
+                  icon={<Transform fontSize="small" />}
+                  sx={{ ml: 1 }}
+                />
+              )}
             </Box>
             <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
               SKU: {data?.sku}
@@ -849,25 +859,108 @@ export default function InventoryDetail() {
             </Paper>
           )}
 
-          {/* Add Source Item Section - show if item is derived from another */}
+          {/* Enhance the Source Item Section - replace the existing source item section with this improved version */}
           {data?.derivedFrom && isPopulatedItem(data.derivedFrom.item) && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Source Item
-              </Typography>
+            <Paper sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'secondary.main', borderRadius: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Transform sx={{ color: 'secondary.main', mr: 1 }} />
+                <Typography variant="h6" color="secondary.main">
+                  Derived From
+                </Typography>
+              </Box>
               <Divider sx={{ mb: 2 }} />
 
-              <Box
-                sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
-              >
-                {renderRelatedItem(
-                  data.derivedFrom.item,
-                  0,
-                  <Typography variant="body2" color="text.secondary">
-                    Derived from {data.derivedFrom.quantity} units
+              <Grid2 container spacing={2}>
+                <Grid2 size={{ xs: 12, md: 8 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {data.derivedFrom.item.imageUrl ? (
+                      <Box
+                        component="img"
+                        src={data.derivedFrom.item.imageUrl}
+                        alt={data.derivedFrom.item.name}
+                        sx={{
+                          width: 60,
+                          height: 60,
+                          borderRadius: 1,
+                          mr: 2,
+                          objectFit: 'contain',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 60,
+                          height: 60,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: 1,
+                          mr: 2,
+                          bgcolor: 'action.hover',
+                        }}
+                      >
+                        <NoPhotography />
+                      </Box>
+                    )}
+                    <Box>
+                      <Button
+                        component={RouterLink}
+                        to={`/inventory/${data.derivedFrom.item._id}`}
+                        variant="text"
+                        sx={{ fontWeight: 'bold', p: 0, textAlign: 'left' }}
+                      >
+                        {data.derivedFrom.item.name}
+                      </Button>
+                      <Typography variant="body2" color="text.secondary">
+                        SKU: {data.derivedFrom.item.sku}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {data.derivedFrom.item.category}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid2>
+
+                <Grid2 size={{ xs: 12, md: 4 }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Derivation Details
                   </Typography>
-                )}
-              </Box>
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Quantity Allocated:
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {data.derivedFrom.quantity || 0} units
+                    </Typography>
+                  </Box>
+
+                  {data.derivedFrom.weight && data.derivedFrom.weightUnit && (
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Weight Allocated:
+                      </Typography>
+                      <Typography variant="body1" fontWeight="medium">
+                        {data.derivedFrom.weight} {data.derivedFrom.weightUnit}
+                      </Typography>
+                    </Box>
+                  )}
+                </Grid2>
+              </Grid2>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Button
+                component={RouterLink}
+                to={`/inventory/${data.derivedFrom.item._id}`}
+                startIcon={<ArrowBack />}
+                color="secondary"
+                variant="outlined"
+                size="small"
+              >
+                Go To Source Item
+              </Button>
             </Paper>
           )}
 
