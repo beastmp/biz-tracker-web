@@ -289,3 +289,67 @@ export const useRebuildRelationships = () => {
     }
   });
 };
+
+// Hook to create breakdown items from a generic item
+export const useCreateBreakdownItems = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (breakdownData: {
+      sourceItemId: string;
+      derivedItems: Array<{
+        name: string;
+        sku: string;
+        quantity: number;
+        weight?: number;
+        description?: string;
+        category?: string;
+        price?: number;
+        cost?: number;
+        tags?: string[];
+        imageUrl?: string;
+      }>;
+    }) => {
+      try {
+        return await post<{
+          sourceItem: Item;
+          derivedItems: Item[];
+        }>(`/api/items/${breakdownData.sourceItemId}/breakdown`, breakdownData);
+      } catch (error: unknown) {
+        // Type narrowing for different error types
+        if (error && typeof error === 'object' && 'response' in error) {
+          const axiosError = error as { response?: { data?: unknown }; message?: string };
+          console.error('Failed to create breakdown items:', axiosError.response?.data || axiosError.message);
+        } else {
+          console.error('Failed to create breakdown items:', error);
+        }
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
+      if (data.sourceItem._id) {
+        queryClient.invalidateQueries({ queryKey: [ITEM_KEY, data.sourceItem._id] });
+      }
+    },
+  });
+};
+
+// Hook to get derived items for a specific item
+export const useDerivedItems = (itemId: string | undefined) => {
+  return useQuery({
+    queryKey: [ITEMS_KEY, itemId, 'derived'],
+    queryFn: () => get<Item[]>(`/api/items/${itemId}/derived`),
+    enabled: !!itemId, // Only run if id exists
+  });
+};
+
+// Hook to get parent item (if this item is derived from another)
+export const useParentItem = (itemId: string | undefined) => {
+  return useQuery({
+    queryKey: [ITEMS_KEY, itemId, 'parent'],
+    queryFn: () => get<Item>(`/api/items/${itemId}/parent`),
+    enabled: !!itemId, // Only run if id exists
+  });
+};

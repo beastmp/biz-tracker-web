@@ -1,13 +1,17 @@
-import { Item } from '@custTypes/models';
+import { Item, TrackingType } from '@custTypes/models';
 
 /**
- * Format a number as currency
+ * Format a currency value
+ * @param value - The number to format as currency
+ * @returns Formatted currency string
  */
-export const formatCurrency = (amount: number): string => {
+export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD'
-  }).format(amount);
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
 };
 
 /**
@@ -216,5 +220,29 @@ export const formatItemPrice = (item: Item | Record<string, unknown>): string =>
       return `${formatCurrency(price)}/${formatUnit((item.volumeUnit as string) || 'l')}`;
     default:
       return formatCurrency(price);
+  }
+};
+
+/**
+ * Format a measurement value with its unit
+ * @param item - Item with tracking type and measurement value
+ * @returns Formatted measurement string
+ */
+export const formatMeasurement = (item: Item): string => {
+  if (!item) return '';
+
+  switch (item.trackingType) {
+    case 'quantity':
+      return `${item.quantity} units`;
+    case 'weight':
+      return `${item.weight} ${item.weightUnit}`;
+    case 'length':
+      return `${item.length} ${item.lengthUnit}`;
+    case 'area':
+      return `${item.area} ${item.areaUnit}`;
+    case 'volume':
+      return `${item.volume} ${item.volumeUnit}`;
+    default:
+      return `${item.quantity} units`;
   }
 };

@@ -68,6 +68,20 @@ export interface Item {
   };
   components?: ItemComponent[];      // Materials used in this product
   usedInProducts?: (string | Item)[]; // Products that use this material
+
+  // New fields for inventory breakdown relationships
+  derivedFrom?: {
+    item: string | Item;   // Reference to the parent item this was derived from
+    quantity: number;      // How much of the parent was used to create this
+    weight?: number;       // Weight allocated from parent (for weight tracking)
+    weightUnit?: WeightUnit; // Unit for weight
+  };
+  derivedItems?: Array<{   // Items created from this generic item
+    item: string | Item;   // Reference to the derived item
+    quantity: number;      // Quantity created
+    weight?: number;       // Weight allocated (for weight tracking)
+    weightUnit?: WeightUnit; // Unit for weight
+  }>;
 }
 
 /**

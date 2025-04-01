@@ -422,8 +422,9 @@ export default function PurchaseForm() {
     }
   };
 
+  // Enhance the validateForm function to check for whitespace-only strings
   const validateForm = (): string | null => {
-    if (!purchase.supplier.name) return 'Supplier name is required';
+    if (!purchase.supplier.name || purchase.supplier.name.trim() === '') return 'Supplier name is required';
     if (purchase.items.length === 0) return 'At least one item is required';
     if (purchase.total <= 0) return 'Total must be greater than zero';
 
@@ -440,16 +441,31 @@ export default function PurchaseForm() {
 
     setError(null);
 
+    // Sanitize data before submission - trim all string fields
+    const sanitizedPurchase = {
+      ...purchase,
+      supplier: {
+        ...purchase.supplier,
+        name: purchase.supplier.name.trim(),
+        contactName: purchase.supplier.contactName?.trim(),
+        email: purchase.supplier.email?.trim(),
+        phone: purchase.supplier.phone?.trim()
+      },
+      notes: purchase.notes?.trim()
+    };
+
     try {
       if (isEditMode) {
-        await updatePurchase.mutateAsync(purchase);
+        await updatePurchase.mutateAsync(sanitizedPurchase);
       } else {
-        await createPurchase.mutateAsync(purchase);
+        await createPurchase.mutateAsync(sanitizedPurchase);
       }
       navigate('/purchases');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save purchase:', error);
-      setError('Failed to save purchase. Please try again.');
+      // Extract and display the specific error message from the server if available
+      const serverErrorMessage = error.response?.data?.message || 'Failed to save purchase. Please try again.';
+      setError(serverErrorMessage);
     }
   };
 
@@ -644,6 +660,8 @@ export default function PurchaseForm() {
               onChange={(e) => handleTextChange('supplier.name', e.target.value)}
               margin="normal"
               required
+              error={error?.includes('Supplier name')}
+              helperText={error?.includes('Supplier name') ? 'Supplier name is required' : ''}
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid2>

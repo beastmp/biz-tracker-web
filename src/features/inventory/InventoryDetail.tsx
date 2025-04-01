@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -9,7 +10,8 @@ import {
   Chip,
   Card,
   CardContent,
-  Stack
+  Stack,
+  Alert
 } from '@mui/material';
 import {
   ArrowBack,
@@ -24,24 +26,37 @@ import {
   CalendarToday,
   Money,
   ShoppingCart,
-  LocalShipping
+  LocalShipping,
+  Transform
 } from '@mui/icons-material';
-import { useItem, useDeleteItem } from '@hooks/useItems';
+import { useItem, useDeleteItem, useDerivedItems } from '@hooks/useItems';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import { useSettings } from '@hooks/useSettings';
 import { isPopulatedItem, Item } from '@custTypes/models';
 import { JSX, useMemo } from 'react';
+import BreakdownItemsDialog from '@components/inventory/BreakdownItemsDialog';
 
 export default function InventoryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: item, isLoading, error } = useItem(id);
+  const { data: derivedItems = [], isLoading: derivedItemsLoading } = useDerivedItems(id);
   const deleteItem = useDeleteItem();
   const { lowStockAlertsEnabled, quantityThreshold, weightThresholds } = useSettings();
 
+  // Add breakdown dialog state
+  const [breakdownDialogOpen, setBreakdownDialogOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const data = item;
+
+  // Handle successful item breakdown
+  const handleItemsCreated = (items: Item[]) => {
+    setSuccessMessage(`Successfully created ${items.length} items from ${data?.name}`);
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
 
   const handleDelete = async () => {
     if (!id || !window.confirm('Are you sure you want to delete this item?')) {
@@ -93,18 +108,20 @@ export default function InventoryDetail() {
         return 'success';
 
       case 'weight':
-        { if (item.weight === 0) return 'error';
-        if (!lowStockAlertsEnabled) return 'success';
+        {
+          if (item.weight === 0) return 'error';
+          if (!lowStockAlertsEnabled) return 'success';
 
-        // Different thresholds based on weight unit
-        const lowThreshold =
-          item.weightUnit === 'kg' ? weightThresholds.kg :
-          item.weightUnit === 'g' ? weightThresholds.g :
-          item.weightUnit === 'lb' ? weightThresholds.lb :
-          item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+          // Different thresholds based on weight unit
+          const lowThreshold =
+            item.weightUnit === 'kg' ? weightThresholds.kg :
+              item.weightUnit === 'g' ? weightThresholds.g :
+                item.weightUnit === 'lb' ? weightThresholds.lb :
+                  item.weightUnit === 'oz' ? weightThresholds.oz : 5;
 
-        if (item.weight < lowThreshold) return 'warning';
-        return 'success'; }
+          if (item.weight < lowThreshold) return 'warning';
+          return 'success';
+        }
 
       case 'length':
         if (item.length === 0) return 'error';
@@ -197,6 +214,17 @@ export default function InventoryDetail() {
 
   return (
     <Box>
+      {/* Success message */}
+      {successMessage && (
+        <Alert
+          severity="success"
+          sx={{ mb: 2 }}
+          onClose={() => setSuccessMessage(null)}
+        >
+          {successMessage}
+        </Alert>
+      )}
+
       {/* Header with navigation and actions */}
       <Box sx={{ mb: 3 }}>
         <Grid2 container alignItems="center" spacing={2}>
@@ -231,6 +259,18 @@ export default function InventoryDetail() {
           </Grid2>
           <Grid2>
             <Stack direction="row" spacing={1}>
+              {/* Add breakdown button for generic materials */}
+              {(data?.itemType === 'material' || data?.itemType === 'both') &&
+                data?.quantity > 0 && !data.derivedFrom && (
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    startIcon={<Transform />}
+                    onClick={() => setBreakdownDialogOpen(true)}
+                  >
+                    Break Down
+                  </Button>
+                )}
               <Button
                 component={RouterLink}
                 to={`/inventory/${id}/edit`}
@@ -255,10 +295,10 @@ export default function InventoryDetail() {
 
       <Grid2 container spacing={3}>
         {/* Left column */}
-        <Grid2 size= {{ xs: 12, md: 8 }}>
+        <Grid2 size={{ xs: 12, md: 8 }}>
           <Grid2 container spacing={3}>
             {/* Item Image */}
-            <Grid2 size= {{ xs: 12 }}>
+            <Grid2 size={{ xs: 12 }}>
               <Paper sx={{ p: 3, height: '100%', overflow: 'hidden', borderRadius: 2 }}>
                 {data?.imageUrl ? (
                   <Box
@@ -293,7 +333,7 @@ export default function InventoryDetail() {
             </Grid2>
 
             {/* Key Metrics */}
-            <Grid2 size= {{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -314,14 +354,14 @@ export default function InventoryDetail() {
               </Card>
             </Grid2>
 
-            <Grid2 size= {{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{
                 bgcolor:
                   getStockStatusColor(data) === 'success' ? 'success.light' :
-                  getStockStatusColor(data) === 'warning' ? 'warning.light' : 'error.light',
+                    getStockStatusColor(data) === 'warning' ? 'warning.light' : 'error.light',
                 color:
                   getStockStatusColor(data) === 'success' ? 'success.contrastText' :
-                  getStockStatusColor(data) === 'warning' ? 'warning.contrastText' : 'error.contrastText'
+                    getStockStatusColor(data) === 'warning' ? 'warning.contrastText' : 'error.contrastText'
               }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -346,7 +386,7 @@ export default function InventoryDetail() {
               </Card>
             </Grid2>
 
-            <Grid2 size= {{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{ bgcolor: 'info.light', color: 'info.contrastText' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -363,7 +403,7 @@ export default function InventoryDetail() {
               </Card>
             </Grid2>
 
-            <Grid2 size= {{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -379,7 +419,7 @@ export default function InventoryDetail() {
 
             {/* Item Description */}
             {data?.description && (
-              <Grid2 size= {{ xs: 12 }}>
+              <Grid2 size={{ xs: 12 }}>
                 <Paper sx={{ p: 3 }}>
                   <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                     <Category sx={{ mr: 1, fontSize: 20 }} />
@@ -394,7 +434,7 @@ export default function InventoryDetail() {
             )}
 
             {/* Tags */}
-            <Grid2 size= {{ xs: 12 }}>
+            <Grid2 size={{ xs: 12 }}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                   <LocalOffer sx={{ mr: 1, fontSize: 20 }} />
@@ -425,7 +465,7 @@ export default function InventoryDetail() {
         </Grid2>
 
         {/* Right Column */}
-        <Grid2 size= {{ xs: 12, md: 4 }}>
+        <Grid2 size={{ xs: 12, md: 4 }}>
           {/* Item Details */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -726,8 +766,65 @@ export default function InventoryDetail() {
               )}
             </Paper>
           )}
+
+          {/* Add Derived Items Section - show if item has derived items */}
+          {!derivedItemsLoading && derivedItems.length > 0 && (
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Derived Items
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <Stack spacing={2}>
+                {derivedItems.map((derivedItem) => (
+                  <Box
+                    key={derivedItem._id}
+                    sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
+                  >
+                    {renderRelatedItem(
+                      derivedItem,
+                      0,
+                      <Typography variant="body2" color="text.secondary">
+                        {derivedItem.derivedFrom?.quantity || 0} units allocated
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Stack>
+            </Paper>
+          )}
+
+          {/* Add Source Item Section - show if item is derived from another */}
+          {data?.derivedFrom && isPopulatedItem(data.derivedFrom.item) && (
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Source Item
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <Box
+                sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
+              >
+                {renderRelatedItem(
+                  data.derivedFrom.item,
+                  0,
+                  <Typography variant="body2" color="text.secondary">
+                    Derived from {data.derivedFrom.quantity} units
+                  </Typography>
+                )}
+              </Box>
+            </Paper>
+          )}
         </Grid2>
       </Grid2>
+
+      {/* Breakdown Dialog */}
+      <BreakdownItemsDialog
+        open={breakdownDialogOpen}
+        onClose={() => setBreakdownDialogOpen(false)}
+        sourceItem={data}
+        onItemsCreated={handleItemsCreated}
+      />
     </Box>
   );
 }
