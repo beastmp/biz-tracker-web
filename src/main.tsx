@@ -5,6 +5,8 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import './index.css'
 import App from './App.tsx'
 import GlobalLoadingIndicator from '@components/ui/GlobalLoadingIndicator'
+import AppProvider from '@context/AppContext'
+import SettingsProvider from '@context/SettingsContext'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -20,9 +22,13 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <GlobalLoadingIndicator />
-      <App />
-      <ReactQueryDevtools initialIsOpen={false} />
+      <AppProvider>
+        <SettingsProvider>
+          <GlobalLoadingIndicator />
+          <App />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </SettingsProvider>
+      </AppProvider>
     </QueryClientProvider>
   </StrictMode>,
 )
