@@ -424,7 +424,7 @@ export default function PurchaseForm() {
 
   // Enhance the validateForm function to check for whitespace-only strings
   const validateForm = (): string | null => {
-    if (!purchase.supplier.name || purchase.supplier.name.trim() === '') return 'Supplier name is required';
+    if (!purchase.supplier?.name || purchase.supplier.name.trim() === '') return 'Supplier name is required';
     if (purchase.items.length === 0) return 'At least one item is required';
     if (purchase.total <= 0) return 'Total must be greater than zero';
 
@@ -446,7 +446,7 @@ export default function PurchaseForm() {
       ...purchase,
       supplier: {
         ...purchase.supplier,
-        name: purchase.supplier.name.trim(),
+        name: purchase.supplier.name?.trim() || '',
         contactName: purchase.supplier.contactName?.trim(),
         email: purchase.supplier.email?.trim(),
         phone: purchase.supplier.phone?.trim()
