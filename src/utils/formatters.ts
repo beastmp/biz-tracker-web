@@ -246,3 +246,13 @@ export const formatMeasurement = (item: Item): string => {
       return `${item.quantity} units`;
   }
 };
+
+/**
+ * Formats a number as a percentage with a specified number of decimal places
+ * @param value The number to format as a percentage
+ * @param decimals The number of decimal places to show (default: 1)
+ * @returns A string with the formatted percentage (e.g. "42.5%")
+ */
+export const formatPercentage = (value: number, decimals: number = 1): string => {
+  return `${(value * 100).toFixed(decimals)}%`;
+};

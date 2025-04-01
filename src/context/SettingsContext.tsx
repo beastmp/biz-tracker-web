@@ -1,90 +1,64 @@
-import React, { useState, useEffect } from 'react';
-import { SettingsContext, SettingsContextType } from './SettingsContextDef';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Settings, SettingsContext, defaultSettings } from './SettingsContextDef';
 
-export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Low stock alert settings
-  const [lowStockAlertsEnabled, setLowStockAlertsEnabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('lowStockAlertsEnabled');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+const STORAGE_KEY = 'biz-tracker-settings';
 
-  const [quantityThreshold, setQuantityThreshold] = useState<number>(() => {
-    const saved = localStorage.getItem('quantityThreshold');
-    return saved !== null ? parseInt(saved, 10) : 5;
-  });
+interface SettingsProviderProps {
+  children: React.ReactNode;
+}
 
-  const [weightThresholds, setWeightThresholds] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem('weightThresholds');
-    return saved !== null
-      ? JSON.parse(saved)
-      : {
-          kg: 1,
-          g: 500,
-          lb: 2,
-          oz: 32
-        };
-  });
+// Only export the Provider component from this file
+export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
 
-  // Display settings
-  const [defaultViewMode, setDefaultViewMode] = useState<'grid' | 'list'>(() => {
-    const saved = localStorage.getItem('defaultViewMode');
-    return (saved === 'grid' || saved === 'list') ? saved : 'list';
-  });
-
-  const [defaultGroupBy, setDefaultGroupBy] = useState<'none' | 'category' | 'itemType'>(() => {
-    const saved = localStorage.getItem('defaultGroupBy');
-    return (saved === 'none' || saved === 'category' || saved === 'itemType')
-      ? saved
-      : 'none';
-  });
-
-  // Update a specific weight threshold
-  const updateWeightThreshold = (unit: string, value: number) => {
-    setWeightThresholds(prev => ({
-      ...prev,
-      [unit]: value
-    }));
-  };
-
-  // Save settings to localStorage
+  // Load settings from localStorage on mount
   useEffect(() => {
-    localStorage.setItem('lowStockAlertsEnabled', JSON.stringify(lowStockAlertsEnabled));
-  }, [lowStockAlertsEnabled]);
+    loadSettings();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('quantityThreshold', quantityThreshold.toString());
-  }, [quantityThreshold]);
+  const saveSettings = useCallback((settingsToSave: Settings) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settingsToSave));
+      return true;
+    } catch (error) {
+      console.error('Failed to save settings to storage:', error);
+      return false;
+    }
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('weightThresholds', JSON.stringify(weightThresholds));
-  }, [weightThresholds]);
+  const loadSettings = useCallback(() => {
+    try {
+      const storedSettings = localStorage.getItem(STORAGE_KEY);
+      if (storedSettings) {
+        setSettings(JSON.parse(storedSettings));
+      }
+    } catch (error) {
+      console.error('Failed to load settings from storage:', error);
+    }
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('defaultViewMode', defaultViewMode);
-  }, [defaultViewMode]);
+  const updateSettings = useCallback((newSettings: Settings) => {
+    setSettings(newSettings);
+    saveSettings(newSettings);
+  }, [saveSettings]);
 
-  useEffect(() => {
-    localStorage.setItem('defaultGroupBy', defaultGroupBy);
-  }, [defaultGroupBy]);
-
-  const contextValue: SettingsContextType = {
-    lowStockAlertsEnabled,
-    setLowStockAlertsEnabled,
-    quantityThreshold,
-    setQuantityThreshold,
-    weightThresholds,
-    updateWeightThreshold,
-    defaultViewMode,
-    setDefaultViewMode,
-    defaultGroupBy,
-    setDefaultGroupBy
-  };
+  const resetSettings = useCallback(() => {
+    setSettings(defaultSettings);
+    saveSettings(defaultSettings);
+  }, [saveSettings]);
 
   return (
-    <SettingsContext.Provider value={contextValue}>
+    <SettingsContext.Provider value={{
+      settings,
+      defaultSettings,
+      updateSettings,
+      resetSettings,
+      loadSettings
+    }}>
       {children}
     </SettingsContext.Provider>
   );
 };
 
+// Export only the component as default
 export default SettingsProvider;
