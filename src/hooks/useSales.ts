@@ -210,6 +210,15 @@ export const useSalesReport = (startDate?: string, endDate?: string) => {
   });
 };
 
+// Hook to get sales containing a specific item
+export const useItemSales = (itemId: string | undefined) => {
+  return useQuery({
+    queryKey: [SALES_KEY, 'item', itemId],
+    queryFn: () => get<Sale[]>(`/api/sales/item/${itemId}`),
+    enabled: !!itemId // Only run if itemId exists
+  });
+};
+
 export function useSalesTrend(startDate?: string, endDate?: string) {
   const [data, setData] = useState<SalesTrendItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);

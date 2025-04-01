@@ -353,3 +353,52 @@ export const useParentItem = (itemId: string | undefined) => {
     enabled: !!itemId, // Only run if id exists
   });
 };
+
+/**
+ * Hook to rebuild inventory based on purchase and sales history
+ */
+export const useRebuildInventory = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      // Add back the 'utility/' segment in the URL
+      const response = await post<{ processed: number; updated: number; errors: number; details: any[] }>(
+        '/api/items/utility/rebuild-inventory'
+      );
+      return response;
+    },
+    onSuccess: () => {
+      // Invalidate items cache to refresh data
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+};
+
+/**
+ * Hook to rebuild a specific item's inventory
+ */
+export const useRebuildItemInventory = (itemId?: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!itemId) {
+        throw new Error('Item ID is required');
+      }
+      // Add back the 'utility/' segment in the URL
+      const response = await post<{ updated: boolean; changes: any }>(
+        `/api/items/utility/rebuild-inventory/${itemId}`
+      );
+      return response;
+    },
+    onSuccess: () => {
+      // Invalidate specific item cache
+      if (itemId) {
+        queryClient.invalidateQueries({ queryKey: ['item', itemId] });
+      }
+      // Also invalidate the general items list
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+};

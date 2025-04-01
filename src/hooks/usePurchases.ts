@@ -210,9 +210,18 @@ export const usePurchasesReport = (startDate?: string, endDate?: string) => {
     },
     enabled: !!(startDate && endDate)
   });
+};
 
+// Hook to get purchases containing a specific item
+export const useItemPurchases = (itemId: string | undefined) => {
+  return useQuery({
+    queryKey: [PURCHASES_KEY, 'item', itemId],
+    queryFn: () => get<Purchase[]>(`/api/purchases/item/${itemId}`),
+    enabled: !!itemId // Only run if itemId exists
+  });
+};
 
-};export function usePurchasesTrend(startDate?: string, endDate?: string) {
+export function usePurchasesTrend(startDate?: string, endDate?: string) {
   const [data, setData] = useState<PurchaseTrendItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);

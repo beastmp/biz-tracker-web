@@ -22,7 +22,12 @@ import {
   Grid2,
   ToggleButton,
   Button,
-  CircularProgress
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import {
   DarkMode,
@@ -37,11 +42,13 @@ import {
   List as ListViewIcon,
   ViewModule,
   Sync,
-  Link as LinkIcon
+  Link as LinkIcon,
+  StackedBarChart,
+  Calculate
 } from '@mui/icons-material';
 import { useAppContext } from '@hooks/useAppContext';
 import { useSettings } from '@hooks/useSettings';
-import { useRebuildRelationships } from '@hooks/useItems';
+import { useRebuildRelationships, useRebuildInventory } from '@hooks/useItems';
 
 export default function Settings() {
   // Change from 'mode' to 'theme' to match the AppContextProps interface
@@ -51,6 +58,17 @@ export default function Settings() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [rebuildingRelationships, setRebuildingRelationships] = useState(false);
   const rebuildRelationships = useRebuildRelationships();
+
+  // Add state for inventory rebuild
+  const [rebuildingInventory, setRebuildingInventory] = useState(false);
+  const [rebuildResults, setRebuildResults] = useState<{
+    processed: number;
+    updated: number;
+    errors: number;
+    details: any[];
+  } | null>(null);
+  const [showRebuildDialog, setShowRebuildDialog] = useState(false);
+  const rebuildInventory = useRebuildInventory();
 
   // Use settings context instead of local state
   const {
@@ -116,10 +134,9 @@ export default function Settings() {
 
   const handleGroupByChange = (event: SelectChangeEvent) => {
     setDefaultGroupBy(event.target.value as 'none' | 'itemType' | 'category');
-    setSuccessMessage(`Default grouping set to ${
-      event.target.value === 'none' ? 'None' :
-      event.target.value === 'itemType' ? 'Item Type' : 'Category'
-    }`);
+    setSuccessMessage(`Default grouping set to ${event.target.value === 'none' ? 'None' :
+        event.target.value === 'itemType' ? 'Item Type' : 'Category'
+      }`);
   };
 
   const handleRebuildRelationships = async () => {
@@ -132,6 +149,24 @@ export default function Settings() {
       setSuccessMessage('Failed to rebuild item relationships. Please try again.');
     } finally {
       setRebuildingRelationships(false);
+    }
+  };
+
+  // Add handler for inventory rebuild
+  const handleRebuildInventory = async () => {
+    setRebuildingInventory(true);
+    setRebuildResults(null);
+    setShowRebuildDialog(false);
+
+    try {
+      const result = await rebuildInventory.mutateAsync();
+      setRebuildResults(result);
+      setSuccessMessage(`Successfully rebuilt inventory for ${result.updated} items!`);
+    } catch (error) {
+      console.error('Failed to rebuild inventory:', error);
+      setSuccessMessage('Failed to rebuild inventory. Please try again.');
+    } finally {
+      setRebuildingInventory(false);
     }
   };
 
@@ -434,7 +469,42 @@ export default function Settings() {
                   </Button>
                 </ListItemSecondaryAction>
               </ListItem>
+
+              <Divider component="li" />
+
+              {/* Add new list item for inventory rebuild */}
+              <ListItem>
+                <ListItemIcon>
+                  <Calculate />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Inventory Quantities"
+                  secondary="Rebuild inventory quantities, cost, and prices from purchase and sales history"
+                />
+                <ListItemSecondaryAction>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => setShowRebuildDialog(true)}
+                    disabled={rebuildingInventory}
+                    startIcon={rebuildingInventory ? <CircularProgress size={20} /> : <StackedBarChart />}
+                    size="small"
+                  >
+                    {rebuildingInventory ? 'Rebuilding...' : 'Rebuild'}
+                  </Button>
+                </ListItemSecondaryAction>
+              </ListItem>
             </List>
+
+            {/* Show rebuild results if available */}
+            {rebuildResults && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <Typography variant="subtitle2">Inventory Rebuild Results:</Typography>
+                <Typography variant="body2">
+                  {rebuildResults.processed} items processed, {rebuildResults.updated} items updated, {rebuildResults.errors} errors
+                </Typography>
+              </Alert>
+            )}
           </Paper>
         </Grid2>
 
@@ -477,6 +547,35 @@ export default function Settings() {
           </Paper>
         </Grid2>
       </Grid2>
+
+      {/* Add confirmation dialog for inventory rebuild */}
+      <Dialog
+        open={showRebuildDialog}
+        onClose={() => setShowRebuildDialog(false)}
+      >
+        <DialogTitle>Rebuild Inventory</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will recalculate all inventory quantities, costs, and prices based on your purchase and sales history.
+            Purchase data will only be used if the status is "received" and sales data will only be used if the status is "completed".
+            <br /><br />
+            Cost values will be updated based on the most recent purchase for each item.
+            <br /><br />
+            This operation may take some time to complete. Do you want to proceed?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowRebuildDialog(false)}>Cancel</Button>
+          <Button
+            onClick={handleRebuildInventory}
+            variant="contained"
+            color="primary"
+            startIcon={<StackedBarChart />}
+          >
+            Rebuild Inventory
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={!!successMessage}

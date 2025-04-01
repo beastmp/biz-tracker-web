@@ -11,7 +11,14 @@ import {
   Card,
   CardContent,
   Stack,
-  Alert
+  Alert,
+  List,
+  ListItem,
+  ListItemText,
+  CircularProgress,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from '@mui/material';
 import {
   ArrowBack,
@@ -27,9 +34,15 @@ import {
   Money,
   ShoppingCart,
   LocalShipping,
-  Transform
+  Transform,
+  StackedBarChart,
+  ExpandMore,
+  Receipt,
+  ShoppingBasket
 } from '@mui/icons-material';
-import { useItem, useDeleteItem, useDerivedItems } from '@hooks/useItems';
+import { useItem, useDeleteItem, useDerivedItems, useRebuildItemInventory } from '@hooks/useItems';
+import { useItemPurchases } from '@hooks/usePurchases';
+import { useItemSales } from '@hooks/useSales';
 import { formatCurrency } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
@@ -45,6 +58,20 @@ export default function InventoryDetail() {
   const { data: derivedItems = [], isLoading: derivedItemsLoading } = useDerivedItems(id);
   const deleteItem = useDeleteItem();
   const { lowStockAlertsEnabled, quantityThreshold, weightThresholds } = useSettings();
+
+  // Add hooks for related purchases and sales
+  const {
+    data: relatedPurchases = [],
+    isLoading: purchasesLoading
+  } = useItemPurchases(id);
+
+  const {
+    data: relatedSales = [],
+    isLoading: salesLoading
+  } = useItemSales(id);
+
+  // Add rebuild inventory hook
+  const rebuildItemInventory = useRebuildItemInventory(id);
 
   // Add breakdown dialog state
   const [breakdownDialogOpen, setBreakdownDialogOpen] = useState(false);
@@ -74,6 +101,23 @@ export default function InventoryDetail() {
   const formatDate = (date: Date | string | undefined) => {
     if (!date) return 'Never';
     return new Date(date).toLocaleString();
+  };
+
+  // Add handler for rebuilding inventory
+  const handleRebuildInventory = async () => {
+    if (!id) return;
+
+    try {
+      const result = await rebuildItemInventory.mutateAsync();
+      if (result.updated) {
+        setSuccessMessage(`Successfully rebuilt inventory for ${data?.name}`);
+      } else {
+        setSuccessMessage(`No changes needed for ${data?.name}`);
+      }
+    } catch (error) {
+      console.error('Failed to rebuild inventory:', error);
+      setSuccessMessage('Failed to rebuild inventory. Please try again.');
+    }
   };
 
   // Update inventory value calculation to handle all tracking types
@@ -259,6 +303,17 @@ export default function InventoryDetail() {
           </Grid2>
           <Grid2>
             <Stack direction="row" spacing={1}>
+              {/* Add rebuild button */}
+              <Button
+                variant="outlined"
+                color="info"
+                startIcon={<StackedBarChart />}
+                onClick={handleRebuildInventory}
+                disabled={rebuildItemInventory.isPending}
+              >
+                {rebuildItemInventory.isPending ? 'Rebuilding...' : 'Rebuild Inventory'}
+              </Button>
+
               {/* Add breakdown button for generic materials */}
               {(data?.itemType === 'material' || data?.itemType === 'both') &&
                 data?.quantity > 0 && !data.derivedFrom && (
@@ -813,6 +868,234 @@ export default function InventoryDetail() {
                   </Typography>
                 )}
               </Box>
+            </Paper>
+          )}
+
+          {/* Purchase History */}
+          <Accordion defaultExpanded={false} sx={{ mb: 3 }}>
+            <AccordionSummary expandIcon={<ExpandMore />}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <ShoppingCart sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant="h6">Purchase History</Typography>
+                <Chip
+                  label={relatedPurchases.length}
+                  size="small"
+                  color="primary"
+                  sx={{ ml: 1 }}
+                />
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              {purchasesLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : relatedPurchases.length > 0 ? (
+                <List disablePadding>
+                  {relatedPurchases.slice(0, 5).map((purchase) => (
+                    <ListItem
+                      key={purchase._id}
+                      component={RouterLink}
+                      to={`/purchases/${purchase._id}`}
+                      sx={{
+                        px: 0,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        textDecoration: 'none',
+                        color: 'text.primary',
+                        '&:hover': {
+                          bgcolor: 'action.hover'
+                        }
+                      }}
+                    >
+                      <ListItemText
+                        primary={
+                          <Typography variant="body1">
+                            {purchase.invoiceNumber || `Purchase #${purchase._id?.toString().slice(-6)}`}
+                          </Typography>
+                        }
+                        secondary={
+                          <>
+                            <Typography variant="body2" component="span" color="text.secondary">
+                              {formatDate(purchase.purchaseDate)} •
+                            </Typography>
+                            <Typography variant="body2" component="span" color="primary" sx={{ ml: 1 }}>
+                              {formatCurrency(purchase.total)}
+                            </Typography>
+                          </>
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                  {relatedPurchases.length > 5 && (
+                    <ListItem
+                      component={Button}
+                      to="/purchases"
+                      component={RouterLink}
+                      sx={{
+                        justifyContent: 'center',
+                        color: 'primary.main',
+                        textDecoration: 'none'
+                      }}
+                    >
+                      View all {relatedPurchases.length} purchases
+                    </ListItem>
+                  )}
+                </List>
+              ) : (
+                <Typography color="text.secondary" align="center">
+                  No purchase history found for this item
+                </Typography>
+              )}
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Sales History */}
+          <Accordion defaultExpanded={false} sx={{ mb: 3 }}>
+            <AccordionSummary expandIcon={<ExpandMore />}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Receipt sx={{ mr: 1, color: 'secondary.main' }} />
+                <Typography variant="h6">Sales History</Typography>
+                <Chip
+                  label={relatedSales.length}
+                  size="small"
+                  color="secondary"
+                  sx={{ ml: 1 }}
+                />
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              {salesLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : relatedSales.length > 0 ? (
+                <List disablePadding>
+                  {relatedSales.slice(0, 5).map((sale) => (
+                    <ListItem
+                      key={sale._id}
+                      component={RouterLink}
+                      to={`/sales/${sale._id}`}
+                      sx={{
+                        px: 0,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        textDecoration: 'none',
+                        color: 'text.primary',
+                        '&:hover': {
+                          bgcolor: 'action.hover'
+                        }
+                      }}
+                    >
+                      <ListItemText
+                        primary={
+                          <Typography variant="body1">
+                            {sale.customerName || `Sale #${sale._id?.toString().slice(-6)}`}
+                          </Typography>
+                        }
+                        secondary={
+                          <>
+                            <Typography variant="body2" component="span" color="text.secondary">
+                              {formatDate(sale.createdAt)} •
+                            </Typography>
+                            <Typography variant="body2" component="span" color="secondary" sx={{ ml: 1 }}>
+                              {formatCurrency(sale.total)}
+                            </Typography>
+                          </>
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                  {relatedSales.length > 5 && (
+                    <ListItem
+                      component={Button}
+                      to="/sales"
+                      component={RouterLink}
+                      sx={{
+                        justifyContent: 'center',
+                        color: 'secondary.main',
+                        textDecoration: 'none'
+                      }}
+                    >
+                      View all {relatedSales.length} sales
+                    </ListItem>
+                  )}
+                </List>
+              ) : (
+                <Typography color="text.secondary" align="center">
+                  No sales history found for this item
+                </Typography>
+              )}
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Transaction Summary */}
+          {(relatedPurchases.length > 0 || relatedSales.length > 0) && (
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Transaction Summary
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <Stack spacing={2}>
+                <Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Total Purchases:
+                    </Typography>
+                    <Typography variant="subtitle1">
+                      {relatedPurchases.length} orders
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Total Spent:
+                    </Typography>
+                    <Typography variant="subtitle1" color="primary.main">
+                      {formatCurrency(
+                        relatedPurchases.reduce((sum, purchase) => {
+                          // Find the specific item in this purchase
+                          const purchaseItem = purchase.items.find(i =>
+                            (typeof i.item === 'object' && i.item?._id === id) ||
+                            (typeof i.item === 'string' && i.item === id)
+                          );
+                          return sum + (purchaseItem?.totalCost || 0);
+                        }, 0)
+                      )}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Total Sales:
+                    </Typography>
+                    <Typography variant="subtitle1">
+                      {relatedSales.length} orders
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Total Revenue:
+                    </Typography>
+                    <Typography variant="subtitle1" color="secondary.main">
+                      {formatCurrency(
+                        relatedSales.reduce((sum, sale) => {
+                          // Find the specific item in this sale
+                          const saleItem = sale.items.find(i =>
+                            (typeof i.item === 'object' && i.item?._id === id) ||
+                            (typeof i.item === 'string' && i.item === id)
+                          );
+                          return sum + (saleItem ? saleItem.quantity * saleItem.priceAtSale : 0);
+                        }, 0)
+                      )}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Stack>
             </Paper>
           )}
         </Grid2>
