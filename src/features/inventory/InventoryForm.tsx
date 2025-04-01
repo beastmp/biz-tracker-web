@@ -195,7 +195,7 @@ export default function InventoryForm() {
     setFormData({
       ...formData,
       [name]: name === 'quantity' || name === 'weight' || name === 'length' ||
-              name === 'area' || name === 'volume' || name === 'price' || name === 'cost'
+        name === 'area' || name === 'volume' || name === 'price' || name === 'cost'
         ? parseFloat(value) || 0
         : value
     });
@@ -228,7 +228,7 @@ export default function InventoryForm() {
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
-    setFormData({...formData, imageUrl: undefined});
+    setFormData({ ...formData, imageUrl: undefined });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -437,7 +437,7 @@ export default function InventoryForm() {
 
       <Grid2 container spacing={3}>
         {/* Left column - Main details */}
-        <Grid2 size= {{ xs: 12, md: 8 }}>
+        <Grid2 size={{ xs: 12, md: 8 }}>
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
@@ -447,7 +447,7 @@ export default function InventoryForm() {
               <Divider sx={{ mb: 3 }} />
 
               <Grid2 container spacing={3}>
-                <Grid2 size= {{ xs: 12 }}>
+                <Grid2 size={{ xs: 12 }}>
                   <TextField
                     required
                     fullWidth
@@ -459,7 +459,7 @@ export default function InventoryForm() {
                   />
                 </Grid2>
 
-                <Grid2 size= {{ xs: 12, sm: 6 }}>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
                   <TextField
                     required
                     fullWidth
@@ -472,7 +472,7 @@ export default function InventoryForm() {
                   />
                 </Grid2>
 
-                <Grid2 size= {{ xs: 12, sm: 6 }}>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
                   <Autocomplete
                     freeSolo
                     options={categoriesData}
@@ -670,7 +670,7 @@ export default function InventoryForm() {
               <Divider sx={{ mb: 3 }} />
 
               <Grid2 container spacing={3}>
-                <Grid2 size= {{ xs: 12, sm: 6 }}>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth>
                     <InputLabel>Tracking Type</InputLabel>
                     <Select
@@ -706,19 +706,19 @@ export default function InventoryForm() {
                       {formData.trackingType === 'quantity'
                         ? 'Track individual units in your inventory'
                         : formData.trackingType === 'weight'
-                        ? 'Track the weight of your inventory'
-                        : formData.trackingType === 'length'
-                        ? 'Track the length of your inventory'
-                        : formData.trackingType === 'area'
-                        ? 'Track the area of your inventory'
-                        : 'Track the volume of your inventory'}
+                          ? 'Track the weight of your inventory'
+                          : formData.trackingType === 'length'
+                            ? 'Track the length of your inventory'
+                            : formData.trackingType === 'area'
+                              ? 'Track the area of your inventory'
+                              : 'Track the volume of your inventory'}
                     </FormHelperText>
                   </FormControl>
                 </Grid2>
 
-                {/* Quantity or Weight based fields */}
-                {formData.trackingType === 'quantity' ? (
-                  <Grid2 size= {{ xs: 12, sm: 6 }}>
+                {/* Quantity tracking */}
+                {formData.trackingType === 'quantity' && (
+                  <Grid2 size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       type="number"
@@ -737,10 +737,12 @@ export default function InventoryForm() {
                       }}
                     />
                   </Grid2>
-                ) : (
-                  // Weight tracking section
+                )}
+
+                {/* Weight tracking */}
+                {formData.trackingType === 'weight' && (
                   <>
-                    <Grid2 size= {{ xs: 12, sm: 6 }}>
+                    <Grid2 size={{ xs: 12, sm: 6 }}>
                       <TextField
                         fullWidth
                         type="number"
@@ -773,7 +775,7 @@ export default function InventoryForm() {
 
                     {/* Add quantity field when price type is "each" */}
                     {formData.priceType === 'each' && (
-                      <Grid2 size= {{ xs: 12, sm: 6 }}>
+                      <Grid2 size={{ xs: 12, sm: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -797,108 +799,189 @@ export default function InventoryForm() {
                   </>
                 )}
 
+                {/* Length tracking */}
                 {formData.trackingType === 'length' && (
-                  <Grid2 size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Length"
-                      name="length"
-                      value={formData.length}
-                      onChange={handleInputChange}
-                      disabled={isSaving}
-                      InputProps={{
-                        inputProps: { min: 0, step: 0.01 },
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Select
-                              name="lengthUnit"
-                              value={formData.lengthUnit}
-                              onChange={handleSelectChange}
-                              disabled={isSaving}
-                              sx={{ mr: -1 }}
-                            >
-                              <MenuItem value="mm">mm</MenuItem>
-                              <MenuItem value="cm">cm</MenuItem>
-                              <MenuItem value="m">m</MenuItem>
-                              <MenuItem value="in">in</MenuItem>
-                              <MenuItem value="ft">ft</MenuItem>
-                              <MenuItem value="yd">yd</MenuItem>
-                            </Select>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </Grid2>
+                  <>
+                    <Grid2 size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Length"
+                        name="length"
+                        value={formData.length}
+                        onChange={handleInputChange}
+                        disabled={isSaving}
+                        InputProps={{
+                          inputProps: { min: 0, step: 0.01 },
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Select
+                                name="lengthUnit"
+                                value={formData.lengthUnit}
+                                onChange={handleSelectChange}
+                                disabled={isSaving}
+                                sx={{ mr: -1 }}
+                              >
+                                <MenuItem value="mm">mm</MenuItem>
+                                <MenuItem value="cm">cm</MenuItem>
+                                <MenuItem value="m">m</MenuItem>
+                                <MenuItem value="in">in</MenuItem>
+                                <MenuItem value="ft">ft</MenuItem>
+                                <MenuItem value="yd">yd</MenuItem>
+                              </Select>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Grid2>
+
+                    {/* Add quantity field when price type is "each" */}
+                    {formData.priceType === 'each' && (
+                      <Grid2 size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Quantity (# of items)"
+                          name="quantity"
+                          value={formData.quantity}
+                          onChange={handleInputChange}
+                          disabled={isSaving}
+                          InputProps={{
+                            inputProps: { min: 0 },
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Inventory fontSize="small" color="action" />
+                              </InputAdornment>
+                            ),
+                          }}
+                          helperText="Number of items at specified length"
+                        />
+                      </Grid2>
+                    )}
+                  </>
                 )}
 
+                {/* Area tracking */}
                 {formData.trackingType === 'area' && (
-                  <Grid2 size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Area"
-                      name="area"
-                      value={formData.area}
-                      onChange={handleInputChange}
-                      disabled={isSaving}
-                      InputProps={{
-                        inputProps: { min: 0, step: 0.01 },
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Select
-                              name="areaUnit"
-                              value={formData.areaUnit}
-                              onChange={handleSelectChange}
-                              disabled={isSaving}
-                              sx={{ mr: -1 }}
-                            >
-                              <MenuItem value="sqft">sq ft</MenuItem>
-                              <MenuItem value="sqm">sq m</MenuItem>
-                              <MenuItem value="sqyd">sq yd</MenuItem>
-                              <MenuItem value="acre">acre</MenuItem>
-                              <MenuItem value="ha">ha</MenuItem>
-                            </Select>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </Grid2>
+                  <>
+                    <Grid2 size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Area"
+                        name="area"
+                        value={formData.area}
+                        onChange={handleInputChange}
+                        disabled={isSaving}
+                        InputProps={{
+                          inputProps: { min: 0, step: 0.01 },
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Select
+                                name="areaUnit"
+                                value={formData.areaUnit}
+                                onChange={handleSelectChange}
+                                disabled={isSaving}
+                                sx={{ mr: -1 }}
+                              >
+                                <MenuItem value="sqft">sq ft</MenuItem>
+                                <MenuItem value="sqm">sq m</MenuItem>
+                                <MenuItem value="sqyd">sq yd</MenuItem>
+                                <MenuItem value="acre">acre</MenuItem>
+                                <MenuItem value="ha">ha</MenuItem>
+                              </Select>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Grid2>
+
+                    {/* Add quantity field when price type is "each" */}
+                    {formData.priceType === 'each' && (
+                      <Grid2 size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Quantity (# of items)"
+                          name="quantity"
+                          value={formData.quantity}
+                          onChange={handleInputChange}
+                          disabled={isSaving}
+                          InputProps={{
+                            inputProps: { min: 0 },
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Inventory fontSize="small" color="action" />
+                              </InputAdornment>
+                            ),
+                          }}
+                          helperText="Number of items at specified area"
+                        />
+                      </Grid2>
+                    )}
+                  </>
                 )}
 
+                {/* Volume tracking */}
                 {formData.trackingType === 'volume' && (
-                  <Grid2 size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Volume"
-                      name="volume"
-                      value={formData.volume}
-                      onChange={handleInputChange}
-                      disabled={isSaving}
-                      InputProps={{
-                        inputProps: { min: 0, step: 0.01 },
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Select
-                              name="volumeUnit"
-                              value={formData.volumeUnit}
-                              onChange={handleSelectChange}
-                              disabled={isSaving}
-                              sx={{ mr: -1 }}
-                            >
-                              <MenuItem value="ml">ml</MenuItem>
-                              <MenuItem value="l">l</MenuItem>
-                              <MenuItem value="gal">gal</MenuItem>
-                              <MenuItem value="floz">fl oz</MenuItem>
-                              <MenuItem value="cu_ft">cu ft</MenuItem>
-                              <MenuItem value="cu_m">cu m</MenuItem>
-                            </Select>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </Grid2>
+                  <>
+                    <Grid2 size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Volume"
+                        name="volume"
+                        value={formData.volume}
+                        onChange={handleInputChange}
+                        disabled={isSaving}
+                        InputProps={{
+                          inputProps: { min: 0, step: 0.01 },
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Select
+                                name="volumeUnit"
+                                value={formData.volumeUnit}
+                                onChange={handleSelectChange}
+                                disabled={isSaving}
+                                sx={{ mr: -1 }}
+                              >
+                                <MenuItem value="ml">ml</MenuItem>
+                                <MenuItem value="l">l</MenuItem>
+                                <MenuItem value="gal">gal</MenuItem>
+                                <MenuItem value="floz">fl oz</MenuItem>
+                                <MenuItem value="cu_ft">cu ft</MenuItem>
+                                <MenuItem value="cu_m">cu m</MenuItem>
+                              </Select>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Grid2>
+
+                    {/* Add quantity field when price type is "each" */}
+                    {formData.priceType === 'each' && (
+                      <Grid2 size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Quantity (# of items)"
+                          name="quantity"
+                          value={formData.quantity}
+                          onChange={handleInputChange}
+                          disabled={isSaving}
+                          InputProps={{
+                            inputProps: { min: 0 },
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Inventory fontSize="small" color="action" />
+                              </InputAdornment>
+                            ),
+                          }}
+                          helperText="Number of items at specified volume"
+                        />
+                      </Grid2>
+                    )}
+                  </>
                 )}
               </Grid2>
             </CardContent>
@@ -913,7 +996,7 @@ export default function InventoryForm() {
               <Divider sx={{ mb: 3 }} />
 
               <Grid2 container spacing={3}>
-                <Grid2 size= {{ xs: 12, sm: 6 }}>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
                   <TextField
                     required
                     fullWidth
@@ -932,7 +1015,7 @@ export default function InventoryForm() {
                 </Grid2>
 
                 {/* Add this new Cost field */}
-                <Grid2 size= {{ xs: 12, sm: 6 }}>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     type="number"
@@ -949,7 +1032,7 @@ export default function InventoryForm() {
                   />
                 </Grid2>
 
-                <Grid2 size= {{ xs: 12, sm: 6 }}>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth>
                     <InputLabel>Price Type</InputLabel>
                     <Select
@@ -960,7 +1043,7 @@ export default function InventoryForm() {
                         handleSelectChange(e);
                         // Reset quantity to 1 when switching price types for weight-tracked items
                         if (formData.trackingType === 'weight' && e.target.value === 'each' && (!formData.quantity || formData.quantity === 0)) {
-                          setFormData(prev => ({...prev, quantity: 1}));
+                          setFormData(prev => ({ ...prev, quantity: 1 }));
                         }
                       }}
                       disabled={isSaving}
@@ -983,19 +1066,19 @@ export default function InventoryForm() {
                       {formData.trackingType === 'quantity'
                         ? 'Price for each individual unit'
                         : formData.priceType === 'each'
-                        ? 'Price for each package/unit of this measurement'
-                        : formData.trackingType === 'weight'
-                        ? `Price per ${formData.weightUnit} of this item`
-                        : formData.trackingType === 'length'
-                        ? `Price per ${formData.lengthUnit} of this item`
-                        : formData.trackingType === 'area'
-                        ? `Price per ${formData.areaUnit} of this item`
-                        : `Price per ${formData.volumeUnit} of this item`}
+                          ? 'Price for each package/unit of this measurement'
+                          : formData.trackingType === 'weight'
+                            ? `Price per ${formData.weightUnit} of this item`
+                            : formData.trackingType === 'length'
+                              ? `Price per ${formData.lengthUnit} of this item`
+                              : formData.trackingType === 'area'
+                                ? `Price per ${formData.areaUnit} of this item`
+                                : `Price per ${formData.volumeUnit} of this item`}
                     </FormHelperText>
                   </FormControl>
                 </Grid2>
 
-                <Grid2 size= {{ xs: 12 }}>
+                <Grid2 size={{ xs: 12 }}>
                   <Paper variant="outlined" sx={{ p: 2, mt: 2, bgcolor: 'background.default' }}>
                     <Typography variant="subtitle2" gutterBottom>Markup Information</Typography>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
@@ -1043,7 +1126,7 @@ export default function InventoryForm() {
         </Grid2>
 
         {/* Right column - Image upload and tags */}
-        <Grid2 size= {{ xs: 12, md: 4 }}>
+        <Grid2 size={{ xs: 12, md: 4 }}>
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
@@ -1129,7 +1212,7 @@ export default function InventoryForm() {
                 </Button>
 
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 1, textAlign: 'center', display: 'block' }}>
-                  Max file size: 5MB<br/>Supported formats: JPG, PNG, GIF
+                  Max file size: 5MB<br />Supported formats: JPG, PNG, GIF
                 </Typography>
               </Box>
             </CardContent>
