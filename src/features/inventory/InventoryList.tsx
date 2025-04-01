@@ -23,7 +23,12 @@ import {
   FormControl,
   InputLabel,
   Grid2,
-  Alert
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -51,6 +56,7 @@ import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import { useSettings } from '@hooks/useSettings';
 import CreateProductDialog from '@components/inventory/CreateProductDialog';
+import BreakdownItemsDialog from '@components/inventory/BreakdownItemsDialog';
 
 export default function InventoryList() {
   const { data: items = [], isLoading, error } = useItems();
@@ -97,10 +103,25 @@ export default function InventoryList() {
   // Add state for create product dialog
   const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false);
 
+  // Add state for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+
+  // Add state for breakdown items dialog
+  const [breakdownDialogOpen, setBreakdownDialogOpen] = useState(false);
+  const [breakdownSourceItem, setBreakdownSourceItem] = useState<Item | null>(null);
+
   // Handle product creation
   const handleProductCreated = (product: Item) => {
     // Show success message
     setUpdateSuccess(`Created product: ${product.name}`);
+    setTimeout(() => setUpdateSuccess(null), 3000);
+  };
+
+  // Handle breakdown completion
+  const handleBreakdownCompleted = (createdItems: Item[]) => {
+    // Show success message
+    setUpdateSuccess(`Created ${createdItems.length} items from breakdown`);
     setTimeout(() => setUpdateSuccess(null), 3000);
   };
 
@@ -208,15 +229,15 @@ export default function InventoryList() {
     }, {} as Record<string, Item[]>);
   }, [selectedGroup, groupedItems, groupBy]);
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
-      try {
-        await deleteItem.mutateAsync(id);
-      } catch (err) {
-        console.error('Error deleting item:', err);
-      }
-    }
-  };
+  // const handleDelete = async (id: string) => {
+  //   if (window.confirm('Are you sure you want to delete this item?')) {
+  //     try {
+  //       await deleteItem.mutateAsync(id);
+  //     } catch (err) {
+  //       console.error('Error deleting item:', err);
+  //     }
+  //   }
+  // };
 
   // Add handler for updating inventory
   const handleUpdateInventory = async (itemId: string) => {
@@ -466,6 +487,31 @@ export default function InventoryList() {
         ))}
       </Grid2>
     );
+  };
+
+  // Add this function within the InventoryList component
+  const confirmDelete = (itemId: string) => {
+    setItemToDelete(itemId);
+    setDeleteDialogOpen(true);
+  };
+
+  // Ensure you have state variables for the delete dialog
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
+  // Ensure you have a function to handle actual deletion
+  const handleDelete = async () => {
+    if (!itemToDelete) return;
+
+    try {
+      await deleteItem.mutateAsync(itemToDelete);
+      setDeleteDialogOpen(false);
+      setItemToDelete(null);
+      // Show success message
+      enqueueSnackbar('Item deleted successfully', { variant: 'success' });
+    } catch (error) {
+      console.error('Failed to delete item:', error);
+      enqueueSnackbar('Failed to delete item', { variant: 'error' });
+    }
   };
 
   if (isLoading) {
@@ -1675,6 +1721,33 @@ export default function InventoryList() {
         open={createProductDialogOpen}
         onClose={() => setCreateProductDialogOpen(false)}
         onProductCreated={handleProductCreated}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Delete Item</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this inventory item? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={confirmDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Breakdown Items Dialog */}
+      <BreakdownItemsDialog
+        open={breakdownDialogOpen}
+        onClose={() => setBreakdownDialogOpen(false)}
+        sourceItem={breakdownSourceItem}
+        onItemsCreated={handleBreakdownCompleted}
       />
     </Box>
   );

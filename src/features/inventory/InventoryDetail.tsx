@@ -2,1205 +2,880 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
-  Paper,
   Typography,
   Button,
-  Grid2,
+  Paper,
+  Grid,
   Divider,
   Chip,
+  Tooltip,
+  IconButton,
+  Stack,
   Card,
   CardContent,
-  Stack,
-  Alert,
-  List,
-  ListItem,
-  ListItemText,
-  CircularProgress,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails
+  CardMedia,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  InputAdornment,
+  Select,
+  alpha,
+  useTheme,
+  LinearProgress,
+  Badge,
+  Alert
 } from '@mui/material';
 import {
   ArrowBack,
   Edit,
   Delete,
-  NoPhotography,
+  Construction,
   Inventory,
-  AttachMoney,
-  Category,
   LocalOffer,
-  Scale,
-  CalendarToday,
-  Money,
-  ShoppingCart,
-  LocalShipping,
-  Transform,
-  StackedBarChart,
-  ExpandMore,
-  Receipt,
-  ShoppingBasket
+  Category,
+  Description,
+  QrCode,
+  Error,
+  PriceChange,
+  Link as LinkIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon,
+  Warning as WarningIcon,
+  History as HistoryIcon,
+  TrendingUp,
+  TrendingDown,
+  Print as PrintIcon
 } from '@mui/icons-material';
-import { useItem, useDeleteItem, useDerivedItems, useRebuildItemInventory } from '@hooks/useItems';
-import { useItemPurchases } from '@hooks/usePurchases';
-import { useItemSales } from '@hooks/useSales';
+import { useItem, useDeleteItem, useUpdateItem } from '@hooks/useItems';
 import { formatCurrency } from '@utils/formatters';
+import StatusChip from '@components/ui/StatusChip';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import { useSettings } from '@hooks/useSettings';
-import { isPopulatedItem, Item } from '@custTypes/models';
-import { JSX, useMemo } from 'react';
-import BreakdownItemsDialog from '@components/inventory/BreakdownItemsDialog';
+import QRCode from 'qrcode.react';
 
 export default function InventoryDetail() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const theme = useTheme();
   const { data: item, isLoading, error } = useItem(id);
-  const { data: derivedItems = [], isLoading: derivedItemsLoading } = useDerivedItems(id);
   const deleteItem = useDeleteItem();
+  const updateItem = useUpdateItem(id);
+
   const { lowStockAlertsEnabled, quantityThreshold, weightThresholds } = useSettings();
 
-  // Add hooks for related purchases and sales
-  const {
-    data: relatedPurchases = [],
-    isLoading: purchasesLoading
-  } = useItemPurchases(id);
-
-  const {
-    data: relatedSales = [],
-    isLoading: salesLoading
-  } = useItemSales(id);
-
-  // Add rebuild inventory hook
-  const rebuildItemInventory = useRebuildItemInventory(id);
-
-  // Add breakdown dialog state
-  const [breakdownDialogOpen, setBreakdownDialogOpen] = useState(false);
+  // State for dialogs and actions
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const data = item;
+  // State for editing stock levels
+  const [isEditing, setIsEditing] = useState(false);
+  const [newQuantity, setNewQuantity] = useState<number>(0);
+  const [newWeight, setNewWeight] = useState<number>(0);
+  const [newLength, setNewLength] = useState<number>(0);
+  const [newArea, setNewArea] = useState<number>(0);
+  const [newVolume, setNewVolume] = useState<number>(0);
 
-  // Handle successful item breakdown
-  const handleItemsCreated = (items: Item[]) => {
-    setSuccessMessage(`Successfully created ${items.length} items from ${data?.name}`);
-    setTimeout(() => setSuccessMessage(null), 5000);
+  if (isLoading) {
+    return <LoadingScreen message="Loading item details..." />;
+  }
+
+  if (error || !item) {
+    return <ErrorFallback error={error as Error} message="Failed to load item details" />;
+  }
+
+  // When starting to edit, set initial values
+  const startEditing = () => {
+    setNewQuantity(item.quantity);
+    setNewWeight(item.weight);
+    setNewLength(item.length);
+    setNewArea(item.area);
+    setNewVolume(item.volume);
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+  };
+
+  // Save updated stock values
+  const saveStockUpdate = async () => {
+    try {
+      const updateData = {
+        ...item,
+        lastUpdated: new Date()
+      };
+
+      // Update the appropriate fields based on tracking type
+      switch (item.trackingType) {
+        case 'quantity':
+          updateData.quantity = newQuantity;
+          break;
+        case 'weight':
+          updateData.weight = newWeight;
+          break;
+        case 'length':
+          updateData.length = newLength;
+          break;
+        case 'area':
+          updateData.area = newArea;
+          break;
+        case 'volume':
+          updateData.volume = newVolume;
+          break;
+      }
+
+      await updateItem.mutateAsync(updateData);
+      setIsEditing(false);
+      setSuccessMessage('Stock updated successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      console.error('Failed to update stock:', error);
+    }
   };
 
   const handleDelete = async () => {
-    if (!id || !window.confirm('Are you sure you want to delete this item?')) {
-      return;
-    }
-
     try {
-      await deleteItem.mutateAsync(id);
+      await deleteItem.mutateAsync(id as string);
       navigate('/inventory');
     } catch (error) {
       console.error('Failed to delete item:', error);
     }
   };
 
-  const formatDate = (date: Date | string | undefined) => {
-    if (!date) return 'Never';
-    return new Date(date).toLocaleString();
+  const handlePrint = () => {
+    window.print();
   };
 
-  // Add handler for rebuilding inventory
-  const handleRebuildInventory = async () => {
-    if (!id) return;
-
-    try {
-      const result = await rebuildItemInventory.mutateAsync();
-      if (result.updated) {
-        setSuccessMessage(`Successfully rebuilt inventory for ${data?.name}`);
-      } else {
-        setSuccessMessage(`No changes needed for ${data?.name}`);
-      }
-    } catch (error) {
-      console.error('Failed to rebuild inventory:', error);
-      setSuccessMessage('Failed to rebuild inventory. Please try again.');
-    }
-  };
-
-  // Update inventory value calculation to handle all tracking types
-  const inventoryValue = useMemo(() => {
-    if (!data) return 0;
-
-    switch (data?.trackingType) {
-      case 'quantity':
-        return (data?.price || 0) * (data?.quantity || 0);
-      case 'weight':
-        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.weight || 0);
-      case 'length':
-        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.length || 0);
-      case 'area':
-        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.area || 0);
-      case 'volume':
-        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.volume || 0);
-      default:
-        return (data?.price || 0) * (data?.quantity || 0);
-    }
-  }, [data]);
-
-  // Update the getStockStatusColor function to properly handle all tracking types
-  const getStockStatusColor = (item: typeof data): 'success' | 'warning' | 'error' => {
-    if (!item) return 'success';
+  // Calculate if stock is low
+  const isLowStock = (): boolean => {
+    if (!lowStockAlertsEnabled) return false;
 
     switch (item.trackingType) {
       case 'quantity':
-        if (item.quantity === 0) return 'error';
-        if (!lowStockAlertsEnabled) return 'success';
-        if (item.quantity < quantityThreshold) return 'warning';
-        return 'success';
-
+        return item.quantity <= quantityThreshold;
       case 'weight':
-        {
-          if (item.weight === 0) return 'error';
-          if (!lowStockAlertsEnabled) return 'success';
-
-          // Different thresholds based on weight unit
-          const lowThreshold =
-            item.weightUnit === 'kg' ? weightThresholds.kg :
-              item.weightUnit === 'g' ? weightThresholds.g :
-                item.weightUnit === 'lb' ? weightThresholds.lb :
-                  item.weightUnit === 'oz' ? weightThresholds.oz : 5;
-
-          if (item.weight < lowThreshold) return 'warning';
-          return 'success';
-        }
-
-      case 'length':
-        if (item.length === 0) return 'error';
-        return 'success';
-
-      case 'area':
-        if (item.area === 0) return 'error';
-        return 'success';
-
-      case 'volume':
-        if (item.volume === 0) return 'error';
-        return 'success';
-
+        if (item.priceType === 'each' && (item.quantity || 0) <= 3) return true;
+        const threshold =
+          item.weightUnit === 'kg' ? weightThresholds.kg :
+          item.weightUnit === 'g' ? weightThresholds.g :
+          item.weightUnit === 'lb' ? weightThresholds.lb :
+          item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+        return item.weight <= threshold;
       default:
-        return 'success';
+        return false;
     }
   };
 
-  // Shared function to render related items (used for both materials and products)
-  const renderRelatedItem = (
-    item: string | Item | null | undefined,
-    index: number,
-    extraContent?: JSX.Element
-  ) => {
-    const isPopulated = isPopulatedItem(item);
-    const itemId = isPopulated ? item._id : (typeof item === 'string' ? item : '');
-    const itemName = isPopulated ? item.name : 'Unknown Item';
-    const itemImage = isPopulated && item.imageUrl ? item.imageUrl : '/placeholder.png';
-
-    return (
-      <Box
-        key={itemId?.toString() || index.toString()}
-        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <img
-            src={itemImage}
-            alt={itemName}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 4,
-              marginRight: 16,
-              objectFit: 'cover',
-              background: '#f5f5f5'
-            }}
-          />
-          <Box>
-            {itemId ? (
-              <RouterLink
-                to={`/inventory/${itemId}`}
-                style={{ textDecoration: 'none', color: 'inherit' }}
-              >
-                <Typography variant="subtitle1">{itemName}</Typography>
-              </RouterLink>
-            ) : (
-              <Typography variant="subtitle1">{itemName}</Typography>
-            )}
-            {extraContent}
-          </Box>
-        </Box>
-      </Box>
-    );
+  // Calculate stock level percentage for progress bar
+  const getStockLevelPercentage = (): number => {
+    switch (item.trackingType) {
+      case 'quantity':
+        const maxQuantity = quantityThreshold * 3; // 3x threshold as "full"
+        return Math.min(100, (item.quantity / maxQuantity) * 100);
+      case 'weight':
+        const threshold =
+          item.weightUnit === 'kg' ? weightThresholds.kg * 3 :
+          item.weightUnit === 'g' ? weightThresholds.g * 3 :
+          item.weightUnit === 'lb' ? weightThresholds.lb * 3 :
+          item.weightUnit === 'oz' ? weightThresholds.oz * 3 : 15;
+        return Math.min(100, (item.weight / threshold) * 100);
+      default:
+        return 50; // Default value
+    }
   };
 
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
+  // Get progress bar color based on stock level
+  const getProgressColor = (): 'success' | 'warning' | 'error' => {
+    const percentage = getStockLevelPercentage();
+    if (percentage <= 33) return 'error';
+    if (percentage <= 66) return 'warning';
+    return 'success';
+  };
 
-  if (error || !item) {
-    return (
-      <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
-          <Typography variant="h4" component="h1">
-            Item Not Found
-          </Typography>
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBack />}
-            component={RouterLink}
-            to="/inventory"
-          >
-            Back to Inventory
-          </Button>
-        </Box>
-        <ErrorFallback error={error as Error} message="The requested item could not be found" />
-      </Box>
-    );
-  }
+  // Calculate additional metrics
+  const calculateTotalValue = (): number => {
+    switch (item.trackingType) {
+      case 'quantity':
+        return item.price * item.quantity;
+      case 'weight':
+        return item.priceType === 'each'
+          ? item.price * (item.quantity || 0)
+          : item.price * item.weight;
+      case 'length':
+        return item.priceType === 'each'
+          ? item.price * (item.quantity || 0)
+          : item.price * item.length;
+      case 'area':
+        return item.priceType === 'each'
+          ? item.price * (item.quantity || 0)
+          : item.price * item.area;
+      case 'volume':
+        return item.priceType === 'each'
+          ? item.price * (item.quantity || 0)
+          : item.price * item.volume;
+      default:
+        return item.price * item.quantity;
+    }
+  };
+
+  // Calculate profit margin if cost is available
+  const calculateProfitMargin = (): number | null => {
+    if (!item.cost || item.cost <= 0) return null;
+    return (item.price - item.cost) / item.price * 100;
+  };
+
+  // Format stock display
+  const formatStockDisplay = (): string => {
+    switch (item.trackingType) {
+      case 'quantity':
+        return `${item.quantity} ${item.quantity === 1 ? 'unit' : 'units'}`;
+      case 'weight':
+        return `${item.weight} ${item.weightUnit}`;
+      case 'length':
+        return `${item.length} ${item.lengthUnit}`;
+      case 'area':
+        return `${item.area} ${item.areaUnit}`;
+      case 'volume':
+        return `${item.volume} ${item.volumeUnit}`;
+      default:
+        return `${item.quantity} in stock`;
+    }
+  };
 
   return (
-    <Box>
-      {/* Success message */}
+    <Box className="fade-in">
+      {/* Header */}
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Button
+            component={RouterLink}
+            to="/inventory"
+            startIcon={<ArrowBack />}
+            variant="outlined"
+            size="small"
+          >
+            Back
+          </Button>
+          <Box>
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
+              {item.name}
+            </Typography>
+            <Typography color="text.secondary">
+              SKU: {item.sku}
+            </Typography>
+          </Box>
+        </Box>
+
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="Generate QR Code">
+            <IconButton onClick={() => setQrDialogOpen(true)} sx={{ bgcolor: alpha(theme.palette.info.main, 0.1) }}>
+              <QrCode />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Print Item Details">
+            <IconButton onClick={handlePrint} sx={{ bgcolor: alpha(theme.palette.info.main, 0.1) }}>
+              <PrintIcon />
+            </IconButton>
+          </Tooltip>
+          <Button
+            component={RouterLink}
+            to={`/inventory/${id}/edit`}
+            startIcon={<Edit />}
+            variant="contained"
+          >
+            Edit
+          </Button>
+          <Button
+            onClick={() => setDeleteDialogOpen(true)}
+            startIcon={<Delete />}
+            variant="outlined"
+            color="error"
+          >
+            Delete
+          </Button>
+        </Stack>
+      </Box>
+
       {successMessage && (
         <Alert
           severity="success"
-          sx={{ mb: 2 }}
+          sx={{
+            mb: 3,
+            borderLeft: `4px solid ${theme.palette.success.main}`,
+            animation: 'fadeIn 0.5s ease-in',
+            boxShadow: theme.shadows[2],
+            borderRadius: 1
+          }}
           onClose={() => setSuccessMessage(null)}
         >
           {successMessage}
         </Alert>
       )}
 
-      {/* Header with navigation and actions */}
-      <Box sx={{ mb: 3 }}>
-        <Grid2 container alignItems="center" spacing={2}>
-          <Grid2 size="grow">
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Button
-                component={RouterLink}
-                to="/inventory"
-                startIcon={<ArrowBack />}
-                variant="outlined"
-                size="small"
-                sx={{ mr: 1 }}
-              >
-                Back
-              </Button>
-              <Typography variant="h4" component="div">
-                {data?.name}
-              </Typography>
-              {data?.category && (
-                <Chip
-                  label={data?.category}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  sx={{ ml: 1 }}
-                />
-              )}
-              {/* Add a chip to show if this item is derived */}
-              {data?.derivedFrom && isPopulatedItem(data.derivedFrom.item) && (
-                <Chip
-                  label="Derived Item"
-                  size="small"
-                  color="secondary"
-                  icon={<Transform fontSize="small" />}
-                  sx={{ ml: 1 }}
-                />
-              )}
-            </Box>
-            <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
-              SKU: {data?.sku}
-            </Typography>
-          </Grid2>
-          <Grid2>
-            <Stack direction="row" spacing={1}>
-              {/* Add rebuild button */}
-              <Button
-                variant="outlined"
-                color="info"
-                startIcon={<StackedBarChart />}
-                onClick={handleRebuildInventory}
-                disabled={rebuildItemInventory.isPending}
-              >
-                {rebuildItemInventory.isPending ? 'Rebuilding...' : 'Rebuild Inventory'}
-              </Button>
-
-              {/* Add breakdown button for generic materials */}
-              {(data?.itemType === 'material' || data?.itemType === 'both') &&
-                data?.quantity > 0 && !data.derivedFrom && (
-                  <Button
-                    variant="outlined"
-                    color="secondary"
-                    startIcon={<Transform />}
-                    onClick={() => setBreakdownDialogOpen(true)}
-                  >
-                    Break Down
-                  </Button>
-                )}
-              <Button
-                component={RouterLink}
-                to={`/inventory/${id}/edit`}
-                startIcon={<Edit />}
-                variant="contained"
-                color="primary"
-              >
-                Edit
-              </Button>
-              <Button
-                onClick={handleDelete}
-                startIcon={<Delete />}
-                variant="outlined"
-                color="error"
-              >
-                Delete
-              </Button>
-            </Stack>
-          </Grid2>
-        </Grid2>
-      </Box>
-
-      <Grid2 container spacing={3}>
+      <Grid container spacing={3}>
         {/* Left column */}
-        <Grid2 size={{ xs: 12, md: 8 }}>
-          <Grid2 container spacing={3}>
-            {/* Item Image */}
-            <Grid2 size={{ xs: 12 }}>
-              <Paper sx={{ p: 3, height: '100%', overflow: 'hidden', borderRadius: 2 }}>
-                {data?.imageUrl ? (
-                  <Box
-                    sx={{
-                      height: 300,
-                      backgroundImage: `url(${data?.imageUrl})`,
-                      backgroundSize: 'contain',
-                      backgroundPosition: 'center',
-                      backgroundRepeat: 'no-repeat',
-                      borderRadius: 1
-                    }}
-                  />
-                ) : (
-                  <Box
-                    sx={{
-                      height: 300,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: '#f5f5f5',
-                      borderRadius: 1
-                    }}
-                  >
-                    <NoPhotography sx={{ fontSize: 60, color: '#cccccc', mb: 1 }} />
-                    <Typography variant="body2" color="text.secondary">
-                      No image available
-                    </Typography>
-                  </Box>
-                )}
-              </Paper>
-            </Grid2>
+        <Grid item xs={12} md={8}>
+          {/* Item Overview */}
+          <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={6} md={5}>
+                <CardMedia
+                  component="div"
+                  sx={{
+                    height: 240,
+                    backgroundColor: 'action.hover',
+                    borderRadius: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundImage: item.imageUrl ? `url(${item.imageUrl})` : 'none',
+                  }}
+                >
+                  {!item.imageUrl && (
+                    <Inventory sx={{ fontSize: 60, color: 'action.active' }} />
+                  )}
+                </CardMedia>
+              </Grid>
 
-            {/* Key Metrics */}
-            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
-              <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <AttachMoney sx={{ mr: 1 }} />
-                    <Typography variant="h6">Pricing</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" sx={{ opacity: 0.8 }}>Cost:</Typography>
-                      <Typography variant="h6">{formatCurrency(data?.cost || 0)}</Typography>
+              <Grid item xs={12} sm={6} md={7}>
+                <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  {/* Basic Info */}
+                  <Box>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+                      {item.itemType && (
+                        <Chip
+                          label={
+                            item.itemType === 'product' ? 'Product' :
+                            item.itemType === 'material' ? 'Material' :
+                            item.itemType === 'both' ? 'Product & Material' :
+                            'Other'
+                          }
+                          size="small"
+                          color={
+                            item.itemType === 'product' ? 'primary' :
+                            item.itemType === 'material' ? 'info' :
+                            'secondary'
+                          }
+                        />
+                      )}
+                      {item.category && (
+                        <Chip
+                          icon={<Category fontSize="small" />}
+                          label={item.category}
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
                     </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" sx={{ opacity: 0.8 }}>Sale:</Typography>
-                      <Typography variant="h6">{formatCurrency(data?.price || 0)}</Typography>
+
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 2 }}>
+                      <Typography variant="h5" color="primary.main" fontWeight="bold">
+                        {formatCurrency(item.price)}
+                      </Typography>
+                      {item.priceType === 'per-unit' && (
+                        <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                          / {item.weightUnit || item.lengthUnit || item.areaUnit || item.volumeUnit || 'unit'}
+                        </Typography>
+                      )}
                     </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid2>
 
-            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
-              <Card sx={{
-                bgcolor:
-                  getStockStatusColor(data) === 'success' ? 'success.light' :
-                    getStockStatusColor(data) === 'warning' ? 'warning.light' : 'error.light',
-                color:
-                  getStockStatusColor(data) === 'success' ? 'success.contrastText' :
-                    getStockStatusColor(data) === 'warning' ? 'warning.contrastText' : 'error.contrastText'
-              }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Inventory sx={{ mr: 1 }} />
-                    <Typography variant="h6">Stock</Typography>
-                  </Box>
-                  <Typography variant="h4">
-                    {data?.trackingType === 'quantity' && data?.quantity}
-                    {data?.trackingType === 'weight' && `${data?.weight}${data?.weightUnit}`}
-                    {data?.trackingType === 'length' && `${data?.length}${data?.lengthUnit}`}
-                    {data?.trackingType === 'area' && `${data?.area}${data?.areaUnit}`}
-                    {data?.trackingType === 'volume' && `${data?.volume}${data?.volumeUnit}`}
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>
-                    {data?.trackingType === 'quantity'
-                      ? 'units available'
-                      : data?.priceType === 'each'
-                        ? `${data?.quantity || 0} packages`
-                        : `total ${data?.trackingType}`}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid2>
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Total Value
+                      </Typography>
+                      <Typography variant="h6" fontWeight="medium">
+                        {formatCurrency(calculateTotalValue())}
+                      </Typography>
+                    </Box>
 
-            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
-              <Card sx={{ bgcolor: 'info.light', color: 'info.contrastText' }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Money sx={{ mr: 1 }} />
-                    <Typography variant="h6">Value</Typography>
+                    {/* Profit margin */}
+                    {calculateProfitMargin() !== null && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Profit Margin
+                        </Typography>
+                        <Chip
+                          icon={calculateProfitMargin()! > 20 ? <TrendingUp /> : <TrendingDown />}
+                          label={`${calculateProfitMargin()!.toFixed(1)}%`}
+                          color={calculateProfitMargin()! > 20 ? 'success' : calculateProfitMargin()! > 0 ? 'warning' : 'error'}
+                        />
+                      </Box>
+                    )}
                   </Box>
-                  <Typography variant="h4">
-                    {formatCurrency(inventoryValue)}
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>
-                    total inventory value
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid2>
 
-            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <CalendarToday sx={{ mr: 1 }} />
-                    <Typography variant="h6">Last Updated</Typography>
+                  {/* Stock Level */}
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Current Stock Level
+                      </Typography>
+                      {isLowStock() && (
+                        <Chip
+                          icon={<WarningIcon fontSize="small" />}
+                          label="Low Stock"
+                          color="warning"
+                          size="small"
+                        />
+                      )}
+                    </Box>
+
+                    {isEditing ? (
+                      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField
+                          label={`New ${item.trackingType === 'quantity' ? 'Quantity' :
+                                    item.trackingType === 'weight' ? 'Weight' :
+                                    item.trackingType === 'length' ? 'Length' :
+                                    item.trackingType === 'area' ? 'Area' :
+                                    'Volume'}`}
+                          type="number"
+                          value={
+                            item.trackingType === 'quantity' ? newQuantity :
+                            item.trackingType === 'weight' ? newWeight :
+                            item.trackingType === 'length' ? newLength :
+                            item.trackingType === 'area' ? newArea :
+                            newVolume
+                          }
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            switch (item.trackingType) {
+                              case 'quantity':
+                                setNewQuantity(value);
+                                break;
+                              case 'weight':
+                                setNewWeight(value);
+                                break;
+                              case 'length':
+                                setNewLength(value);
+                                break;
+                              case 'area':
+                                setNewArea(value);
+                                break;
+                              case 'volume':
+                                setNewVolume(value);
+                                break;
+                            }
+                          }}
+                          InputProps={{
+                            endAdornment: item.trackingType !== 'quantity' ? (
+                              <InputAdornment position="end">
+                                {item.trackingType === 'weight' ? item.weightUnit :
+                                 item.trackingType === 'length' ? item.lengthUnit :
+                                 item.trackingType === 'area' ? item.areaUnit :
+                                 item.volumeUnit}
+                              </InputAdornment>
+                            ) : null
+                          }}
+                          size="small"
+                          autoFocus
+                          sx={{ flex: 1 }}
+                        />
+                        <IconButton color="primary" onClick={saveStockUpdate}>
+                          <SaveIcon />
+                        </IconButton>
+                        <IconButton color="error" onClick={cancelEditing}>
+                          <CancelIcon />
+                        </IconButton>
+                      </Box>
+                    ) : (
+                      <Box sx={{ mb: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="h6" fontWeight="medium">
+                            {formatStockDisplay()}
+                          </Typography>
+                          <Button
+                            size="small"
+                            startIcon={<Edit />}
+                            onClick={startEditing}
+                            variant="outlined"
+                          >
+                            Update
+                          </Button>
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={getStockLevelPercentage()}
+                          color={getProgressColor()}
+                          sx={{ height: 8, borderRadius: 4 }}
+                        />
+                      </Box>
+                    )}
                   </Box>
-                  <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
-                    {formatDate(data?.lastUpdated)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid2>
-
-            {/* Item Description */}
-            {data?.description && (
-              <Grid2 size={{ xs: 12 }}>
-                <Paper sx={{ p: 3 }}>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Category sx={{ mr: 1, fontSize: 20 }} />
-                    Description
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <Typography variant="body1">
-                    {data?.description}
-                  </Typography>
-                </Paper>
-              </Grid2>
-            )}
+                </Box>
+              </Grid>
+            </Grid>
 
             {/* Tags */}
-            <Grid2 size={{ xs: 12 }}>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                  <LocalOffer sx={{ mr: 1, fontSize: 20 }} />
-                  Tags
+            {item.tags && item.tags.length > 0 && (
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                  <LocalOffer fontSize="small" sx={{ mr: 1 }} /> Tags
                 </Typography>
-                <Divider sx={{ mb: 2 }} />
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {item.tags.map((tag, index) => (
+                    <Chip
+                      key={index}
+                      label={tag}
+                      size="small"
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
+          </Paper>
 
-                {data?.tags && data?.tags.length > 0 ? (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {data?.tags.map(tag => (
-                      <Chip
-                        key={tag}
-                        label={tag}
-                        color="primary"
-                        variant="outlined"
-                        sx={{ borderRadius: 1 }}
-                      />
+          {/* Description */}
+          <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Description sx={{ mr: 1 }} /> Description
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+
+            {item.description ? (
+              <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+                {item.description}
+              </Typography>
+            ) : (
+              <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                No description available for this item.
+              </Typography>
+            )}
+          </Paper>
+
+          {/* Components (if product with components) */}
+          {item.components && item.components.length > 0 && (
+            <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Construction sx={{ mr: 1 }} /> Components
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Material</TableCell>
+                      <TableCell align="right">Quantity</TableCell>
+                      <TableCell align="right">Cost</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {item.components.map((component, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Typography component={RouterLink} to={`/inventory/${component.materialId}`} sx={{
+                            textDecoration: 'none',
+                            color: 'primary.main',
+                            '&:hover': { textDecoration: 'underline' }
+                          }}>
+                            {component.name}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          {component.quantity} {component.unit || 'units'}
+                        </TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(component.cost * component.quantity)}
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </Box>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    No tags added
-                  </Typography>
-                )}
-              </Paper>
-            </Grid2>
-          </Grid2>
-        </Grid2>
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-        {/* Right Column */}
-        <Grid2 size={{ xs: 12, md: 4 }}>
-          {/* Item Details */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Item Details
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Tracking Type
-                </Typography>
-                <Typography variant="body1">
-                  {data?.trackingType === 'quantity' ? (
-                    <Chip
-                      icon={<Inventory fontSize="small" />}
-                      label="Track by Quantity"
-                      size="small"
-                      variant="outlined"
-                    />
-                  ) : (
-                    <Chip
-                      icon={<Scale fontSize="small" />}
-                      label="Track by Weight"
-                      size="small"
-                      variant="outlined"
-                    />
-                  )}
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                mt: 2,
+                p: 1.5,
+                bgcolor: alpha(theme.palette.warning.main, 0.05),
+                borderRadius: 1
+              }}>
+                <Typography sx={{ mr: 2 }}>Total Component Cost:</Typography>
+                <Typography fontWeight="bold">
+                  {formatCurrency(item.components.reduce(
+                    (sum, component) => sum + component.cost * component.quantity, 0
+                  ))}
                 </Typography>
               </Box>
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Price Type
-                </Typography>
-                <Typography variant="body1">
-                  {data?.trackingType === 'quantity' ? (
-                    <Chip
-                      icon={<AttachMoney fontSize="small" />}
-                      label="Price per Item"
-                      size="small"
-                      variant="outlined"
-                    />
-                  ) : data?.priceType === 'each' ? (
-                    <Chip
-                      icon={<AttachMoney fontSize="small" />}
-                      label="Price per Package"
-                      size="small"
-                      variant="outlined"
-                    />
-                  ) : (
-                    <Chip
-                      icon={<AttachMoney fontSize="small" />}
-                      label={`Price per ${data?.weightUnit}`}
-                      size="small"
-                      variant="outlined"
-                    />
-                  )}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Item Type
-                </Typography>
-                <Typography variant="body1">
-                  {data?.itemType === 'material' ? (
-                    <Chip
-                      icon={<Category fontSize="small" />}
-                      label="Raw Material"
-                      size="small"
-                      variant="outlined"
-                    />
-                  ) : data?.itemType === 'product' ? (
-                    <Chip
-                      icon={<Inventory fontSize="small" />}
-                      label="Finished Product"
-                      size="small"
-                      variant="outlined"
-                    />
-                  ) : (
-                    <Chip
-                      icon={<Category fontSize="small" />}
-                      label="Material & Product"
-                      size="small"
-                      variant="outlined"
-                    />
-                  )}
-                </Typography>
-              </Box>
-
-              <Divider />
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Stock Details
-                </Typography>
-                {data?.trackingType === 'quantity' ? (
-                  <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                    <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                    {data?.quantity} units in stock
-                  </Typography>
-                ) : data?.priceType === 'each' ? (
-                  <Box>
-                    <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                      <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      {data?.quantity || 0} packages in stock
-                    </Typography>
-                    <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                      <Scale fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      Each package: {data?.weight}{data?.weightUnit}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                    <Scale fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                    {data?.weight}{data?.weightUnit} in stock
-                  </Typography>
-                )}
-              </Box>
-
-              <Divider />
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Sale Price
-                </Typography>
-                <Typography variant="h5" color="primary" sx={{ mt: 1, fontWeight: 'bold' }}>
-                  {formatCurrency(data?.price || 0)}
-                  <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
-                    {data?.trackingType === 'quantity'
-                      ? 'per item'
-                      : data?.priceType === 'each'
-                        ? 'per package'
-                        : `per ${data?.weightUnit}`}
-                  </Typography>
-                </Typography>
-              </Box>
-
-              <Divider />
-
-              {/* Cost Information */}
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Cost Information
-                </Typography>
-                <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2" color="text.secondary">Purchase Cost:</Typography>
-                    <Typography variant="body1" fontWeight="medium">
-                      {formatCurrency(data?.cost || 0)}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                    <Typography variant="body2" color="text.secondary">Markup:</Typography>
-                    <Typography variant="body1" fontWeight="medium" color={data?.price || 0 > (data?.cost || 0) ? 'success.main' : 'error.main'}>
-                      {data?.cost || 0 ? `${Math.round(((data?.price || 0) / (data?.cost || 0) - 1) * 100)}%` : 'N/A'}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                    <Typography variant="body2" color="text.secondary">Profit per Unit:</Typography>
-                    <Typography variant="body1" fontWeight="medium" color={(data?.price || 0) > (data?.cost || 0) ? 'success.main' : 'error.main'}>
-                      {formatCurrency((data?.price || 0) - (data?.cost || 0))}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Pack Information for Materials */}
-              {(data?.itemType === 'material' || data?.itemType === 'both') && data?.packInfo?.isPack && (
-                <>
-                  <Divider />
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Pack Information
-                    </Typography>
-                    <Box sx={{ mt: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2" color="text.secondary">Units per Pack:</Typography>
-                        <Typography variant="body1">{data?.packInfo.unitsPerPack}</Typography>
-                      </Box>
-
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                        <Typography variant="body2" color="text.secondary">Cost per Unit:</Typography>
-                        <Typography variant="body1">
-                          {formatCurrency(data?.packInfo.costPerUnit || 0)}
-                        </Typography>
-                      </Box>
-
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                        <Typography variant="body2" color="text.secondary">Pack Cost:</Typography>
-                        <Typography variant="body1">
-                          {formatCurrency((data?.packInfo.costPerUnit || 0) * (data?.packInfo.unitsPerPack || 1))}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                </>
-              )}
-            </Stack>
-          </Paper>
-
-          {/* Actions */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Quick Actions
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <Stack spacing={2}>
-              <Button
-                fullWidth
-                variant="outlined"
-                color="primary"
-                startIcon={<ShoppingCart />}
-                component={RouterLink}
-                to={`/sales/new?item=${id}`}
-              >
-                Create Sale with Item
-              </Button>
-
-              <Button
-                fullWidth
-                variant="outlined"
-                color="primary"
-                startIcon={<LocalShipping />}
-                component={RouterLink}
-                to={`/purchases/new?item=${id}`}
-              >
-                Create Purchase for Item
-              </Button>
-            </Stack>
-          </Paper>
-
-          {/* Materials & Products Relationships */}
-          {(data?.itemType === 'product' || data?.itemType === 'both') && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Materials Used
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-
-              {data?.components && data?.components.length > 0 ? (
-                <Stack spacing={2}>
-                  {data?.components.map((component, index) => {
-                    const material = component.item || null;
-                    const isPopulated = isPopulatedItem(material);
-                    const materialCost = isPopulated && (material.cost || 0) ? (material.cost || 0) : 0;
-
-                    return (
-                      <Box
-                        key={index}
-                        sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
-                      >
-                        {renderRelatedItem(
-                          material,
-                          index,
-                          <Typography variant="body2" color="text.secondary">
-                            {component.quantity || 0} × {component.weight
-                              ? `${component.weight} ${component.weightUnit || ''}`
-                              : 'units'} used
-                          </Typography>
-                        )}
-                        <Typography variant="subtitle1" color="primary">
-                          {formatCurrency((component.quantity || 0) * materialCost)}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
-                </Stack>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  No materials are linked to this product.
-                </Typography>
-              )}
             </Paper>
           )}
 
-          {(data?.itemType === 'material' || data?.itemType === 'both') && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Used In Products
+          {/* Related Products (if material used in products) */}
+          {item.usedInProducts && item.usedInProducts.length > 0 && (
+            <Paper sx={{ p: 3, borderRadius: 2 }}>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <LinkIcon sx={{ mr: 1 }} /> Used in Products
               </Typography>
               <Divider sx={{ mb: 2 }} />
 
-              {data?.usedInProducts && data?.usedInProducts.length > 0 ? (
-                <Stack spacing={2}>
-                  {data?.usedInProducts.map((product, index) =>
-                    renderRelatedItem(product, index)
-                  )}
-                </Stack>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  This material is not used in any products yet.
-                </Typography>
-              )}
-            </Paper>
-          )}
-
-          {/* Add Derived Items Section - show if item has derived items */}
-          {!derivedItemsLoading && derivedItems.length > 0 && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Derived Items
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-
-              <Stack spacing={2}>
-                {derivedItems.map((derivedItem) => (
-                  <Box
-                    key={derivedItem._id}
-                    sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
-                  >
-                    {renderRelatedItem(
-                      derivedItem,
-                      0,
-                      <Typography variant="body2" color="text.secondary">
-                        {derivedItem.derivedFrom?.quantity || 0} units allocated
-                      </Typography>
-                    )}
-                  </Box>
+              <Grid container spacing={2}>
+                {item.usedInProducts.map((product, index) => (
+                  <Grid item xs={12} sm={6} md={4} key={index}>
+                    <Card variant="outlined" sx={{ height: '100%' }}>
+                      <CardContent sx={{ pb: 1 }}>
+                        <Typography variant="subtitle1" noWrap>
+                          <RouterLink to={`/inventory/${product.productId}`} style={{
+                            textDecoration: 'none',
+                            color: theme.palette.primary.main
+                          }}>
+                            {product.name}
+                          </RouterLink>
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Uses {product.quantity} {product.unit || 'units'}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
                 ))}
-              </Stack>
+              </Grid>
             </Paper>
           )}
+        </Grid>
 
-          {/* Enhance the Source Item Section - replace the existing source item section with this improved version */}
-          {data?.derivedFrom && isPopulatedItem(data.derivedFrom.item) && (
-            <Paper sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'secondary.main', borderRadius: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Transform sx={{ color: 'secondary.main', mr: 1 }} />
-                <Typography variant="h6" color="secondary.main">
-                  Derived From
-                </Typography>
+        {/* Right column */}
+        <Grid item xs={12} md={4}>
+          {/* Price Information */}
+          <Card sx={{ mb: 3, borderRadius: 2 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <PriceChange color="primary" sx={{ mr: 1 }} />
+                <Typography variant="h6">Price Information</Typography>
               </Box>
-              <Divider sx={{ mb: 2 }} />
-
-              <Grid2 container spacing={2}>
-                <Grid2 size={{ xs: 12, md: 8 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    {data.derivedFrom.item.imageUrl ? (
-                      <Box
-                        component="img"
-                        src={data.derivedFrom.item.imageUrl}
-                        alt={data.derivedFrom.item.name}
-                        sx={{
-                          width: 60,
-                          height: 60,
-                          borderRadius: 1,
-                          mr: 2,
-                          objectFit: 'contain',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                        }}
-                      />
-                    ) : (
-                      <Box
-                        sx={{
-                          width: 60,
-                          height: 60,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: 1,
-                          mr: 2,
-                          bgcolor: 'action.hover',
-                        }}
-                      >
-                        <NoPhotography />
-                      </Box>
-                    )}
-                    <Box>
-                      <Button
-                        component={RouterLink}
-                        to={`/inventory/${data.derivedFrom.item._id}`}
-                        variant="text"
-                        sx={{ fontWeight: 'bold', p: 0, textAlign: 'left' }}
-                      >
-                        {data.derivedFrom.item.name}
-                      </Button>
-                      <Typography variant="body2" color="text.secondary">
-                        SKU: {data.derivedFrom.item.sku}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {data.derivedFrom.item.category}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid2>
-
-                <Grid2 size={{ xs: 12, md: 4 }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Derivation Details
-                  </Typography>
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Quantity Allocated:
-                    </Typography>
-                    <Typography variant="body1" fontWeight="medium">
-                      {data.derivedFrom.quantity || 0} units
-                    </Typography>
-                  </Box>
-
-                  {data.derivedFrom.weight && data.derivedFrom.weightUnit && (
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">
-                        Weight Allocated:
-                      </Typography>
-                      <Typography variant="body1" fontWeight="medium">
-                        {data.derivedFrom.weight} {data.derivedFrom.weightUnit}
-                      </Typography>
-                    </Box>
-                  )}
-                </Grid2>
-              </Grid2>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Button
-                component={RouterLink}
-                to={`/inventory/${data.derivedFrom.item._id}`}
-                startIcon={<ArrowBack />}
-                color="secondary"
-                variant="outlined"
-                size="small"
-              >
-                Go To Source Item
-              </Button>
-            </Paper>
-          )}
-
-          {/* Purchase History */}
-          <Accordion defaultExpanded={false} sx={{ mb: 3 }}>
-            <AccordionSummary expandIcon={<ExpandMore />}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <ShoppingCart sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6">Purchase History</Typography>
-                <Chip
-                  label={relatedPurchases.length}
-                  size="small"
-                  color="primary"
-                  sx={{ ml: 1 }}
-                />
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              {purchasesLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                  <CircularProgress size={24} />
-                </Box>
-              ) : relatedPurchases.length > 0 ? (
-                <List disablePadding>
-                  {relatedPurchases.slice(0, 5).map((purchase) => (
-                    <ListItem
-                      key={purchase._id}
-                      component={RouterLink}
-                      to={`/purchases/${purchase._id}`}
-                      sx={{
-                        px: 0,
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                        textDecoration: 'none',
-                        color: 'text.primary',
-                        '&:hover': {
-                          bgcolor: 'action.hover'
-                        }
-                      }}
-                    >
-                      <ListItemText
-                        primary={
-                          <Typography variant="body1">
-                            {purchase.invoiceNumber || `Purchase #${purchase._id?.toString().slice(-6)}`}
-                          </Typography>
-                        }
-                        secondary={
-                          <>
-                            <Typography variant="body2" component="span" color="text.secondary">
-                              {formatDate(purchase.purchaseDate)} •
-                            </Typography>
-                            <Typography variant="body2" component="span" color="primary" sx={{ ml: 1 }}>
-                              {formatCurrency(purchase.total)}
-                            </Typography>
-                          </>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                  {relatedPurchases.length > 5 && (
-                    <ListItem
-                      component={Button}
-                      to="/purchases"
-                      component={RouterLink}
-                      sx={{
-                        justifyContent: 'center',
-                        color: 'primary.main',
-                        textDecoration: 'none'
-                      }}
-                    >
-                      View all {relatedPurchases.length} purchases
-                    </ListItem>
-                  )}
-                </List>
-              ) : (
-                <Typography color="text.secondary" align="center">
-                  No purchase history found for this item
-                </Typography>
-              )}
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Sales History */}
-          <Accordion defaultExpanded={false} sx={{ mb: 3 }}>
-            <AccordionSummary expandIcon={<ExpandMore />}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Receipt sx={{ mr: 1, color: 'secondary.main' }} />
-                <Typography variant="h6">Sales History</Typography>
-                <Chip
-                  label={relatedSales.length}
-                  size="small"
-                  color="secondary"
-                  sx={{ ml: 1 }}
-                />
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              {salesLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                  <CircularProgress size={24} />
-                </Box>
-              ) : relatedSales.length > 0 ? (
-                <List disablePadding>
-                  {relatedSales.slice(0, 5).map((sale) => (
-                    <ListItem
-                      key={sale._id}
-                      component={RouterLink}
-                      to={`/sales/${sale._id}`}
-                      sx={{
-                        px: 0,
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                        textDecoration: 'none',
-                        color: 'text.primary',
-                        '&:hover': {
-                          bgcolor: 'action.hover'
-                        }
-                      }}
-                    >
-                      <ListItemText
-                        primary={
-                          <Typography variant="body1">
-                            {sale.customerName || `Sale #${sale._id?.toString().slice(-6)}`}
-                          </Typography>
-                        }
-                        secondary={
-                          <>
-                            <Typography variant="body2" component="span" color="text.secondary">
-                              {formatDate(sale.createdAt)} •
-                            </Typography>
-                            <Typography variant="body2" component="span" color="secondary" sx={{ ml: 1 }}>
-                              {formatCurrency(sale.total)}
-                            </Typography>
-                          </>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                  {relatedSales.length > 5 && (
-                    <ListItem
-                      component={Button}
-                      to="/sales"
-                      component={RouterLink}
-                      sx={{
-                        justifyContent: 'center',
-                        color: 'secondary.main',
-                        textDecoration: 'none'
-                      }}
-                    >
-                      View all {relatedSales.length} sales
-                    </ListItem>
-                  )}
-                </List>
-              ) : (
-                <Typography color="text.secondary" align="center">
-                  No sales history found for this item
-                </Typography>
-              )}
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Transaction Summary */}
-          {(relatedPurchases.length > 0 || relatedSales.length > 0) && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Transaction Summary
-              </Typography>
               <Divider sx={{ mb: 2 }} />
 
               <Stack spacing={2}>
                 <Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Total Purchases:
-                    </Typography>
-                    <Typography variant="subtitle1">
-                      {relatedPurchases.length} orders
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Total Spent:
-                    </Typography>
-                    <Typography variant="subtitle1" color="primary.main">
-                      {formatCurrency(
-                        relatedPurchases.reduce((sum, purchase) => {
-                          // Find the specific item in this purchase
-                          const purchaseItem = purchase.items.find(i =>
-                            (typeof i.item === 'object' && i.item?._id === id) ||
-                            (typeof i.item === 'string' && i.item === id)
-                          );
-                          return sum + (purchaseItem?.totalCost || 0);
-                        }, 0)
-                      )}
-                    </Typography>
-                  </Box>
+                  <Typography variant="body2" color="text.secondary">Sale Price</Typography>
+                  <Typography variant="h5" color="primary" fontWeight="bold">
+                    {formatCurrency(item.price)}
+                    {item.priceType === 'per-unit' &&
+                      <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                        / {item.weightUnit || item.lengthUnit || item.areaUnit || item.volumeUnit || 'unit'}
+                      </Typography>
+                    }
+                  </Typography>
                 </Box>
+
+                {item.cost !== undefined && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">Cost Price</Typography>
+                    <Typography variant="body1" color="text.primary">
+                      {formatCurrency(item.cost)}
+                    </Typography>
+                  </Box>
+                )}
+
+                {item.price > 0 && item.cost > 0 && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">Profit</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body1" fontWeight={500}>
+                        {formatCurrency(item.price - item.cost)}
+                      </Typography>
+                      <Chip
+                        label={`${((item.price - item.cost) / item.price * 100).toFixed(1)}%`}
+                        color={((item.price - item.cost) / item.price) > 0.2 ? 'success' : 'warning'}
+                        size="small"
+                      />
+                    </Box>
+                  </Box>
+                )}
 
                 <Divider />
 
                 <Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Total Sales:
-                    </Typography>
-                    <Typography variant="subtitle1">
-                      {relatedSales.length} orders
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Total Revenue:
-                    </Typography>
-                    <Typography variant="subtitle1" color="secondary.main">
-                      {formatCurrency(
-                        relatedSales.reduce((sum, sale) => {
-                          // Find the specific item in this sale
-                          const saleItem = sale.items.find(i =>
-                            (typeof i.item === 'object' && i.item?._id === id) ||
-                            (typeof i.item === 'string' && i.item === id)
-                          );
-                          return sum + (saleItem ? saleItem.quantity * saleItem.priceAtSale : 0);
-                        }, 0)
-                      )}
-                    </Typography>
-                  </Box>
+                  <Typography variant="body2" color="text.secondary">Total Inventory Value</Typography>
+                  <Typography variant="h6" color="info.main" fontWeight={600}>
+                    {formatCurrency(calculateTotalValue())}
+                  </Typography>
                 </Box>
               </Stack>
-            </Paper>
-          )}
-        </Grid2>
-      </Grid2>
+            </CardContent>
+          </Card>
 
-      {/* Breakdown Dialog */}
-      <BreakdownItemsDialog
-        open={breakdownDialogOpen}
-        onClose={() => setBreakdownDialogOpen(false)}
-        sourceItem={data}
-        onItemsCreated={handleItemsCreated}
-      />
+          {/* Item Details */}
+          <Card sx={{ mb: 3, borderRadius: 2 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Inventory color="primary" sx={{ mr: 1 }} />
+                <Typography variant="h6">Item Details</Typography>
+              </Box>
+              <Divider sx={{ mb: 2 }} />
+
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">SKU</Typography>
+                  <Typography variant="body1">{item.sku}</Typography>
+                </Box>
+
+                <Box>
+                  <Typography variant="body2" color="text.secondary">Category</Typography>
+                  <Typography variant="body1">{item.category || 'Uncategorized'}</Typography>
+                </Box>
+
+                <Box>
+                  <Typography variant="body2" color="text.secondary">Item Type</Typography>
+                  <Chip
+                    label={
+                      item.itemType === 'product' ? 'Product' :
+                      item.itemType === 'material' ? 'Material' :
+                      item.itemType === 'both' ? 'Product & Material' :
+                      'Other'
+                    }
+                    color={
+                      item.itemType === 'product' ? 'primary' :
+                      item.itemType === 'material' ? 'info' :
+                      'secondary'
+                    }
+                    size="small"
+                  />
+                </Box>
+
+                <Box>
+                  <Typography variant="body2" color="text.secondary">Tracking Type</Typography>
+                  <Typography variant="body1" sx={{ textTransform: 'capitalize' }}>
+                    {item.trackingType}
+                  </Typography>
+                </Box>
+
+                {item.barcode && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">Barcode</Typography>
+                    <Typography variant="body1">{item.barcode}</Typography>
+                  </Box>
+                )}
+
+                {item.location && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">Location</Typography>
+                    <Typography variant="body1">{item.location}</Typography>
+                  </Box>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+
+          {/* Purchase & Sales History */}
+          <Card sx={{ mb: 3, borderRadius: 2 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <HistoryIcon color="primary" sx={{ mr: 1 }} />
+                <Typography variant="h6">Transaction History</Typography>
+              </Box>
+              <Divider sx={{ mb: 2 }} />
+
+              {/* This would be populated with actual transaction history data */}
+              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 2, textAlign: 'center' }}>
+                Transaction history will appear here once available
+              </Typography>
+
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<HistoryIcon />}
+                  component={RouterLink}
+                  to={`/inventory/history?itemId=${item._id}`}
+                >
+                  View Full History
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrDialogOpen} onClose={() => setQrDialogOpen(false)}>
+        <DialogTitle>QR Code for {item.name}</DialogTitle>
+        <DialogContent>
+          <Box sx={{
+            p: 3,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            bgcolor: 'common.white',
+            borderRadius: 1,
+          }}>
+            <QRCode
+              value={`${window.location.origin}/inventory/${item._id}`}
+              size={200}
+              level="H"
+              includeMargin
+            />
+            <Typography variant="body2" sx={{ mt: 2, textAlign: 'center' }}>
+              Scan to view item details
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setQrDialogOpen(false)}>Close</Button>
+          <Button
+            color="primary"
+            variant="contained"
+            onClick={() => {
+              const canvas = document.querySelector('canvas');
+              if (canvas) {
+                const pngUrl = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                downloadLink.href = pngUrl;
+                downloadLink.download = `${item.sku}-qrcode.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+              }
+            }}
+          >
+            Download
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Delete Item</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete "{item.name}"? This action cannot be undone.
+            {item.usedInProducts && item.usedInProducts.length > 0 && (
+              <Box sx={{ mt: 2, color: 'error.main' }}>
+                <Typography fontWeight="bold" color="error">
+                  Warning: This item is used in {item.usedInProducts.length} products!
+                </Typography>
+                <Typography variant="body2" color="error">
+                  Deleting it may cause issues with product composition data.
+                </Typography>
+              </Box>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
