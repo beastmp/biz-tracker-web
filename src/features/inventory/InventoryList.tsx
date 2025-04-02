@@ -433,7 +433,7 @@ export default function InventoryList() {
   // Add component for rendering group cards
   const renderGroupCards = () => {
     return (
-      <Grid2 container spacing={3}>
+      <Grid2 container spacing={1}>
         {Object.entries(groupedItems).map(([group, groupItems]) => (
           <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={group}>
             <Card

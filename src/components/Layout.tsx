@@ -37,7 +37,7 @@ import {
 } from '@mui/icons-material';
 import { useAppContext } from '@hooks/useAppContext';
 
-const drawerWidth = 240;
+const drawerWidth = 260;
 
 export default function Layout() {
   const [drawerOpen, setDrawerOpen] = useState(true);
@@ -260,7 +260,7 @@ export default function Layout() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: 1,
           width: '100%',
           ml: { md: drawerOpen ? `${drawerWidth}px` : 0 },
           transition: theme.transitions.create(['margin', 'width'], {
@@ -270,7 +270,10 @@ export default function Layout() {
         }}
       >
         <Toolbar />
-        <Container maxWidth="lg">
+        {/* Container for the main content area. */}
+        {/* "lg" = Sets the max width to 1200px and centers with some padding*/}
+        {/* {false} = Sets the max width to the full width of the page without constraints*/}
+          <Container maxWidth="lg">
           <Outlet />
         </Container>
       </Box>
