@@ -40,7 +40,8 @@ import {
   ListItem,
   ListItemAvatar,
   Avatar,
-  ListItemText
+  ListItemText,
+  Stack
 } from '@mui/material';
 import {
   Save,
@@ -57,7 +58,9 @@ import {
   Add,
   DeleteOutline,
   Search,
-  Scale
+  Scale,
+  TagOutlined,
+  SettingsOutlined
 } from '@mui/icons-material';
 import {
   useItem,
@@ -286,14 +289,14 @@ export default function InventoryForm() {
         // Append image
         formDataToSend.append('image', imageFile, imageFile.name);
 
-        // Log form data for debugging
-        console.log('Form data contents:');
-        for (const pair of formDataToSend.entries()) {
-          if (pair[1] instanceof File) {
-            console.log(`${pair[0]}: File: ${pair[1].name} (${pair[1].type}, ${pair[1].size} bytes)`);
-          } else {
-            console.log(`${pair[0]}: ${pair[1]}`);
-          }
+        // Add components if any
+        if (formData.components && formData.components.length > 0) {
+          formDataToSend.append('components', JSON.stringify(formData.components));
+        }
+
+        // Add packInfo if any
+        if (formData.packInfo) {
+          formDataToSend.append('packInfo', JSON.stringify(formData.packInfo));
         }
 
         if (isEditMode && id) {
@@ -394,26 +397,26 @@ export default function InventoryForm() {
   }
 
   return (
-    <Box>
+    <Box className="fade-in">
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Grid2 container alignItems="center" spacing={2}>
-          <Grid2 size="grow">
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Button
-                component={RouterLink}
-                to="/inventory"
-                startIcon={<ArrowBack />}
-                sx={{ mr: 1 }}
-              >
-                Back
-              </Button>
-              <Typography variant="h4" component="h1">
-                {isEditMode ? 'Edit Item' : 'Create New Item'}
-              </Typography>
-            </Box>
+          <Grid2 size="auto">
+            <Button
+              component={RouterLink}
+              to="/inventory"
+              startIcon={<ArrowBack />}
+              sx={{ mr: 1 }}
+            >
+              Back
+            </Button>
           </Grid2>
-          <Grid2>
+          <Grid2 size="grow">
+            <Typography variant="h4" component="h1">
+              {isEditMode ? 'Edit Item' : 'New Inventory Item'}
+            </Typography>
+          </Grid2>
+          <Grid2 size="auto">
             <Button
               type="submit"
               variant="contained"
@@ -437,13 +440,14 @@ export default function InventoryForm() {
 
       <Grid2 container spacing={3}>
         {/* Left column - Main details */}
-        <Grid2 size={{ xs: 12, md: 8 }}>
+        <Grid2 size={{ xs: 12, lg: 8 }}>
+          {/* Basic Information Card */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                <Category sx={{ mr: 1, fontSize: 20 }} />
-                Basic Information
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Category sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Basic Information</Typography>
+              </Box>
               <Divider sx={{ mb: 3 }} />
 
               <Grid2 container spacing={3}>
@@ -456,6 +460,13 @@ export default function InventoryForm() {
                     value={formData.name}
                     onChange={handleInputChange}
                     disabled={isSaving}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Inventory fontSize="small" color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
                   />
                 </Grid2>
 
@@ -469,6 +480,13 @@ export default function InventoryForm() {
                     onChange={handleInputChange}
                     disabled={isSaving}
                     helperText="Stock Keeping Unit - must be unique"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <TagOutlined fontSize="small" color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
                   />
                 </Grid2>
 
@@ -486,14 +504,25 @@ export default function InventoryForm() {
                         label="Category"
                         name="category"
                         onChange={handleInputChange}
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: (
+                            <>
+                              <InputAdornment position="start">
+                                <Category fontSize="small" color="action" />
+                              </InputAdornment>
+                              {params.InputProps.startAdornment}
+                            </>
+                          ),
+                        }}
                       />
                     )}
                     disabled={isSaving}
                   />
                 </Grid2>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth margin="normal">
+                <Grid2 size={{ xs: 12, md: 6 }}>
+                  <FormControl fullWidth>
                     <InputLabel>Item Type</InputLabel>
                     <Select
                       name="itemType"
@@ -501,6 +530,11 @@ export default function InventoryForm() {
                       label="Item Type"
                       onChange={handleSelectChange}
                       disabled={isSaving}
+                      startAdornment={
+                        <InputAdornment position="start">
+                          <SettingsOutlined fontSize="small" color="action" />
+                        </InputAdornment>
+                      }
                     >
                       <MenuItem value="product">Finished Product</MenuItem>
                       <MenuItem value="material">Raw Material</MenuItem>
@@ -510,6 +544,87 @@ export default function InventoryForm() {
                       Products are items you sell. Materials are used to create products.
                     </FormHelperText>
                   </FormControl>
+                </Grid2>
+
+                {/* Image upload section - Moved to this card */}
+                <Grid2 size={{ xs: 12, md: 6 }}>
+                  <Typography variant="subtitle2" gutterBottom color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                    <PhotoCamera fontSize="small" sx={{ mr: 1 }} /> Item Image
+                  </Typography>
+                  {imagePreview ? (
+                    <Box sx={{ position: 'relative', width: '100%', mb: 2 }}>
+                      <img
+                        src={imagePreview}
+                        alt="Item preview"
+                        style={{
+                          width: '100%',
+                          height: '160px',
+                          objectFit: 'contain',
+                          borderRadius: 8
+                        }}
+                      />
+                      <IconButton
+                        size="small"
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          bgcolor: 'rgba(255,255,255,0.8)',
+                          '&:hover': {
+                            bgcolor: 'rgba(255,255,255,0.9)',
+                          }
+                        }}
+                        onClick={handleRemoveImage}
+                        disabled={isSaving}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{
+                        height: 160,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '2px dashed #ccc',
+                        borderRadius: 2,
+                        mb: 2,
+                        backgroundColor: theme => theme.palette.grey[50],
+                        '&:hover': {
+                          backgroundColor: theme => theme.palette.grey[100],
+                          cursor: 'pointer'
+                        }
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <AddPhotoAlternate sx={{ fontSize: 32, color: 'text.secondary', mb: 1 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Click to upload an image
+                      </Typography>
+                    </Box>
+                  )}
+
+                  <VisuallyHiddenInput
+                    ref={fileInputRef}
+                    accept="image/*"
+                    type="file"
+                    onChange={handleImageChange}
+                    disabled={isSaving}
+                  />
+
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    startIcon={<AddPhotoAlternate />}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSaving}
+                    fullWidth
+                    size="small"
+                  >
+                    {imagePreview ? 'Change Image' : 'Upload Image'}
+                  </Button>
                 </Grid2>
 
                 {/* Pack Information Section */}
@@ -561,112 +676,22 @@ export default function InventoryForm() {
                     </Paper>
                   </Grid2>
                 )}
-
-                {/* Components Management - only show for products */}
-                {(formData.itemType === 'product' || formData.itemType === 'both') && (
-                  <Grid2 size={{ xs: 12 }}>
-                    <Paper sx={{ p: 2, mt: 2, bgcolor: 'background.default', borderLeft: '4px solid', borderColor: 'secondary.main' }}>
-                      <Typography variant="subtitle2" gutterBottom>Materials Used in This Product</Typography>
-
-                      <Box sx={{ mb: 2 }}>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          startIcon={<Add />}
-                          onClick={() => setComponentDialogOpen(true)}
-                        >
-                          Add Material
-                        </Button>
-                      </Box>
-
-                      {formData.components && formData.components.length > 0 ? (
-                        <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
-                          <Table size="small">
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>Material</TableCell>
-                                <TableCell align="center">Quantity</TableCell>
-                                <TableCell align="right">Cost</TableCell>
-                                <TableCell align="right">Actions</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {formData.components.map((component, index) => (
-                                <TableRow key={index}>
-                                  <TableCell>
-                                    {typeof component.item === 'string'
-                                      ? componentsCache[component.item]?.name || component.item
-                                      : component.item.name || 'Unknown Material'}
-                                  </TableCell>
-                                  <TableCell align="center">
-                                    {component.quantity} {component.weight && `× ${component.weight}${component.weightUnit || 'lb'}`}
-                                  </TableCell>
-                                  <TableCell align="right">
-                                    {formatCurrency(
-                                      typeof component.item === 'string'
-                                        ? (componentsCache[component.item]?.cost || 0) * component.quantity
-                                        : (component.item.cost || 0) * component.quantity
-                                    )}
-                                  </TableCell>
-                                  <TableCell align="right">
-                                    <IconButton
-                                      size="small"
-                                      color="error"
-                                      onClick={() => handleRemoveComponent(index)}
-                                    >
-                                      <DeleteOutline fontSize="small" />
-                                    </IconButton>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                            <TableFooter>
-                              <TableRow>
-                                <TableCell colSpan={2} align="right">
-                                  <Typography variant="subtitle2">Total Material Cost:</Typography>
-                                </TableCell>
-                                <TableCell align="right" colSpan={2}>
-                                  <Typography variant="subtitle2" color="primary">
-                                    {formatCurrency(
-                                      (formData.components || []).reduce(
-                                        (sum, comp) => {
-                                          const cost = typeof comp.item === 'string'
-                                            ? (componentsCache[comp.item]?.cost || 0)
-                                            : (comp.item.cost || 0);
-                                          return sum + (cost * comp.quantity);
-                                        },
-                                        0
-                                      )
-                                    )}
-                                  </Typography>
-                                </TableCell>
-                              </TableRow>
-                            </TableFooter>
-                          </Table>
-                        </TableContainer>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          No materials added to this product yet.
-                        </Typography>
-                      )}
-                    </Paper>
-                  </Grid2>
-                )}
               </Grid2>
             </CardContent>
           </Card>
 
+          {/* Stock Information Card */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                <Inventory sx={{ mr: 1, fontSize: 20 }} />
-                Stock Information
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Inventory sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Stock Information</Typography>
                 <Tooltip title="Choose how this item is tracked in your inventory">
                   <IconButton size="small" sx={{ ml: 1 }}>
                     <Help fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              </Typography>
+              </Box>
               <Divider sx={{ mb: 3 }} />
 
               <Grid2 container spacing={3}>
@@ -987,12 +1012,13 @@ export default function InventoryForm() {
             </CardContent>
           </Card>
 
+          {/* Pricing Information Card */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                <AttachMoney sx={{ mr: 1, fontSize: 20 }} />
-                Pricing Information
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <AttachMoney sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Pricing Information</Typography>
+              </Box>
               <Divider sx={{ mb: 3 }} />
 
               <Grid2 container spacing={3}>
@@ -1014,7 +1040,6 @@ export default function InventoryForm() {
                   />
                 </Grid2>
 
-                {/* Add this new Cost field */}
                 <Grid2 size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
@@ -1078,6 +1103,50 @@ export default function InventoryForm() {
                   </FormControl>
                 </Grid2>
 
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <Autocomplete
+                    multiple
+                    freeSolo
+                    options={tagsData}
+                    value={tags}
+                    onChange={(_, newValue) => {
+                      setTags(newValue);
+                    }}
+                    renderTags={(value, getTagProps) =>
+                      value.map((tag, index) => (
+                        <Chip
+                          label={tag}
+                          {...getTagProps({ index })}
+                          key={index}
+                          color="primary"
+                          variant="outlined"
+                          size="small"
+                        />
+                      ))
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Tags"
+                        placeholder="Add tags"
+                        helperText="Enter tags to categorize your item"
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: (
+                            <>
+                              <InputAdornment position="start">
+                                <Label fontSize="small" color="action" />
+                              </InputAdornment>
+                              {params.InputProps.startAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                    disabled={isSaving}
+                  />
+                </Grid2>
+
                 <Grid2 size={{ xs: 12 }}>
                   <Paper variant="outlined" sx={{ p: 2, mt: 2, bgcolor: 'background.default' }}>
                     <Typography variant="subtitle2" gutterBottom>Markup Information</Typography>
@@ -1103,12 +1172,13 @@ export default function InventoryForm() {
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Description */}
+          <Card sx={{ mb: 3 }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                <Description sx={{ mr: 1, fontSize: 20 }} />
-                Additional Information
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Description sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Description</Typography>
+              </Box>
               <Divider sx={{ mb: 3 }} />
 
               <TextField
@@ -1123,139 +1193,219 @@ export default function InventoryForm() {
               />
             </CardContent>
           </Card>
+
+          {/* Components Management - only show for products */}
+          {(formData.itemType === 'product' || formData.itemType === 'both') && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <Category sx={{ mr: 1, color: 'text.secondary' }} />
+                  <Typography variant="h6">Materials Used in This Product</Typography>
+                </Box>
+                <Divider sx={{ mb: 3 }} />
+
+                <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Add />}
+                    onClick={() => setComponentDialogOpen(true)}
+                  >
+                    Add Material
+                  </Button>
+                </Stack>
+
+                {formData.components && formData.components.length > 0 ? (
+                  <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Material</TableCell>
+                          <TableCell align="center">Quantity</TableCell>
+                          <TableCell align="right">Cost</TableCell>
+                          <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {formData.components.map((component, index) => (
+                          <TableRow key={index}>
+                            <TableCell>
+                              {typeof component.item === 'string'
+                                ? componentsCache[component.item]?.name || component.item
+                                : component.item.name || 'Unknown Material'}
+                            </TableCell>
+                            <TableCell align="center">
+                              {component.quantity} {component.weight && `× ${component.weight}${component.weightUnit || 'lb'}`}
+                            </TableCell>
+                            <TableCell align="right">
+                              {formatCurrency(
+                                typeof component.item === 'string'
+                                  ? (componentsCache[component.item]?.cost || 0) * component.quantity
+                                  : (component.item.cost || 0) * component.quantity
+                              )}
+                            </TableCell>
+                            <TableCell align="right">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleRemoveComponent(index)}
+                              >
+                                <DeleteOutline fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                      <TableFooter>
+                        <TableRow>
+                          <TableCell colSpan={2} align="right">
+                            <Typography variant="subtitle2">Total Material Cost:</Typography>
+                          </TableCell>
+                          <TableCell align="right" colSpan={2}>
+                            <Typography variant="subtitle2" color="primary">
+                              {formatCurrency(
+                                (formData.components || []).reduce(
+                                  (sum, comp) => {
+                                    const cost = typeof comp.item === 'string'
+                                      ? (componentsCache[comp.item]?.cost || 0)
+                                      : (comp.item.cost || 0);
+                                    return sum + (cost * comp.quantity);
+                                  },
+                                  0
+                                )
+                              )}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      </TableFooter>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    No materials added to this product yet.
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </Grid2>
 
-        {/* Right column - Image upload and tags */}
-        <Grid2 size={{ xs: 12, md: 4 }}>
-          <Card sx={{ mb: 3 }}>
+        {/* Right sidebar column */}
+        <Grid2 size={{ xs: 12, lg: 4 }}>
+          {/* Action Card */}
+          <Card sx={{ position: 'sticky', top: 16, mb: 3 }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                <PhotoCamera sx={{ mr: 1, fontSize: 20 }} />
-                Item Image
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Save sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Save Changes</Typography>
+              </Box>
               <Divider sx={{ mb: 3 }} />
 
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {imagePreview ? (
-                  <Box sx={{ position: 'relative', width: '100%', mb: 2 }}>
-                    <img
-                      src={imagePreview}
-                      alt="Item preview"
-                      style={{
-                        width: '100%',
-                        maxHeight: '250px',
-                        objectFit: 'contain',
-                        borderRadius: 8
-                      }}
-                    />
-                    <IconButton
-                      size="small"
-                      sx={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        bgcolor: 'rgba(255,255,255,0.8)',
-                        '&:hover': {
-                          bgcolor: 'rgba(255,255,255,0.9)',
-                        }
-                      }}
-                      onClick={handleRemoveImage}
-                      disabled={isSaving}
-                    >
-                      <Close fontSize="small" />
-                    </IconButton>
-                  </Box>
-                ) : (
-                  <Box
-                    sx={{
-                      width: '100%',
-                      height: 200,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '2px dashed #ccc',
-                      borderRadius: 2,
-                      mb: 2,
-                      backgroundColor: theme => theme.palette.grey[50],
-                      '&:hover': {
-                        backgroundColor: theme => theme.palette.grey[100],
-                        cursor: 'pointer'
-                      }
-                    }}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <AddPhotoAlternate sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-                    <Typography variant="body2" color="text.secondary">
-                      Click to upload an image
-                    </Typography>
-                  </Box>
-                )}
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                startIcon={<Save />}
+                onClick={handleSubmit}
+                disabled={isSaving}
+                size="large"
+                sx={{ mb: 2 }}
+              >
+                {isSaving ? 'Saving...' : isEditMode ? 'Update Item' : 'Save Item'}
+              </Button>
 
-                <VisuallyHiddenInput
-                  ref={fileInputRef}
-                  accept="image/*"
-                  type="file"
-                  onChange={handleImageChange}
-                  disabled={isSaving}
-                />
-
-                <Button
-                  variant="outlined"
-                  component="span"
-                  startIcon={imagePreview ? <AddPhotoAlternate /> : <AddPhotoAlternate />}
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isSaving}
-                  fullWidth
-                >
-                  {imagePreview ? 'Change Image' : 'Upload Image'}
-                </Button>
-
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, textAlign: 'center', display: 'block' }}>
-                  Max file size: 5MB<br />Supported formats: JPG, PNG, GIF
-                </Typography>
-              </Box>
+              <Button
+                fullWidth
+                variant="outlined"
+                component={RouterLink}
+                to="/inventory"
+                sx={{ mt: 1 }}
+              >
+                Cancel
+              </Button>
             </CardContent>
           </Card>
 
+          {/* Summary Card */}
           <Card>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                <Label sx={{ mr: 1, fontSize: 20 }} />
-                Tags
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Inventory sx={{ mr: 1, color: 'text.secondary' }} />
+                <Typography variant="h6">Item Summary</Typography>
+              </Box>
               <Divider sx={{ mb: 3 }} />
 
-              <Autocomplete
-                multiple
-                freeSolo
-                options={tagsData}
-                value={tags}
-                onChange={(_, newValue) => {
-                  setTags(newValue);
-                }}
-                renderTags={(value, getTagProps) =>
-                  value.map((tag, index) => (
-                    <Chip
-                      label={tag}
-                      {...getTagProps({ index })}
-                      key={index}
-                      color="primary"
-                      variant="outlined"
-                      size="small"
-                    />
-                  ))
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Tags"
-                    placeholder="Add tags"
-                    helperText="Enter tags to categorize your item"
-                  />
-                )}
-                disabled={isSaving}
-              />
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Item Type:
+                </Typography>
+                <Typography variant="body1">
+                  {formData.itemType === 'product' ? 'Finished Product' :
+                   formData.itemType === 'material' ? 'Raw Material' : 'Both (Material & Product)'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Tracking Method:
+                </Typography>
+                <Typography variant="body1">
+                  {formData.trackingType === 'quantity' ? 'By Quantity' :
+                   formData.trackingType === 'weight' ? `By Weight (${formData.weightUnit})` :
+                   formData.trackingType === 'length' ? `By Length (${formData.lengthUnit})` :
+                   formData.trackingType === 'area' ? `By Area (${formData.areaUnit})` :
+                   `By Volume (${formData.volumeUnit})`}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Current Stock:
+                </Typography>
+                <Typography variant="body1">
+                  {formData.trackingType === 'quantity' ? `${formData.quantity} units` :
+                   formData.trackingType === 'weight' ? `${formData.weight} ${formData.weightUnit}` :
+                   formData.trackingType === 'length' ? `${formData.length} ${formData.lengthUnit}` :
+                   formData.trackingType === 'area' ? `${formData.area} ${formData.areaUnit}` :
+                   `${formData.volume} ${formData.volumeUnit}`}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Pricing:
+                </Typography>
+                <Typography variant="body1">
+                  Selling: {formatCurrency(formData.price)} ({formData.priceType === 'each' ? 'per item' :
+                    formData.trackingType === 'weight' ? `per ${formData.weightUnit}` :
+                    formData.trackingType === 'length' ? `per ${formData.lengthUnit}` :
+                    formData.trackingType === 'area' ? `per ${formData.areaUnit}` :
+                    `per ${formData.volumeUnit}`})
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  Cost: {formatCurrency(formData.cost || 0)}
+                </Typography>
+              </Box>
+
+              {formData.components && formData.components.length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Total Material Cost:
+                  </Typography>
+                  <Typography variant="body1" color="primary.main">
+                    {formatCurrency(
+                      formData.components.reduce(
+                        (sum, comp) => {
+                          const cost = typeof comp.item === 'string'
+                            ? (componentsCache[comp.item]?.cost || 0)
+                            : (comp.item.cost || 0);
+                          return sum + (cost * comp.quantity);
+                        },
+                        0
+                      )
+                    )}
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid2>
