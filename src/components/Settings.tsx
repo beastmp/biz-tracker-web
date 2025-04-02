@@ -31,7 +31,13 @@ import {
   AccordionSummary,
   AccordionDetails,
   Skeleton,
-  Slider
+  Slider,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 
 import {
@@ -51,7 +57,9 @@ import {
   Security,
   Email,
   Check,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Sync,
+  StackedBarChart
 } from '@mui/icons-material';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import { useAppContext } from '@hooks/useAppContext';
@@ -81,9 +89,11 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function Settings() {
-  const { theme, toggleColorMode } = useAppContext();
-  const { settings, updateSettings, defaultSettings, loadSettings } = useSettings();
-  const [localSettings, setLocalSettings] = useState<SettingsContextType['settings'] | null>(null);
+  // Use MUI's useTheme hook directly instead of relying on useAppContext for theme
+  const theme = useTheme();
+  const { toggleColorMode } = useAppContext();
+  const { settings, updateSettings, defaultSettings, resetSettings, loadSettings } = useSettings();
+  const [localSettings, setLocalSettings] = useState({ ...settings });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState(0);
   const [rebuildingRelationships, setRebuildingRelationships] = useState(false);
@@ -100,35 +110,18 @@ export default function Settings() {
   const [showRebuildDialog, setShowRebuildDialog] = useState(false);
   const rebuildInventory = useRebuildInventory();
 
-    // Use settings context instead of local state
-    const {
-      lowStockAlertsEnabled,
-      quantityThreshold,
-      weightThresholds,
-      defaultViewMode,
-      setLowStockAlertsEnabled,
-      setQuantityThreshold,
-      updateWeightThreshold,
-      setDefaultViewMode,
-      defaultGroupBy,
-      setDefaultGroupBy
-    } = useSettings();
-
-  // Initialize local settings once the context settings are loaded
+  // Initialize local settings when settings context changes
   useEffect(() => {
-    if (settings && !localSettings) {
-      setLocalSettings({ ...settings });
-    }
+    setLocalSettings({ ...settings });
   }, [settings]);
 
-  // if (!localSettings) {
-  //   return <LoadingScreen message="Loading settings..." />;
-  // }
+  // Show loading screen only if localSettings is null (not just falsy)
+  if (localSettings === null) {
+    return <LoadingScreen message="Loading settings..." />;
+  }
 
   const handleInputChange = (path: string[], value: any) => {
     setLocalSettings((prev) => {
-      if (!prev) return null;
-
       // Create a deep copy of previous settings
       const newSettings = JSON.parse(JSON.stringify(prev));
 
@@ -146,26 +139,23 @@ export default function Settings() {
   };
 
   const handleSaveSettings = () => {
-    if (localSettings) {
-      updateSettings(localSettings);
-      setSuccessMessage('Settings saved successfully');
+    updateSettings(localSettings);
+    setSuccessMessage('Settings saved successfully');
 
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
-    }
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      setSuccessMessage(null);
+    }, 3000);
   };
 
   const handleResetSettings = () => {
-    if (defaultSettings) {
-      setLocalSettings({ ...defaultSettings });
-      setSuccessMessage('Settings reset to defaults');
+    resetSettings();
+    setLocalSettings({ ...defaultSettings });
+    setSuccessMessage('Settings reset to defaults');
 
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
-    }
+    setTimeout(() => {
+      setSuccessMessage(null);
+    }, 3000);
   };
 
   const handleChangeTab = (_event: React.SyntheticEvent, newValue: number) => {
@@ -500,7 +490,12 @@ export default function Settings() {
                     <Typography variant="caption" color="text.secondary">
                       Define default categories for new inventory items
                     </Typography>
-                    <Box sx={{ mt: 2, p: 2, bgcolor: alpha(theme.palette.info.main, 0.05), borderRadius: 1 }}>
+                    <Box sx={{
+                      mt: 2,
+                      p: 2,
+                      bgcolor: theme?.palette?.info ? alpha(theme.palette.info.main, 0.05) : 'rgba(0, 145, 234, 0.05)',
+                      borderRadius: 1
+                    }}>
                       <Typography variant="body2" color="primary" sx={{ display: 'flex', alignItems: 'center' }}>
                         <InfoIcon fontSize="small" sx={{ mr: 1 }} />
                         Category management will be available in future updates
@@ -524,7 +519,7 @@ export default function Settings() {
                       <FormControlLabel
                         control={
                           <Switch
-                            checked={localSettings.autoUpdateStock || false}
+                            checked={localSettings.autoUpdateStock}
                             onChange={(e) => handleInputChange(['autoUpdateStock'], e.target.checked)}
                             color="primary"
                           />
@@ -544,7 +539,7 @@ export default function Settings() {
                       <FormControlLabel
                         control={
                           <Switch
-                            checked={localSettings.autoUpdateFromPurchases || false}
+                            checked={localSettings.autoUpdateFromPurchases}
                             onChange={(e) => handleInputChange(['autoUpdateFromPurchases'], e.target.checked)}
                             color="primary"
                           />
@@ -916,7 +911,7 @@ export default function Settings() {
                   <Box
                     sx={{
                       p: 2,
-                      bgcolor: alpha(theme.palette.info.main, 0.05),
+                      bgcolor: theme?.palette?.info ? alpha(theme.palette.info.main, 0.05) : 'rgba(0, 145, 234, 0.05)',
                       borderRadius: 1,
                       display: 'flex',
                       alignItems: 'center'
@@ -1218,7 +1213,7 @@ export default function Settings() {
                     startIcon={rebuildingRelationships ? <CircularProgress size={20} /> : <Sync />}
                     size="small"
                   >
-                    {rebuildingRelationships ? 'Rebuilding...' : 'Rebuild product-material relationships'}
+                    {rebuildingRelationships ? 'Rebuilding...' : 'Rebuild relationships'}
                   </Button>
                 <Button
                     variant="outlined"
@@ -1228,7 +1223,7 @@ export default function Settings() {
                     startIcon={rebuildingInventory ? <CircularProgress size={20} /> : <StackedBarChart />}
                     size="small"
                   >
-                    {rebuildingInventory ? 'Rebuilding...' : 'Rebuild inventory quantities, cost, and prices'}
+                    {rebuildingInventory ? 'Rebuilding...' : 'Rebuild inventory'}
                   </Button>
                 <Button
                   variant="outlined"
