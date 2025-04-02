@@ -22,8 +22,16 @@ export const useItems = () => {
 // Hook to fetch a single item
 export const useItem = (id: string | undefined) => {
   return useQuery({
-    queryKey: [ITEMS_KEY, id],
-    queryFn: () => get<Item>(`/api/items/${id}?populate=true`), // Add populate parameter
+    queryKey: [ITEM_KEY, id], // Make sure we're using ITEM_KEY for consistency
+    queryFn: async () => {
+      try {
+        // Always request populated version for relationship data
+        return await get<Item>(`/api/items/${id}?populate=true`);
+      } catch (error) {
+        console.error(`Error fetching item ${id}:`, error);
+        throw error;
+      }
+    },
     enabled: !!id, // Only run if id exists
   });
 };

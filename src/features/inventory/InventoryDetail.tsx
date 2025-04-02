@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -84,6 +84,14 @@ export default function InventoryDetail() {
 
   // Handle successful item breakdown
   const handleItemsCreated = (items: Item[]) => {
+    // Log each created item for debugging
+    console.log(`Created ${items.length} derived items:`, items.map(item => ({
+      id: item._id,
+      name: item.name,
+      hasDerivedFrom: !!item.derivedFrom,
+      derivedFromItem: item.derivedFrom?.item
+    })));
+
     setSuccessMessage(`Successfully created ${items.length} items from ${data?.name}`);
     setTimeout(() => setSuccessMessage(null), 5000);
   };
@@ -239,6 +247,20 @@ export default function InventoryDetail() {
       </Box>
     );
   };
+
+  useEffect(() => {
+    if (item) {
+      console.log("Loaded item details:", {
+        id: item._id,
+        name: item.name,
+        sku: item.sku,
+        hasDerivedFrom: !!item.derivedFrom,
+        derivedFromItem: item.derivedFrom?.item,
+        derivedFromItemType: item.derivedFrom?.item ? typeof item.derivedFrom.item : null,
+        derivedItemsCount: item.derivedItems?.length || 0
+      });
+    }
+  }, [item]);
 
   if (isLoading) {
     return <LoadingScreen />;

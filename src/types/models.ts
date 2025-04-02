@@ -111,7 +111,12 @@ export interface ItemComponent {
  * @returns True if the item is a populated object with a name property
  */
 export function isPopulatedItem(item: string | Item | null | undefined): item is Item {
-  return item !== null && item !== undefined && typeof item === 'object' && 'name' in item;
+  return item !== null &&
+         item !== undefined &&
+         typeof item === 'object' &&
+         'name' in item &&
+         typeof item.name === 'string' &&
+         item.name.length > 0;
 }
 
 // Define sale item interface
