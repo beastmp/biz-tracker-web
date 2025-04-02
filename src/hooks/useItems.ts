@@ -298,16 +298,25 @@ export const useCreateBreakdownItems = () => {
     mutationFn: async (breakdownData: {
       sourceItemId: string;
       derivedItems: Array<{
-        name: string;
-        sku: string;
-        quantity: number;
-        weight?: number;
+        // Common ID field - if specified, use existing item
+        itemId?: string;
+
+        // Fields for new items (only used when itemId is not provided)
+        name?: string;
+        sku?: string;
         description?: string;
         category?: string;
         price?: number;
         cost?: number;
         tags?: string[];
         imageUrl?: string;
+
+        // Measurement fields - all supported types
+        quantity: number;
+        weight?: number;
+        length?: number;
+        area?: number;
+        volume?: number;
       }>;
     }) => {
       try {
@@ -332,6 +341,12 @@ export const useCreateBreakdownItems = () => {
       if (data.sourceItem._id) {
         queryClient.invalidateQueries({ queryKey: [ITEM_KEY, data.sourceItem._id] });
       }
+      // Also invalidate any derived/allocated items
+      data.derivedItems.forEach(item => {
+        if (item._id) {
+          queryClient.invalidateQueries({ queryKey: [ITEM_KEY, item._id] });
+        }
+      });
     },
   });
 };

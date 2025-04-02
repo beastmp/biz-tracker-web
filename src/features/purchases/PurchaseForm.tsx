@@ -37,6 +37,7 @@ import {
   ListItemIcon,
   Autocomplete,
   Stack,
+  Chip
 } from '@mui/material';
 import {
   Save,
@@ -46,7 +47,8 @@ import {
   AddCircle,
   DeleteOutline,
   DragIndicator,
-  BusinessCenter
+  BusinessCenter,
+  Inventory
 } from '@mui/icons-material';
 import { usePurchase, useCreatePurchase, useUpdatePurchase } from '@hooks/usePurchases';
 import { useItems, useCreateItem, useNextSku, useCategories } from '@hooks/useItems';
@@ -967,11 +969,7 @@ export default function PurchaseForm() {
                                 <TableCell>
                                   {isAssetItem
                                     ? <Chip size="small" icon={<BusinessCenter fontSize="small" />} label="Asset" variant="outlined" color="primary" />
-                                    : (itemDetails?.itemType === 'product'
-                                        ? 'Product'
-                                        : itemDetails?.itemType === 'material'
-                                          ? 'Material'
-                                          : 'Both')
+                                    : <Chip size="small" icon={<Inventory fontSize="small" />} label="Inventory" variant="outlined" color="secondary" />
                                   }
                                 </TableCell>
 

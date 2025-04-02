@@ -45,7 +45,7 @@ import {
   NoPhotography,
   Handyman,
   Clear,
-  Insurance,
+  // Insurance,
   Category
 } from '@mui/icons-material';
 import { useAsset, useDeleteAsset, useAddMaintenanceRecord } from '@hooks/useAssets';
@@ -528,7 +528,7 @@ export default function AssetDetail() {
             </Paper>
           )}
 
-          {/* Insurance Information (placeholder) */}
+          {/* Insurance Information (placeholder)
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
               <Insurance sx={{ mr: 1, fontSize: 20 }} />
@@ -539,7 +539,7 @@ export default function AssetDetail() {
             <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
               No insurance information available. Edit this asset to add insurance details.
             </Typography>
-          </Paper>
+          </Paper> */}
         </Grid>
       </Grid>
 

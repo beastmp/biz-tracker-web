@@ -683,7 +683,7 @@ export default function PurchasesList() {
           </Grid2>
           <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
             <TablePagination
-              rowsPerPageOptions={[8, 16, 24, 32]}
+              rowsPerPageOptions={[5, 10, 15, 20]}
               component="div"
               count={filteredPurchases.length}
               rowsPerPage={rowsPerPage}

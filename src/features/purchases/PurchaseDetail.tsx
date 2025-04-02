@@ -42,7 +42,8 @@ import {
   Image as ImageIcon,
   BusinessCenter
 } from '@mui/icons-material';
-import { usePurchase, useDeletePurchase, useCreateAssetFromPurchase } from '@hooks/usePurchases';
+import { usePurchase, useDeletePurchase } from '@hooks/usePurchases';
+// import { useCreateAssetFromPurchase } from '@hooks/useAssets';
 import { useItems } from '@hooks/useItems';
 import { formatCurrency, formatDate, formatPaymentMethod } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
@@ -57,10 +58,10 @@ export default function PurchaseDetail() {
   const { data: purchase, isLoading, error } = usePurchase(id);
   const { data: items = [] } = useItems();
   const deletePurchase = useDeletePurchase();
-  const createAssetFromPurchase = useCreateAssetFromPurchase();
+  // const createAssetFromPurchase = useCreateAssetFromPurchase();
 
-  const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false);
-  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  // const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false);
+  // const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
   const [assetFormData, setAssetFormData] = useState<Partial<BusinessAsset>>({
     name: '',
     category: 'Equipment',
@@ -71,51 +72,51 @@ export default function PurchaseDetail() {
   const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
 
   // Reset form when dialog opens or closes
-  useEffect(() => {
-    if (!createAssetDialogOpen) {
-      setSelectedItemIndex(null);
-      setAssetFormData({
-        name: '',
-        category: 'Equipment',
-        status: 'active',
-      });
-    } else if (selectedItemIndex !== null && purchase?.items?.[selectedItemIndex]) {
-      const purchaseItem = purchase.items[selectedItemIndex];
-      const itemId = typeof purchaseItem.item === 'string' ? purchaseItem.item : purchaseItem.item?._id;
-      const itemData = itemId ? itemLookup[itemId] : null;
+  // useEffect(() => {
+  //   if (!createAssetDialogOpen) {
+  //     setSelectedItemIndex(null);
+  //     setAssetFormData({
+  //       name: '',
+  //       category: 'Equipment',
+  //       status: 'active',
+  //     });
+  //   } else if (selectedItemIndex !== null && purchase?.items?.[selectedItemIndex]) {
+  //     const purchaseItem = purchase.items[selectedItemIndex];
+  //     const itemId = typeof purchaseItem.item === 'string' ? purchaseItem.item : purchaseItem.item?._id;
+  //     const itemData = itemId ? itemLookup[itemId] : null;
 
-      setAssetFormData({
-        name: itemData?.name || '',
-        category: 'Equipment',
-        status: 'active',
-        initialCost: purchaseItem.totalCost,
-        currentValue: purchaseItem.totalCost,
-      });
-    }
-  }, [createAssetDialogOpen, selectedItemIndex, purchase, itemLookup]);
+  //     setAssetFormData({
+  //       name: itemData?.name || '',
+  //       category: 'Equipment',
+  //       status: 'active',
+  //       initialCost: purchaseItem.totalCost,
+  //       currentValue: purchaseItem.totalCost,
+  //     });
+  //   }
+  // }, [createAssetDialogOpen, selectedItemIndex, purchase, itemLookup]);
 
-  const handleCreateAsset = async () => {
-    if (selectedItemIndex === null || !id) return;
+  // const handleCreateAsset = async () => {
+  //   if (selectedItemIndex === null || !id) return;
 
-    try {
-      await createAssetFromPurchase.mutateAsync({
-        purchaseId: id,
-        itemIndex: selectedItemIndex,
-        assetData: assetFormData
-      });
+  //   try {
+  //     await createAssetFromPurchase.mutateAsync({
+  //       purchaseId: id,
+  //       itemIndex: selectedItemIndex,
+  //       assetData: assetFormData
+  //     });
 
-      setCreateAssetDialogOpen(false);
-      setSuccessMessage('Asset created successfully');
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error) {
-      console.error('Failed to create asset:', error);
-    }
-  };
+  //     setCreateAssetDialogOpen(false);
+  //     setSuccessMessage('Asset created successfully');
+  //     setTimeout(() => setSuccessMessage(null), 3000);
+  //   } catch (error) {
+  //     console.error('Failed to create asset:', error);
+  //   }
+  // };
 
-  const openAssetDialog = (index: number) => {
-    setSelectedItemIndex(index);
-    setCreateAssetDialogOpen(true);
-  };
+  // const openAssetDialog = (index: number) => {
+  //   setSelectedItemIndex(index);
+  //   setCreateAssetDialogOpen(true);
+  // };
 
   const handleDelete = async () => {
     if (!id || !window.confirm('Are you sure you want to delete this purchase? This will update inventory quantities.')) return;
@@ -327,8 +328,8 @@ export default function PurchaseDetail() {
                     <TableCell>Cost Per Unit</TableCell>
                     <TableCell>Discount</TableCell>
                     <TableCell align="right">Total Cost</TableCell>
-                    <TableCell>Asset Status</TableCell>
-                    <TableCell align="center">Actions</TableCell>
+                    {/* <TableCell>Asset Status</TableCell>
+                    <TableCell align="center">Actions</TableCell> */}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -408,7 +409,7 @@ export default function PurchaseDetail() {
                           )}
                         </TableCell>
                         <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
-                        <TableCell>
+                        {/* <TableCell>
                           {item.isAsset ? (
                             <Tooltip title={`Asset: ${item.assetInfo?.name || itemName}`}>
                               <Chip
@@ -430,8 +431,8 @@ export default function PurchaseDetail() {
                               </IconButton>
                             </Tooltip>
                           )}
-                        </TableCell>
-                        <TableCell align="center">
+                        </TableCell> */}
+                        {/* <TableCell align="center">
                           <Tooltip title="Add as Business Asset">
                             <IconButton
                               onClick={() => openAssetDialog(index)}
@@ -441,7 +442,7 @@ export default function PurchaseDetail() {
                               <BusinessCenter fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                        </TableCell>
+                        </TableCell> */}
                       </TableRow>
                     );
                   })}
@@ -503,7 +504,7 @@ export default function PurchaseDetail() {
         </Grid2>
       </Grid2>
 
-      {/* Create Asset Dialog */}
+      {/* Create Asset Dialog
       <Dialog
         open={createAssetDialogOpen}
         onClose={() => setCreateAssetDialogOpen(false)}
@@ -626,7 +627,7 @@ export default function PurchaseDetail() {
             {createAssetFromPurchase.isPending ? "Creating..." : "Create Asset"}
           </Button>
         </DialogActions>
-      </Dialog>
+      </Dialog> */}
     </Box>
   );
 }

@@ -38,7 +38,10 @@ import {
   StackedBarChart,
   ExpandMore,
   Receipt,
-  ShoppingBasket
+  ShoppingBasket,
+  Straighten, // Add new icon for length
+  SquareFoot, // Add new icon for area
+  ViewInAr // Add new icon for volume
 } from '@mui/icons-material';
 import { useItem, useDeleteItem, useDerivedItems, useRebuildItemInventory } from '@hooks/useItems';
 import { useItemPurchases } from '@hooks/usePurchases';
@@ -128,13 +131,21 @@ export default function InventoryDetail() {
       case 'quantity':
         return (data?.price || 0) * (data?.quantity || 0);
       case 'weight':
-        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.weight || 0);
+        return data?.priceType === 'each'
+            ? (data?.price || 0) * (data?.quantity || 0)
+            : (data?.price || 0) * (data?.weight || 0);
       case 'length':
-        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.length || 0);
+        return data?.priceType === 'each'
+            ? (data?.price || 0) * (data?.quantity || 0)
+            : (data?.price || 0) * (data?.length || 0);
       case 'area':
-        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.area || 0);
+        return data?.priceType === 'each'
+            ? (data?.price || 0) * (data?.quantity || 0)
+            : (data?.price || 0) * (data?.area || 0);
       case 'volume':
-        return data?.priceType === 'each' ? (data?.price || 0) * (data?.quantity || 0) : (data?.price || 0) * (data?.volume || 0);
+        return data?.priceType === 'each'
+            ? (data?.price || 0) * (data?.quantity || 0)
+            : (data?.price || 0) * (data?.volume || 0);
       default:
         return (data?.price || 0) * (data?.quantity || 0);
     }
@@ -146,37 +157,35 @@ export default function InventoryDetail() {
 
     switch (item.trackingType) {
       case 'quantity':
-        if (item.quantity === 0) return 'error';
+        if ((item.quantity || 0) === 0) return 'error';
         if (!lowStockAlertsEnabled) return 'success';
-        if (item.quantity < quantityThreshold) return 'warning';
+        if ((item.quantity || 0) < quantityThreshold) return 'warning';
         return 'success';
 
-      case 'weight':
-        {
-          if (item.weight === 0) return 'error';
-          if (!lowStockAlertsEnabled) return 'success';
+      case 'weight': {
+        if ((item.weight || 0) === 0) return 'error';
+        if (!lowStockAlertsEnabled) return 'success';
 
-          // Different thresholds based on weight unit
-          const lowThreshold =
-            item.weightUnit === 'kg' ? weightThresholds.kg :
-              item.weightUnit === 'g' ? weightThresholds.g :
-                item.weightUnit === 'lb' ? weightThresholds.lb :
-                  item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+        // Different thresholds based on weight unit
+        const weightLowThreshold =
+          item.weightUnit === 'kg' ? weightThresholds.kg :
+            item.weightUnit === 'g' ? weightThresholds.g :
+              item.weightUnit === 'lb' ? weightThresholds.lb :
+                item.weightUnit === 'oz' ? weightThresholds.oz : 5;
 
-          if (item.weight < lowThreshold) return 'warning';
-          return 'success';
-        }
-
+        if ((item.weight || 0) < weightLowThreshold) return 'warning';
+        return 'success';
+      }
       case 'length':
-        if (item.length === 0) return 'error';
+        if ((item.length || 0) === 0) return 'error';
         return 'success';
 
       case 'area':
-        if (item.area === 0) return 'error';
+        if ((item.area || 0) === 0) return 'error';
         return 'success';
 
       case 'volume':
-        if (item.volume === 0) return 'error';
+        if ((item.volume || 0) === 0) return 'error';
         return 'success';
 
       default:
@@ -434,11 +443,11 @@ export default function InventoryDetail() {
                     <Typography variant="h6">Stock</Typography>
                   </Box>
                   <Typography variant="h4">
-                    {data?.trackingType === 'quantity' && data?.quantity}
-                    {data?.trackingType === 'weight' && `${data?.weight}${data?.weightUnit}`}
-                    {data?.trackingType === 'length' && `${data?.length}${data?.lengthUnit}`}
-                    {data?.trackingType === 'area' && `${data?.area}${data?.areaUnit}`}
-                    {data?.trackingType === 'volume' && `${data?.volume}${data?.volumeUnit}`}
+                    {data?.trackingType === 'quantity' && `${data?.quantity || 0}`}
+                    {data?.trackingType === 'weight' && `${data?.weight || 0}${data?.weightUnit}`}
+                    {data?.trackingType === 'length' && `${data?.length || 0}${data?.lengthUnit}`}
+                    {data?.trackingType === 'area' && `${data?.area || 0}${data?.areaUnit}`}
+                    {data?.trackingType === 'volume' && `${data?.volume || 0}${data?.volumeUnit}`}
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>
                     {data?.trackingType === 'quantity'
@@ -544,21 +553,64 @@ export default function InventoryDetail() {
                   Tracking Type
                 </Typography>
                 <Typography variant="body1">
-                  {data?.trackingType === 'quantity' ? (
-                    <Chip
-                      icon={<Inventory fontSize="small" />}
-                      label="Track by Quantity"
-                      size="small"
-                      variant="outlined"
-                    />
-                  ) : (
-                    <Chip
-                      icon={<Scale fontSize="small" />}
-                      label="Track by Weight"
-                      size="small"
-                      variant="outlined"
-                    />
-                  )}
+                  {(() => {
+                    switch(data?.trackingType) {
+                      case 'quantity':
+                        return (
+                          <Chip
+                            icon={<Inventory fontSize="small" />}
+                            label="Track by Quantity"
+                            size="small"
+                            variant="outlined"
+                          />
+                        );
+                      case 'weight':
+                        return (
+                          <Chip
+                            icon={<Scale fontSize="small" />}
+                            label="Track by Weight"
+                            size="small"
+                            variant="outlined"
+                          />
+                        );
+                      case 'length':
+                        return (
+                          <Chip
+                            icon={<Straighten fontSize="small" />}
+                            label="Track by Length"
+                            size="small"
+                            variant="outlined"
+                          />
+                        );
+                      case 'area':
+                        return (
+                          <Chip
+                            icon={<SquareFoot fontSize="small" />}
+                            label="Track by Area"
+                            size="small"
+                            variant="outlined"
+                          />
+                        );
+                      case 'volume':
+                        return (
+                          <Chip
+                            icon={<ViewInAr fontSize="small" />}
+                            label="Track by Volume"
+                            size="small"
+                            variant="outlined"
+                          />
+                        );
+                      default:
+                        return (
+                          <Chip
+                            icon={<Inventory fontSize="small" />}
+                            label="Track by Quantity"
+                            size="small"
+                            variant="outlined"
+                          />
+                        );
+                    }
+                  })()}
                 </Typography>
               </Box>
 
@@ -567,28 +619,52 @@ export default function InventoryDetail() {
                   Price Type
                 </Typography>
                 <Typography variant="body1">
-                  {data?.trackingType === 'quantity' ? (
-                    <Chip
-                      icon={<AttachMoney fontSize="small" />}
-                      label="Price per Item"
-                      size="small"
-                      variant="outlined"
-                    />
-                  ) : data?.priceType === 'each' ? (
-                    <Chip
-                      icon={<AttachMoney fontSize="small" />}
-                      label="Price per Package"
-                      size="small"
-                      variant="outlined"
-                    />
-                  ) : (
-                    <Chip
-                      icon={<AttachMoney fontSize="small" />}
-                      label={`Price per ${data?.weightUnit}`}
-                      size="small"
-                      variant="outlined"
-                    />
-                  )}
+                  {(() => {
+                    switch(data?.priceType) {
+                      case 'each':
+                        return <Chip
+                          icon={<AttachMoney fontSize="small" />}
+                          label="Price per Item/Package"
+                          size="small"
+                          variant="outlined"
+                        />;
+                      case 'per_weight_unit':
+                        return <Chip
+                          icon={<AttachMoney fontSize="small" />}
+                          label={`Price per ${data?.weightUnit}`}
+                          size="small"
+                          variant="outlined"
+                        />;
+                      case 'per_length_unit':
+                        return <Chip
+                          icon={<AttachMoney fontSize="small" />}
+                          label={`Price per ${data?.lengthUnit}`}
+                          size="small"
+                          variant="outlined"
+                        />;
+                      case 'per_area_unit':
+                        return <Chip
+                          icon={<AttachMoney fontSize="small" />}
+                          label={`Price per ${data?.areaUnit}`}
+                          size="small"
+                          variant="outlined"
+                        />;
+                      case 'per_volume_unit':
+                        return <Chip
+                          icon={<AttachMoney fontSize="small" />}
+                          label={`Price per ${data?.volumeUnit}`}
+                          size="small"
+                          variant="outlined"
+                        />;
+                      default:
+                        return <Chip
+                          icon={<AttachMoney fontSize="small" />}
+                          label="Price per Item"
+                          size="small"
+                          variant="outlined"
+                        />;
+                    }
+                  })()}
                 </Typography>
               </Box>
 
@@ -628,28 +704,84 @@ export default function InventoryDetail() {
                 <Typography variant="subtitle2" color="text.secondary">
                   Stock Details
                 </Typography>
-                {data?.trackingType === 'quantity' ? (
-                  <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                    <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                    {data?.quantity} units in stock
-                  </Typography>
-                ) : data?.priceType === 'each' ? (
-                  <Box>
-                    <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                      <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      {data?.quantity || 0} packages in stock
-                    </Typography>
-                    <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                      <Scale fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      Each package: {data?.weight}{data?.weightUnit}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                    <Scale fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                    {data?.weight}{data?.weightUnit} in stock
-                  </Typography>
-                )}
+                {(() => {
+                  switch(data?.trackingType) {
+                    case 'quantity':
+                      return (
+                        <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                          <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                          {data?.quantity} units in stock
+                        </Typography>
+                      );
+                    case 'weight':
+                      return (
+                        <Box>
+                          {data?.priceType === 'each' && (
+                            <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                              <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                              {data?.quantity || 0} packages in stock
+                            </Typography>
+                          )}
+                          <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                            <Scale fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                            {data?.weight || 0}{data?.weightUnit} in stock
+                          </Typography>
+                        </Box>
+                      );
+                    case 'length':
+                      return (
+                        <Box>
+                          {data?.priceType === 'each' && (
+                            <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                              <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                              {data?.quantity || 0} packages in stock
+                            </Typography>
+                          )}
+                          <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                            <Straighten fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                            {data?.length || 0}{data?.lengthUnit} in stock
+                          </Typography>
+                        </Box>
+                      );
+                    case 'area':
+                      return (
+                        <Box>
+                          {data?.priceType === 'each' && (
+                            <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                              <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                              {data?.quantity || 0} packages in stock
+                            </Typography>
+                          )}
+                          <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                            <SquareFoot fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                            {data?.area || 0}{data?.areaUnit} in stock
+                          </Typography>
+                        </Box>
+                      );
+                    case 'volume':
+                      return (
+                        <Box>
+                          {data?.priceType === 'each' && (
+                            <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                              <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                              {data?.quantity || 0} packages in stock
+                            </Typography>
+                          )}
+                          <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                            <ViewInAr fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                            {data?.volume || 0}{data?.volumeUnit} in stock
+                          </Typography>
+                        </Box>
+                      );
+                    default:
+                      return (
+                        <Typography variant="body1" sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                          <Inventory fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                          {data?.quantity} units in stock
+                        </Typography>
+                      );
+                  }
+                })()}
               </Box>
 
               <Divider />
@@ -661,11 +793,22 @@ export default function InventoryDetail() {
                 <Typography variant="h5" color="primary" sx={{ mt: 1, fontWeight: 'bold' }}>
                   {formatCurrency(data?.price || 0)}
                   <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
-                    {data?.trackingType === 'quantity'
-                      ? 'per item'
-                      : data?.priceType === 'each'
-                        ? 'per package'
-                        : `per ${data?.weightUnit}`}
+                    {(() => {
+                      switch(data?.priceType) {
+                        case 'each':
+                          return data?.trackingType === 'quantity' ? 'per item' : 'per package';
+                        case 'per_weight_unit':
+                          return `per ${data?.weightUnit}`;
+                        case 'per_length_unit':
+                          return `per ${data?.lengthUnit}`;
+                        case 'per_area_unit':
+                          return `per ${data?.areaUnit}`;
+                        case 'per_volume_unit':
+                          return `per ${data?.volumeUnit}`;
+                        default:
+                          return 'per unit';
+                      }
+                    })()}
                   </Typography>
                 </Typography>
               </Box>
@@ -1022,7 +1165,7 @@ export default function InventoryDetail() {
                   ))}
                   {relatedPurchases.length > 5 && (
                     <ListItem
-                      component={Button}
+                      // component={Button}
                       to="/purchases"
                       component={RouterLink}
                       sx={{
@@ -1101,7 +1244,7 @@ export default function InventoryDetail() {
                   ))}
                   {relatedSales.length > 5 && (
                     <ListItem
-                      component={Button}
+                      // component={Button}
                       to="/sales"
                       component={RouterLink}
                       sx={{
