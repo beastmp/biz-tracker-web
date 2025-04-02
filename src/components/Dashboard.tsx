@@ -48,7 +48,8 @@ import {
   MonetizationOn,
   Campaign,
   Notifications,
-  Assessment
+  Assessment,
+  BarChart
 } from '@mui/icons-material';
 import { useItems } from '@hooks/useItems';
 import { useSales } from '@hooks/useSales';
@@ -60,7 +61,7 @@ import LoadingScreen from '@components/ui/LoadingScreen';
 import { useSettings } from '@hooks/useSettings';
 import CreateProductDialog from '@components/inventory/CreateProductDialog';
 import { Item } from '@custTypes/models';
-import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart as RechartsBarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Colors for charts
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -217,33 +218,16 @@ export default function Dashboard() {
       )}
 
       {/* Dashboard Header */}
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography variant="h4" component="h1" fontWeight="700" sx={{ mb: 0.5 }}>
-            Welcome to BizTracker
-          </Typography>
-          <Typography color="text.secondary" variant="subtitle1">
-            Here's what's happening with your business today
-          </Typography>
-        </Box>
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        mb: 4
+      }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Dashboard
+        </Typography>
 
-        <Stack direction="row" spacing={1.5}>
-          <Button
-            variant="outlined"
-            startIcon={<Assessment />}
-            component={RouterLink}
-            to="/reports"
-          >
-            Reports
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => setCreateProductDialogOpen(true)}
-          >
-            Create Product
-          </Button>
-        </Stack>
       </Box>
 
       {/* Quick Stats & Overview */}
