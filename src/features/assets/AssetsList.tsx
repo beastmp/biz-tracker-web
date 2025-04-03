@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -16,7 +16,6 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Tooltip,
   Alert,
   Grid2
 } from '@mui/material';
@@ -25,25 +24,33 @@ import {
   Search,
   Sort,
   FilterList,
-  Edit,
   Delete,
   ContentPaste,
   Build,
-  Handyman,
   CalendarToday,
   Place,
   Person,
   BusinessCenter
 } from '@mui/icons-material';
 import { useAssets, useDeleteAsset } from '@hooks/useAssets';
-import { BusinessAsset } from '@custTypes/models';
-import { formatCurrency, formatDate } from '@utils/formatters';
+import { useFormattedValues } from '@utils/formatters'; // Import the custom hook for formatting
+import { useSettings } from '@hooks/useSettings'; // Import the settings hook to get user preferences
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 
 export default function AssetsList() {
   const { data: assets = [], isLoading, error } = useAssets();
   const deleteAsset = useDeleteAsset();
+
+  const { settings } = useSettings();
+
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(settings.defaultViewMode);
+
+  const { formatCurrency, formatDate } = useFormattedValues();
+
+  useEffect(() => {
+    setViewMode(settings.defaultViewMode);
+  }, [settings.defaultViewMode]);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,7 +171,7 @@ export default function AssetsList() {
       {/* Search and filters */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid2 container spacing={2} alignItems="center">
-          <Grid2 xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               placeholder="Search assets..."
@@ -179,7 +186,7 @@ export default function AssetsList() {
               }}
             />
           </Grid2>
-          <Grid2 xs={6} md={3}>
+          <Grid2 size={{ xs: 6, md:3 }}>
             <Button
               fullWidth
               variant="outlined"
@@ -268,7 +275,7 @@ export default function AssetsList() {
               </MenuItem>
             </Menu>
           </Grid2>
-          <Grid2 xs={6} md={3}>
+          <Grid2 size={{ xs: 6, md: 3 }}>
             <Button
               fullWidth
               variant="outlined"

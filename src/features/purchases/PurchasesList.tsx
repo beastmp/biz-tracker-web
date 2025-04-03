@@ -82,10 +82,10 @@ export default function PurchasesList() {
   const [searchQuery, setSearchQuery] = useState('');
   const { data: purchases = [], isLoading, error } = usePurchases();
   const deletePurchase = useDeletePurchase();
-  const { defaultViewMode } = useSettings();
+  const { settings } = useSettings();
 
   // Initialize view mode from settings
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(defaultViewMode);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(settings.defaultViewMode);
 
   // Add sorting, filtering, and pagination
   const [sortOrder, setSortOrder] = useState<'date-desc' | 'date-asc' | 'total-desc' | 'total-asc'>('date-desc');
@@ -105,8 +105,8 @@ export default function PurchasesList() {
 
   // Update view mode if settings change
   useEffect(() => {
-    setViewMode(defaultViewMode);
-  }, [defaultViewMode]);
+    setViewMode(settings.defaultViewMode);
+  }, [settings.defaultViewMode]);
 
   // Apply filters and sorting
   const filteredPurchases = useMemo(() => {
@@ -218,18 +218,21 @@ export default function PurchasesList() {
   };
 
   const handleExportCSV = () => {
+    // Use csvDelimiter from settings instead of hardcoded comma
+    let csvContent = `data:text/csv;charset=utf-8;`;
+    const delimiter = settings.csvDelimiter || ',';
+
     // Create CSV content
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "ID,Date,Supplier,Invoice Number,Items,Total,Status,Payment Method\n";
+    csvContent += `ID${delimiter}Date${delimiter}Supplier${delimiter}Invoice Number${delimiter}Items${delimiter}Total${delimiter}Status${delimiter}Payment Method\n`;
 
     filteredPurchases.forEach(purchase => {
-      csvContent += `${purchase._id || ''},`;
-      csvContent += `${purchase.purchaseDate ? formatDate(purchase.purchaseDate) : ''},`;
-      csvContent += `${(purchase.supplier?.name || 'Unknown Supplier').replace(',', ' ')},`;
-      csvContent += `${purchase.invoiceNumber || ''},`;
-      csvContent += `${purchase.items.length},`;
-      csvContent += `${purchase.total},`;
-      csvContent += `${purchase.status},`;
+      csvContent += `${purchase._id || ''}${delimiter}`;
+      csvContent += `${purchase.purchaseDate ? formatDate(purchase.purchaseDate) : ''}${delimiter}`;
+      csvContent += `${(purchase.supplier?.name || 'Unknown Supplier').replace(',', ' ')}${delimiter}`;
+      csvContent += `${purchase.invoiceNumber || ''}${delimiter}`;
+      csvContent += `${purchase.items.length}${delimiter}`;
+      csvContent += `${purchase.total}${delimiter}`;
+      csvContent += `${purchase.status}${delimiter}`;
       csvContent += `${purchase.paymentMethod}\n`;
     });
 

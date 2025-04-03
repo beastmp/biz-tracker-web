@@ -78,12 +78,24 @@ export interface Item {
     quantity: number;      // How much of the parent was used to create this
     weight?: number;       // Weight allocated from parent (for weight tracking)
     weightUnit?: WeightUnit; // Unit for weight
+    length?: number;         // Length of material used
+    lengthUnit?: LengthUnit; // Unit of length measurement
+    area?: number;           // Area of material used
+    areaUnit?: AreaUnit;     // Unit of area measurement
+    volume?: number;         // Volume of material used
+    volumeUnit?: VolumeUnit; // Unit of volume measurement
   };
   derivedItems?: Array<{   // Items created from this generic item
     item: string | Item;   // Reference to the derived item
     quantity: number;      // Quantity created
     weight?: number;       // Weight allocated (for weight tracking)
     weightUnit?: WeightUnit; // Unit for weight
+    length?: number;         // Length of material used
+    lengthUnit?: LengthUnit; // Unit of length measurement
+    area?: number;           // Area of material used
+    areaUnit?: AreaUnit;     // Unit of area measurement
+    volume?: number;         // Volume of material used
+    volumeUnit?: VolumeUnit; // Unit of volume measurement
   }>;
 }
 

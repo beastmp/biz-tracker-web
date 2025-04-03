@@ -1,10 +1,80 @@
 import { Item, TrackingType } from '@custTypes/models';
+import { useSettings } from '../hooks/useSettings';
 
 /**
- * Format a currency value
- * @param value - The number to format as currency
- * @returns Formatted currency string
+ * Hook for formatting values according to user settings
  */
+export function useFormattedValues() {
+  const { settings } = useSettings();
+
+  const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: settings.currency || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+
+  const formatDate = (date: Date | string, options?: Intl.DateTimeFormatOptions): string => {
+    if (!date) return '';
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+    const defaultOptions: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    };
+
+    const mergedOptions = { ...defaultOptions, ...options };
+
+    // Use the user's preferred date format
+    if (settings.dateFormat === 'DD/MM/YYYY') {
+      return dateObj.toLocaleDateString('en-GB', mergedOptions);
+    } else if (settings.dateFormat === 'YYYY-MM-DD') {
+      // For ISO format, we'll handle it differently
+      const iso = dateObj.toISOString().split('T')[0];
+      if (Object.keys(options || {}).length === 0) {
+        return iso;
+      }
+      // If custom options were provided, still use locale formatting
+      return dateObj.toLocaleDateString('en-US', mergedOptions);
+    }
+
+    // Default to US format
+    return dateObj.toLocaleDateString('en-US', mergedOptions);
+  };
+
+  const formatDateTime = (date: Date | string): string => {
+    if (!date) return '';
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+    const dateStr = formatDate(dateObj);
+    const timeOptions: Intl.DateTimeFormatOptions = {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: settings.timeFormat === '12h'
+    };
+
+    const timeStr = dateObj.toLocaleTimeString(
+      settings.timeFormat === '24h' ? 'en-GB' : 'en-US',
+      timeOptions
+    );
+
+    return `${dateStr} ${timeStr}`;
+  };
+
+  // Your other formatting functions...
+
+  return {
+    formatCurrency,
+    formatDate,
+    formatDateTime,
+    // Include other formatting functions
+  };
+}
+
+// Keep your standard formatters for non-component use, but they won't use settings
 export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',

@@ -124,12 +124,7 @@ export default function BreakdownItemsDialog({
     const generateSku = useCallback((baseIndex: number) => {
         if (!sourceItem) return '';
 
-        // If we have nextSku from the API, use it with a suffix
-        if (nextSku) {
-            return `${nextSku}-${String(baseIndex + 1).padStart(2, '0')}`;
-        }
-
-        // Fallback: use sourceItem SKU with suffix
+        // Use sourceItem SKU with suffix
         return `${sourceItem.sku}-${String(baseIndex + 1).padStart(2, '0')}`;
     }, [sourceItem, nextSku]);
 

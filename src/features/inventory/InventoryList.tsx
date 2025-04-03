@@ -46,7 +46,7 @@ import {
 } from '@mui/icons-material';
 import { useItems, useDeleteItem, useUpdateItem } from '@hooks/useItems';
 import { Item, ItemType } from '@custTypes/models';
-import { formatCurrency } from '@utils/formatters';
+import { useFormattedValues } from '@utils/formatters';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import { useSettings } from '@hooks/useSettings';
@@ -55,26 +55,50 @@ import CreateProductDialog from '@components/inventory/CreateProductDialog';
 export default function InventoryList() {
   const { data: items = [], isLoading, error } = useItems();
   const deleteItem = useDeleteItem();
-  const { lowStockAlertsEnabled, quantityThreshold, weightThresholds, defaultViewMode, defaultGroupBy } = useSettings();
+  const { settings } = useSettings();
+  const {
+    formatCurrency,
+  //  formatDate,
+  //  formatItemStock, // Assuming this exists in your formatters
+  //  formatMeasurementWithUnit // Assuming this exists in your formatters
+  } = useFormattedValues();
 
-  // Initialize view mode from settings
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(defaultViewMode);
+  // Apply settings to local state
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(settings.defaultViewMode);
+  const [groupBy, setGroupBy] = useState(settings.defaultGroupBy);
 
-  // Initialize groupBy from settings default
-  const [groupBy, setGroupBy] = useState<'none' | 'itemType' | 'category'>(defaultGroupBy);
+  // Update local state when settings change
+  useEffect(() => {
+    setViewMode(settings.defaultViewMode);
+    setGroupBy(settings.defaultGroupBy);
+  }, [settings.defaultViewMode, settings.defaultGroupBy]);
+
+  // Handle low stock alerts based on settings
+  // const isLowStock = (item) => {
+  //   if (!settings.lowStockAlertsEnabled) return false;
+
+  //   if (item.trackingType === 'quantity') {
+  //     return item.quantity < settings.quantityThreshold;
+  //   } else if (item.trackingType === 'weight') {
+  //     const threshold = settings.weightThresholds[item.unit] || 0;
+  //     return item.weight < threshold;
+  //   }
+  //   return false;
+  // };
+
+  // Render functions
+  // const renderPrice = (item) => {
+  //   let price = formatCurrency(item.price);
+  //   if (settings.includeTaxInPrice && item.taxable) {
+  //     // Price includes tax calculation if enabled
+  //     const withTax = item.price * (1 + settings.taxRate / 100);
+  //     price = formatCurrency(withTax);
+  //   }
+  //   return price;
+  // };
 
   // Add state for the selected group
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-
-  // Update view mode if settings change
-  useEffect(() => {
-    setViewMode(defaultViewMode);
-  }, [defaultViewMode]);
-
-  // Update groupBy if default setting changes
-  useEffect(() => {
-    setGroupBy(defaultGroupBy);
-  }, [defaultGroupBy]);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -314,18 +338,18 @@ export default function InventoryList() {
     switch (item.trackingType) {
       case 'quantity':
         if (item.quantity <= 0) return 'error';
-        if (!lowStockAlertsEnabled) return 'success';
-        if (item.quantity <= quantityThreshold) return 'warning';
+        if (!settings.lowStockAlertsEnabled) return 'success';
+        if (item.quantity <= settings.quantityThreshold) return 'warning';
         return 'success';
 
       case 'weight': {
         if (item.weight <= 0) return 'error';
-        if (!lowStockAlertsEnabled) return 'success';
+        if (!settings.lowStockAlertsEnabled) return 'success';
         const weightThreshold =
-          item.weightUnit === 'kg' ? weightThresholds.kg :
-            item.weightUnit === 'g' ? weightThresholds.g :
-              item.weightUnit === 'lb' ? weightThresholds.lb :
-                item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+          item.weightUnit === 'kg' ? settings.weightThresholds.kg :
+            item.weightUnit === 'g' ? settings.weightThresholds.g :
+              item.weightUnit === 'lb' ? settings.weightThresholds.lb :
+                item.weightUnit === 'oz' ? settings.weightThresholds.oz : 5;
         if (item.weight <= weightThreshold) return 'warning';
         return 'success';
       }
@@ -345,24 +369,24 @@ export default function InventoryList() {
       default:
         return 'success';
     }
-  }, [lowStockAlertsEnabled, quantityThreshold, weightThresholds]);
+  }, [settings.lowStockAlertsEnabled, settings.quantityThreshold, settings.weightThresholds]);
 
   // Get stock status label
   const getStockStatusLabel = useCallback((item: Item): string => {
     switch (item.trackingType) {
       case 'quantity':
         if (item.quantity <= 0) return 'Out of stock';
-        if (lowStockAlertsEnabled && item.quantity <= quantityThreshold) return `Low stock: ${item.quantity} left`;
+        if (settings.lowStockAlertsEnabled && item.quantity <= settings.quantityThreshold) return `Low stock: ${item.quantity} left`;
         return `${item.quantity} in stock`;
 
       case 'weight': {
         if (item.weight <= 0) return 'Out of stock';
         const weightThreshold =
-          item.weightUnit === 'kg' ? weightThresholds.kg :
-            item.weightUnit === 'g' ? weightThresholds.g :
-              item.weightUnit === 'lb' ? weightThresholds.lb :
-                item.weightUnit === 'oz' ? weightThresholds.oz : 5;
-        if (lowStockAlertsEnabled && item.weight <= weightThreshold) return `Low: ${item.weight}${item.weightUnit}`;
+          item.weightUnit === 'kg' ? settings.weightThresholds.kg :
+            item.weightUnit === 'g' ? settings.weightThresholds.g :
+              item.weightUnit === 'lb' ? settings.weightThresholds.lb :
+                item.weightUnit === 'oz' ? settings.weightThresholds.oz : 5;
+        if (settings.lowStockAlertsEnabled && item.weight <= weightThreshold) return `Low: ${item.weight}${item.weightUnit}`;
         return `${item.weight}${item.weightUnit} in stock`;
       }
 
@@ -381,7 +405,7 @@ export default function InventoryList() {
       default:
         return `${item.quantity} in stock`;
     }
-  }, [lowStockAlertsEnabled, quantityThreshold, weightThresholds]);
+  }, [settings.lowStockAlertsEnabled, settings.quantityThreshold, settings.weightThresholds]);
 
   // Calculate total inventory value for an item
   const calculateTotalValue = (item: Item): number => {
@@ -600,7 +624,7 @@ export default function InventoryList() {
               </FormControl>
             </Grid2>
 
-            {/* Remove the Item Type filter from the group view */}
+            {/* Remove the Item Type filter from the group view
             <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
               <Stack direction="row" spacing={1} justifyContent="flex-end">
                 <Tooltip title="Grid View">
@@ -620,15 +644,15 @@ export default function InventoryList() {
                   </IconButton>
                 </Tooltip>
               </Stack>
-            </Grid2>
+            </Grid2> */}
           </Grid2>
         ) : (
           // Items view filters - simplified to just search and sort
           <>
             <Grid2 container spacing={2} alignItems="center">
               {/* Search Field */}
-              <Grid2 size={{ xs: 12, md: 6 }}>
-                <TextField
+              <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+              <TextField
                   fullWidth
                   placeholder="Search in this group..."
                   value={searchQuery}
@@ -652,8 +676,8 @@ export default function InventoryList() {
               </Grid2>
 
               {/* Sorting Options */}
-              <Grid2 size={{ xs: 12, md: 4 }}>
-                <Button
+              <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+              <Button
                   fullWidth
                   variant="outlined"
                   startIcon={<SortIcon />}
