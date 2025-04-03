@@ -25,7 +25,14 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_API_URL || 'http://localhost:5000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        rewrite: (path) => {
+          // If target already ends with /api, remove it from the path
+          const target = process.env.VITE_API_URL || 'http://localhost:5000';
+          if (target.endsWith('/api')) {
+            return path.replace(/^\/api/, '');
+          }
+          return path;
+        }
       }
     }
   },

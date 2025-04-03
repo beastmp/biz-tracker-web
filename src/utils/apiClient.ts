@@ -2,15 +2,13 @@ import axios, { AxiosRequestConfig } from 'axios';
 import { config } from '@config/env';
 import { Item, TrackingType } from '@custTypes/models';
 
-// Create a normalized base URL without duplicate /api segments
+// Create a normalized base URL that handles various API URL formats
 const normalizeBaseUrl = (url: string) => {
-  // Remove trailing slashes
-  const baseUrl = url.replace(/\/+$/, '');
+  if (!url) return "";
 
-  // Check if baseUrl already ends with /api
-  if (baseUrl.endsWith('/api')) {
-    return baseUrl;
-  }
+  // Remove trailing slashes
+  const baseUrl = url.replace(/\/+$/, "");
+
   return baseUrl;
 };
 
