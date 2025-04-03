@@ -15,13 +15,10 @@ import {
   Card,
   CardContent,
   InputAdornment,
-  FormControlLabel,
-  Checkbox,
   Alert,
   Autocomplete,
   Chip,
-  styled,
-  Paper
+  styled
 } from '@mui/material';
 import {
   ArrowBack,
@@ -37,8 +34,7 @@ import {
 } from '@mui/icons-material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useAsset, useCreateAsset, useUpdateAsset } from '@hooks/useAssets';
-import { BusinessAsset, AssetStatus } from '@custTypes/models';
-import { formatDate } from '@utils/formatters';
+import { BusinessAsset } from '@custTypes/models';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 
@@ -538,7 +534,7 @@ export default function AssetForm() {
                       setFormData({
                         ...formData,
                         maintenanceSchedule: {
-                          ...(formData.maintenanceSchedule || {}),
+                          ...(formData.maintenanceSchedule || { frequency: 'monthly' }),
                           lastMaintenance: new Date(e.target.value)
                         }
                       });

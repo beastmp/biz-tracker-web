@@ -1,4 +1,4 @@
-import { Item, TrackingType } from '@custTypes/models';
+import { Item } from '@custTypes/models';
 import { useSettings } from '../hooks/useSettings';
 
 /**

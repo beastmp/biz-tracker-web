@@ -19,7 +19,6 @@ import {
   Divider,
   Snackbar,
   Alert,
-  IconButton,
   Tooltip,
   Stack,
   Tab,
@@ -30,7 +29,6 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Skeleton,
   Slider,
   CircularProgress,
   Dialog,
@@ -45,7 +43,6 @@ import {
   Refresh as ResetIcon,
   SettingsBackupRestore as RestoreIcon,
   ExpandMore,
-  ColorLens,
   Notifications,
   Storage,
   ViewModule,
@@ -53,17 +50,13 @@ import {
   Business,
   CurrencyExchange,
   BugReport,
-  Language,
-  Security,
-  Email,
-  Check,
   Info as InfoIcon,
   Sync,
   StackedBarChart
 } from '@mui/icons-material';
 import LoadingScreen from '@components/ui/LoadingScreen';
-import { useAppContext } from '@hooks/useAppContext';
-import { useSettings, SettingsContextType } from '@hooks/useSettings';
+// import { useAppContext } from '@hooks/useAppContext';
+import { useSettings } from '@hooks/useSettings';
 import { useRebuildRelationships, useRebuildInventory } from '@hooks/useItems';
 
 interface TabPanelProps {
@@ -91,8 +84,8 @@ function TabPanel(props: TabPanelProps) {
 export default function Settings() {
   // Use MUI's useTheme hook directly instead of relying on useAppContext for theme
   const theme = useTheme();
-  const { toggleColorMode } = useAppContext();
-  const { settings, updateSettings, defaultSettings, resetSettings, loadSettings } = useSettings();
+  // const { toggleColorMode } = useAppContext();
+  const { settings, updateSettings, defaultSettings, resetSettings } = useSettings();
   const [localSettings, setLocalSettings] = useState({ ...settings });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState(0);

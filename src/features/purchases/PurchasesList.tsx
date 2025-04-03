@@ -67,17 +67,6 @@ const getPurchaseItemsDisplayText = (purchase: any) => {
   return `${totalItems} ${totalItems === 1 ? 'item' : 'items'} (${totalQuantity} units total)`;
 };
 
-// Helper function to ensure dates display correctly
-const adjustDateForDisplay = (dateString: string | undefined): string | undefined => {
-  if (!dateString) return undefined;
-
-  // Create a date object from the string
-  const date = new Date(dateString);
-
-  // Create a new date object using local year, month, and day to avoid timezone offset issues
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
-};
-
 export default function PurchasesList() {
   const [searchQuery, setSearchQuery] = useState('');
   const { data: purchases = [], isLoading, error } = usePurchases();
@@ -543,7 +532,7 @@ export default function PurchasesList() {
                   return (
                     <TableRow key={purchase._id} hover>
                       <TableCell>
-                        {purchase.purchaseDate ? formatDate(adjustDateForDisplay(purchase.purchaseDate)) : 'Unknown'}
+                        {purchase.purchaseDate ? formatDate(purchase.purchaseDate) : 'Unknown'}
                       </TableCell>
                       <TableCell>
                         <RouterLink to={`/purchases/${purchase._id}`} style={{ textDecoration: 'none', color: '#0a7ea4' }}>
@@ -629,7 +618,7 @@ export default function PurchasesList() {
                       </Box>
 
                       <Typography variant="body2" color="text.secondary" gutterBottom>
-                        {purchase.purchaseDate && formatDate(adjustDateForDisplay(purchase.purchaseDate))}
+                        {purchase.purchaseDate && formatDate(purchase.purchaseDate)}
                       </Typography>
 
                       {purchase.invoiceNumber && (

@@ -14,7 +14,6 @@ import {
   TextField,
   InputAdornment,
   Grid,
-  CardActionArea,
   Alert,
   Chip,
   Stack,
@@ -39,16 +38,10 @@ import {
   CheckCircle,
   CalendarToday,
   Add,
-  TrendingDown,
-  TrendingUp,
   Info,
   Visibility,
   ViewList,
-  Autorenew,
-  MonetizationOn,
-  Campaign,
-  Notifications,
-  Assessment
+  Campaign
 } from '@mui/icons-material';
 import { useItems } from '@hooks/useItems';
 import { useSales } from '@hooks/useSales';
@@ -60,7 +53,7 @@ import LoadingScreen from '@components/ui/LoadingScreen';
 import { useSettings } from '@hooks/useSettings';
 import CreateProductDialog from '@components/inventory/CreateProductDialog';
 import { Item } from '@custTypes/models';
-import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Colors for charts
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -78,31 +71,31 @@ export default function Dashboard() {
   const { data: assets = [], isLoading: assetsLoading } = useAssets();
 
   // Get low stock threshold settings
-  const { lowStockAlertsEnabled, quantityThreshold, weightThresholds } = useSettings();
+  const { settings } = useSettings();
 
   // Calculate stats
   const lowStockItems = useMemo(() => {
     return items.filter(item => {
       // If alerts are disabled, don't consider anything low stock
-      if (!lowStockAlertsEnabled) return false;
+      if (!settings.lowStockAlertsEnabled) return false;
 
-      if (item.trackingType === 'quantity' && item.quantity <= quantityThreshold) return true;
+      if (item.trackingType === 'quantity' && item.quantity <= settings.quantityThreshold) return true;
 
       if (item.trackingType === 'weight') {
         if (item.priceType === 'each' && (item.quantity || 0) <= 3) return true;
 
         const threshold =
-          item.weightUnit === 'kg' ? weightThresholds.kg :
-            item.weightUnit === 'g' ? weightThresholds.g :
-              item.weightUnit === 'lb' ? weightThresholds.lb :
-                item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+          item.weightUnit === 'kg' ? settings.weightThresholds.kg :
+            item.weightUnit === 'g' ? settings.weightThresholds.g :
+              item.weightUnit === 'lb' ? settings.weightThresholds.lb :
+                item.weightUnit === 'oz' ? settings.weightThresholds.oz : 5;
 
         if (item.weight <= threshold) return true;
       }
 
       return false;
     });
-  }, [items, lowStockAlertsEnabled, quantityThreshold, weightThresholds]);
+  }, [items, settings.lowStockAlertsEnabled, settings.quantityThreshold, settings.weightThresholds]);
 
   const totalInventoryValue = useMemo(() => {
     return items.reduce((total, item) => {
@@ -169,7 +162,7 @@ export default function Dashboard() {
 
     // Aggregate sales by day
     sales.forEach(sale => {
-      const saleDate = new Date(sale.createdAt).toISOString().split('T')[0];
+      const saleDate = new Date(sale.createdAt ?? new Date()).toISOString().split('T')[0];
       const dayData = last7Days.find(day => day.date === saleDate);
       if (dayData) {
         dayData.sales += sale.total;
@@ -178,7 +171,7 @@ export default function Dashboard() {
 
     // Aggregate purchases by day
     purchases.forEach(purchase => {
-      const purchaseDate = new Date(purchase.purchaseDate).toISOString().split('T')[0];
+      const purchaseDate = new Date(purchase.purchaseDate || new Date()).toISOString().split('T')[0];
       const dayData = last7Days.find(day => day.date === purchaseDate);
       if (dayData) {
         dayData.purchases += purchase.total;
@@ -328,9 +321,9 @@ export default function Dashboard() {
                     {formatCurrency(purchases.reduce((sum, purchase) => sum + purchase.total, 0))}
                   </Typography>
 
-                  {purchases.filter(p => p.status === 'ordered').length > 0 && (
+                  {purchases.filter(p => p.status === 'pending').length > 0 && (
                     <Chip
-                      label={`${purchases.filter(p => p.status === 'ordered').length} in transit`}
+                      label={`${purchases.filter(p => p.status === 'pending').length} in transit`}
                       color="secondary"
                       size="small"
                       icon={<LocalShippingOutlined fontSize="small" />}
@@ -549,9 +542,9 @@ export default function Dashboard() {
                       There are <strong>{sales.filter(s => s.status === 'pending').length} pending sales orders</strong> that require processing.
                     </Typography>
                   )}
-                  {purchases.filter(p => p.status === 'ordered').length > 0 && (
+                  {purchases.filter(p => p.status === 'pending').length > 0 && (
                     <Typography variant="body2" sx={{ mt: 1 }}>
-                      <strong>{purchases.filter(p => p.status === 'ordered').length} purchases</strong> are currently in transit.
+                      <strong>{purchases.filter(p => p.status === 'pending').length} purchases</strong> are currently in transit.
                     </Typography>
                   )}
                 </Paper>
@@ -588,7 +581,7 @@ export default function Dashboard() {
                         label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                         labelLine={false}
                       >
-                        {categoryData.map((entry, index) => (
+                        {categoryData.map((_entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
@@ -827,7 +820,7 @@ export default function Dashboard() {
                               <LinearProgress
                                 variant="determinate"
                                 value={item.trackingType === 'quantity'
-                                  ? Math.min(item.quantity / quantityThreshold * 50, 100)
+                                  ? Math.min(item.quantity / settings.quantityThreshold * 50, 100)
                                   : 30 // Simplified for weight-based items
                                 }
                                 color="warning"

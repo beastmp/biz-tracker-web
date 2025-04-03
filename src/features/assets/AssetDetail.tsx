@@ -5,8 +5,6 @@ import {
   Typography,
   Button,
   Paper,
-  Card,
-  CardContent,
   Grid,
   Divider,
   Chip,
@@ -35,17 +33,10 @@ import {
   Edit,
   Delete,
   Build,
-  CalendarToday,
-  Place,
-  Person,
   BusinessCenter,
-  Receipt,
   AttachMoney,
-  Add,
   NoPhotography,
   Handyman,
-  Clear,
-  // Insurance,
   Category
 } from '@mui/icons-material';
 import { useAsset, useDeleteAsset, useAddMaintenanceRecord } from '@hooks/useAssets';

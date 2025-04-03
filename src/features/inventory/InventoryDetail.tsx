@@ -38,7 +38,6 @@ import {
   StackedBarChart,
   ExpandMore,
   Receipt,
-  ShoppingBasket,
   Straighten, // Add new icon for length
   SquareFoot, // Add new icon for area
   ViewInAr // Add new icon for volume
@@ -60,7 +59,7 @@ export default function InventoryDetail() {
   const { data: item, isLoading, error } = useItem(id);
   const { data: derivedItems = [], isLoading: derivedItemsLoading } = useDerivedItems(id);
   const deleteItem = useDeleteItem();
-  const { lowStockAlertsEnabled, quantityThreshold, weightThresholds } = useSettings();
+  const { settings } = useSettings();
 
   // Add hooks for related purchases and sales
   const {
@@ -166,20 +165,20 @@ export default function InventoryDetail() {
     switch (item.trackingType) {
       case 'quantity':
         if ((item.quantity || 0) === 0) return 'error';
-        if (!lowStockAlertsEnabled) return 'success';
-        if ((item.quantity || 0) < quantityThreshold) return 'warning';
+        if (!settings.lowStockAlertsEnabled) return 'success';
+        if ((item.quantity || 0) < settings.quantityThreshold) return 'warning';
         return 'success';
 
       case 'weight': {
         if ((item.weight || 0) === 0) return 'error';
-        if (!lowStockAlertsEnabled) return 'success';
+        if (!settings.lowStockAlertsEnabled) return 'success';
 
         // Different thresholds based on weight unit
         const weightLowThreshold =
-          item.weightUnit === 'kg' ? weightThresholds.kg :
-            item.weightUnit === 'g' ? weightThresholds.g :
-              item.weightUnit === 'lb' ? weightThresholds.lb :
-                item.weightUnit === 'oz' ? weightThresholds.oz : 5;
+          item.weightUnit === 'kg' ? settings.weightThresholds.kg :
+            item.weightUnit === 'g' ? settings.weightThresholds.g :
+              item.weightUnit === 'lb' ? settings.weightThresholds.lb :
+                item.weightUnit === 'oz' ? settings.weightThresholds.oz : 5;
 
         if ((item.weight || 0) < weightLowThreshold) return 'warning';
         return 'success';
@@ -1363,7 +1362,7 @@ export default function InventoryDetail() {
       <BreakdownItemsDialog
         open={breakdownDialogOpen}
         onClose={() => setBreakdownDialogOpen(false)}
-        sourceItem={data}
+        sourceItem={data || null}
         onItemsCreated={handleItemsCreated}
       />
     </Box>

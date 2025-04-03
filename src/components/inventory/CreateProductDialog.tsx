@@ -129,15 +129,8 @@ export default function CreateProductDialog({
         setFinalPrice(materialsCost * (1 + newProductMarkup / 100));
     }, [calculateMaterialsCost, newProductMarkup, selectedMaterials, isManualPrice]);
 
-    // Reset form when dialog closes
-    useEffect(() => {
-        if (!open) {
-            resetForm();
-        }
-    }, [open]);
-
     // Reset all form fields
-    const resetForm = () => {
+    const resetForm = useCallback(() => {
         setNewProductName('');
         setNewProductSku(generateProductSku());
         setNewProductCategory('');
@@ -150,7 +143,15 @@ export default function CreateProductDialog({
         setError(null);
         setSelectedMaterialIds([]);
         setMaterialQuantities({});
-    };
+    }, [generateProductSku]);
+
+
+    // Reset form when dialog closes
+    useEffect(() => {
+        if (!open) {
+            resetForm();
+        }
+    }, [open, resetForm]);
 
     // Remove a material from the new product
     const handleRemoveMaterial = (index: number) => {

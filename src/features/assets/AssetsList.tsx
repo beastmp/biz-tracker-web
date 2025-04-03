@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -34,7 +34,6 @@ import {
 } from '@mui/icons-material';
 import { useAssets, useDeleteAsset } from '@hooks/useAssets';
 import { useFormattedValues } from '@utils/formatters'; // Import the custom hook for formatting
-import { useSettings } from '@hooks/useSettings'; // Import the settings hook to get user preferences
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 
@@ -42,15 +41,7 @@ export default function AssetsList() {
   const { data: assets = [], isLoading, error } = useAssets();
   const deleteAsset = useDeleteAsset();
 
-  const { settings } = useSettings();
-
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(settings.defaultViewMode);
-
   const { formatCurrency, formatDate } = useFormattedValues();
-
-  useEffect(() => {
-    setViewMode(settings.defaultViewMode);
-  }, [settings.defaultViewMode]);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');

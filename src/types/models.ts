@@ -23,7 +23,7 @@ export type PriceType = 'each' | 'per_weight_unit' | 'per_length_unit' | 'per_ar
 export type PaymentMethod = 'cash' | 'credit' | 'debit' | 'check' | 'bank_transfer' | 'other';
 
 // Define sale status
-export type SaleStatus = 'completed' | 'refunded' | 'partially_refunded';
+export type SaleStatus = 'pending' | 'completed' | 'refunded' | 'partially_refunded';
 
 // Define purchase status
 export type PurchaseStatus = 'pending' | 'received' | 'partially_received' | 'cancelled';

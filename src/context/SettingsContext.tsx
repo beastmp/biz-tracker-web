@@ -11,21 +11,6 @@ interface SettingsProviderProps {
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
 
-  // Load settings from localStorage on mount
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const saveSettings = useCallback((settingsToSave: Settings) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settingsToSave));
-      return true;
-    } catch (error) {
-      console.error('Failed to save settings to storage:', error);
-      return false;
-    }
-  }, []);
-
   const loadSettings = useCallback(() => {
     try {
       const storedSettings = localStorage.getItem(STORAGE_KEY);
@@ -34,6 +19,21 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       }
     } catch (error) {
       console.error('Failed to load settings from storage:', error);
+    }
+  }, []);
+
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  const saveSettings = useCallback((settingsToSave: Settings) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settingsToSave));
+      return true;
+    } catch (error) {
+      console.error('Failed to save settings to storage:', error);
+      return false;
     }
   }, []);
 

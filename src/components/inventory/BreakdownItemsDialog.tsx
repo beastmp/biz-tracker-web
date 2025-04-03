@@ -29,7 +29,6 @@ import {
     Tab,
     Autocomplete,
     CircularProgress,
-    Divider,
 } from '@mui/material';
 import {
     Add,
@@ -37,16 +36,14 @@ import {
     Scale,
     Inventory,
     Search,
-    Transform,
-    LinkOff,
     Link as LinkIcon,
     Straighten,
     SquareFoot,
     ViewInAr
 } from '@mui/icons-material';
-import { useCreateBreakdownItems, useNextSku, useItems } from '@hooks/useItems';
+import { useCreateBreakdownItems, useItems } from '@hooks/useItems';
 import { Item, TrackingType } from '@custTypes/models';
-import { formatCurrency, formatMeasurement } from '@utils/formatters';
+import { formatCurrency } from '@utils/formatters';
 
 interface BreakdownItemsDialogProps {
     open: boolean;
@@ -87,7 +84,6 @@ export default function BreakdownItemsDialog({
     onItemsCreated
 }: BreakdownItemsDialogProps) {
     // Hooks
-    const { data: nextSku } = useNextSku();
     const createBreakdownItems = useCreateBreakdownItems();
     const { data: existingItems = [], isLoading: itemsLoading } = useItems();
 
@@ -126,20 +122,20 @@ export default function BreakdownItemsDialog({
 
         // Use sourceItem SKU with suffix
         return `${sourceItem.sku}-${String(baseIndex + 1).padStart(2, '0')}`;
-    }, [sourceItem, nextSku]);
+    }, [sourceItem]);
 
     // Get the measurement unit based on tracking type
-    const getMeasurementUnit = useCallback((trackingType: TrackingType): string => {
-        if (!sourceItem) return '';
+    // const getMeasurementUnit = useCallback((trackingType: TrackingType): string => {
+    //     if (!sourceItem) return '';
 
-        switch (trackingType) {
-            case 'weight': return sourceItem.weightUnit || 'lb';
-            case 'length': return sourceItem.lengthUnit || 'in';
-            case 'area': return sourceItem.areaUnit || 'sqft';
-            case 'volume': return sourceItem.volumeUnit || 'l';
-            default: return '';
-        }
-    }, [sourceItem]);
+    //     switch (trackingType) {
+    //         case 'weight': return sourceItem.weightUnit || 'lb';
+    //         case 'length': return sourceItem.lengthUnit || 'in';
+    //         case 'area': return sourceItem.areaUnit || 'sqft';
+    //         case 'volume': return sourceItem.volumeUnit || 'l';
+    //         default: return '';
+    //     }
+    // }, [sourceItem]);
 
     // Add a new derived item form
     const handleAddDerivedItem = () => {
@@ -214,19 +210,19 @@ export default function BreakdownItemsDialog({
         }
 
         if (removedItem.weight && removedItem.weight > 0) {
-            setRemainingWeight(prev => prev + removedItem.weight);
+            setRemainingWeight(prev => prev + (removedItem.weight || 0));
         }
 
         if (removedItem.length && removedItem.length > 0) {
-            setRemainingLength(prev => prev + removedItem.length);
+            setRemainingLength(prev => prev + (removedItem.length || 0));
         }
 
         if (removedItem.area && removedItem.area > 0) {
-            setRemainingArea(prev => prev + removedItem.area);
+            setRemainingArea(prev => prev + (removedItem.area || 0));
         }
 
         if (removedItem.volume && removedItem.volume > 0) {
-            setRemainingVolume(prev => prev + removedItem.volume);
+            setRemainingVolume(prev => prev + (removedItem.volume || 0));
         }
 
         updatedItems.splice(index, 1);
