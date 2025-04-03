@@ -95,7 +95,7 @@ export default function PurchaseForm() {
     taxAmount: 0,
     shippingCost: 0,
     total: 0,
-    paymentMethod: 'cash',
+    paymentMethod: 'debit',
     status: 'received'
   });
 
