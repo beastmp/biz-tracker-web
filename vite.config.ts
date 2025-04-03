@@ -26,7 +26,7 @@ export default defineConfig({
         target: process.env.VITE_API_URL || 'http://localhost:5000',
         changeOrigin: true,
         rewrite: (path) => {
-          // If target already ends with /api, remove it from the path
+          // If target already ends with /api, remove it from the path to avoid duplication
           const target = process.env.VITE_API_URL || 'http://localhost:5000';
           if (target.endsWith('/api')) {
             return path.replace(/^\/api/, '');
