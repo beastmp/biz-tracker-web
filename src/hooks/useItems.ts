@@ -22,8 +22,16 @@ export const useItems = () => {
 // Hook to fetch a single item
 export const useItem = (id: string | undefined) => {
   return useQuery({
-    queryKey: [ITEMS_KEY, id],
-    queryFn: () => get<Item>(`/api/items/${id}?populate=true`), // Add populate parameter
+    queryKey: [ITEM_KEY, id], // Make sure we're using ITEM_KEY for consistency
+    queryFn: async () => {
+      try {
+        // Always request populated version for relationship data
+        return await get<Item>(`/api/items/${id}?populate=true`);
+      } catch (error) {
+        console.error(`Error fetching item ${id}:`, error);
+        throw error;
+      }
+    },
     enabled: !!id, // Only run if id exists
   });
 };
@@ -287,5 +295,133 @@ export const useRebuildRelationships = () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
     }
+  });
+};
+
+// Hook to create breakdown items from a generic item
+export const useCreateBreakdownItems = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (breakdownData: {
+      sourceItemId: string;
+      derivedItems: Array<{
+        // Common ID field - if specified, use existing item
+        itemId?: string;
+
+        // Fields for new items (only used when itemId is not provided)
+        name?: string;
+        sku?: string;
+        description?: string;
+        category?: string;
+        price?: number;
+        cost?: number;
+        tags?: string[];
+        imageUrl?: string;
+
+        // Measurement fields - all supported types
+        quantity: number;
+        weight?: number;
+        length?: number;
+        area?: number;
+        volume?: number;
+      }>;
+    }) => {
+      try {
+        return await post<{
+          sourceItem: Item;
+          derivedItems: Item[];
+        }>(`/api/items/${breakdownData.sourceItemId}/breakdown`, breakdownData);
+      } catch (error: unknown) {
+        // Type narrowing for different error types
+        if (error && typeof error === 'object' && 'response' in error) {
+          const axiosError = error as { response?: { data?: unknown }; message?: string };
+          console.error('Failed to create breakdown items:', axiosError.response?.data || axiosError.message);
+        } else {
+          console.error('Failed to create breakdown items:', error);
+        }
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
+      if (data.sourceItem._id) {
+        queryClient.invalidateQueries({ queryKey: [ITEM_KEY, data.sourceItem._id] });
+      }
+      // Also invalidate any derived/allocated items
+      data.derivedItems.forEach(item => {
+        if (item._id) {
+          queryClient.invalidateQueries({ queryKey: [ITEM_KEY, item._id] });
+        }
+      });
+    },
+  });
+};
+
+// Hook to get derived items for a specific item
+export const useDerivedItems = (itemId: string | undefined) => {
+  return useQuery({
+    queryKey: [ITEMS_KEY, itemId, 'derived'],
+    queryFn: () => get<Item[]>(`/api/items/${itemId}/derived`),
+    enabled: !!itemId, // Only run if id exists
+  });
+};
+
+// Hook to get parent item (if this item is derived from another)
+export const useParentItem = (itemId: string | undefined) => {
+  return useQuery({
+    queryKey: [ITEMS_KEY, itemId, 'parent'],
+    queryFn: () => get<Item>(`/api/items/${itemId}/parent`),
+    enabled: !!itemId, // Only run if id exists
+  });
+};
+
+/**
+ * Hook to rebuild inventory based on purchase and sales history
+ */
+export const useRebuildInventory = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      // Add back the 'utility/' segment in the URL
+      const response = await post<{ processed: number; updated: number; errors: number; details: any[] }>(
+        '/api/items/utility/rebuild-inventory'
+      );
+      return response;
+    },
+    onSuccess: () => {
+      // Invalidate items cache to refresh data
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+};
+
+/**
+ * Hook to rebuild a specific item's inventory
+ */
+export const useRebuildItemInventory = (itemId?: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!itemId) {
+        throw new Error('Item ID is required');
+      }
+      // Add back the 'utility/' segment in the URL
+      const response = await post<{ updated: boolean; changes: any }>(
+        `/api/items/utility/rebuild-inventory/${itemId}`
+      );
+      return response;
+    },
+    onSuccess: () => {
+      // Invalidate specific item cache
+      if (itemId) {
+        queryClient.invalidateQueries({ queryKey: ['item', itemId] });
+      }
+      // Also invalidate the general items list
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
   });
 };

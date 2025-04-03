@@ -85,10 +85,10 @@ export default function SalesList() {
   const [searchQuery, setSearchQuery] = useState('');
   const { data: sales = [], isLoading, error } = useSales();
   const deleteSale = useDeleteSale();
-  const { defaultViewMode } = useSettings();
+  const { settings } = useSettings();
 
   // Initialize view mode from settings
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(defaultViewMode);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(settings.defaultViewMode);
 
   // Add sorting, filtering, and pagination
   const [sortOrder, setSortOrder] = useState<'date-desc' | 'date-asc' | 'total-desc' | 'total-asc'>('date-desc');
@@ -103,8 +103,8 @@ export default function SalesList() {
 
   // Update view mode if settings change
   useEffect(() => {
-    setViewMode(defaultViewMode);
-  }, [defaultViewMode]);
+    setViewMode(settings.defaultViewMode);
+  }, [settings.defaultViewMode]);
 
   // Apply filters and sorting
   const filteredSales = useMemo(() => {

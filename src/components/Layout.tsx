@@ -15,7 +15,9 @@ import {
   Divider,
   Container,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  ListSubheader,
+  Collapse
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -28,14 +30,18 @@ import {
   Brightness7 as LightModeIcon,
   Receipt as PurchaseReportsIcon,
   Settings as SettingsIcon,
-  ChevronLeft as ChevronLeftIcon
+  ChevronLeft as ChevronLeftIcon,
+  BusinessCenter as BusinessCenterIcon,
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import { useAppContext } from '@hooks/useAppContext';
 
-const drawerWidth = 240;
+const drawerWidth = 260;
 
 export default function Layout() {
   const [drawerOpen, setDrawerOpen] = useState(true);
+  const [inventorySubmenuOpen, setInventorySubmenuOpen] = useState(false);
   const location = useLocation();
   const theme = useTheme();
   const { toggleColorMode } = useAppContext();
@@ -53,8 +59,19 @@ export default function Layout() {
     setDrawerOpen(!isMobile);
   }, [isMobile]);
 
+  // Check if inventory or assets page is open to auto-expand the submenu
+  useEffect(() => {
+    if (location.pathname.startsWith('/inventory') || location.pathname.startsWith('/assets')) {
+      setInventorySubmenuOpen(true);
+    }
+  }, [location.pathname]);
+
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
+  };
+
+  const toggleInventorySubmenu = () => {
+    setInventorySubmenuOpen(!inventorySubmenuOpen);
   };
 
   const isActive = (path: string) => {
@@ -83,14 +100,45 @@ export default function Layout() {
             <ListItemText primary="Dashboard" />
           </ListItemButton>
         </ListItem>
+
+        {/* Inventory and Assets section with submenu */}
         <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/inventory" selected={isActive('/inventory')}>
+          <ListItemButton onClick={toggleInventorySubmenu}>
             <ListItemIcon>
-              <InventoryIcon color={isActive('/inventory') ? 'primary' : 'inherit'} />
+              <InventoryIcon color={(isActive('/inventory') || isActive('/assets')) ? 'primary' : 'inherit'} />
             </ListItemIcon>
-            <ListItemText primary="Inventory" />
+            <ListItemText primary="Items & Assets" />
+            {inventorySubmenuOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
           </ListItemButton>
         </ListItem>
+        <Collapse in={inventorySubmenuOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            <ListItemButton
+              sx={{ pl: 4 }}
+              component={RouterLink}
+              to="/inventory"
+              selected={isActive('/inventory')}
+            >
+              <ListItemIcon>
+                <InventoryIcon fontSize="small" color={isActive('/inventory') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText primary="Inventory" />
+            </ListItemButton>
+
+            <ListItemButton
+              sx={{ pl: 4 }}
+              component={RouterLink}
+              to="/assets"
+              selected={isActive('/assets')}
+            >
+              <ListItemIcon>
+                <BusinessCenterIcon fontSize="small" color={isActive('/assets') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText primary="Business Assets" />
+            </ListItemButton>
+          </List>
+        </Collapse>
+
         {/* Purchases Menu Items */}
         <ListItem disablePadding>
           <ListItemButton component={RouterLink} to="/purchases" selected={isActive('/purchases')}>
@@ -212,7 +260,7 @@ export default function Layout() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: 1,
           width: '100%',
           ml: { md: drawerOpen ? `${drawerWidth}px` : 0 },
           transition: theme.transitions.create(['margin', 'width'], {
@@ -222,7 +270,10 @@ export default function Layout() {
         }}
       >
         <Toolbar />
-        <Container maxWidth="lg">
+        {/* Container for the main content area. */}
+        {/* "lg" = Sets the max width to 1200px and centers with some padding*/}
+        {/* {false} = Sets the max width to the full width of the page without constraints*/}
+          <Container maxWidth="lg">
           <Outlet />
         </Container>
       </Box>

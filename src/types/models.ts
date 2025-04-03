@@ -28,6 +28,9 @@ export type SaleStatus = 'completed' | 'refunded' | 'partially_refunded';
 // Define purchase status
 export type PurchaseStatus = 'pending' | 'received' | 'partially_received' | 'cancelled';
 
+// Define asset status
+export type AssetStatus = 'active' | 'maintenance' | 'retired' | 'lost';
+
 // Define item interface
 /**
  * Interface representing an inventory item which can be either a material, product, or both
@@ -68,6 +71,32 @@ export interface Item {
   };
   components?: ItemComponent[];      // Materials used in this product
   usedInProducts?: (string | Item)[]; // Products that use this material
+
+  // New fields for inventory breakdown relationships
+  derivedFrom?: {
+    item: string | Item;   // Reference to the parent item this was derived from
+    quantity: number;      // How much of the parent was used to create this
+    weight?: number;       // Weight allocated from parent (for weight tracking)
+    weightUnit?: WeightUnit; // Unit for weight
+    length?: number;         // Length of material used
+    lengthUnit?: LengthUnit; // Unit of length measurement
+    area?: number;           // Area of material used
+    areaUnit?: AreaUnit;     // Unit of area measurement
+    volume?: number;         // Volume of material used
+    volumeUnit?: VolumeUnit; // Unit of volume measurement
+  };
+  derivedItems?: Array<{   // Items created from this generic item
+    item: string | Item;   // Reference to the derived item
+    quantity: number;      // Quantity created
+    weight?: number;       // Weight allocated (for weight tracking)
+    weightUnit?: WeightUnit; // Unit for weight
+    length?: number;         // Length of material used
+    lengthUnit?: LengthUnit; // Unit of length measurement
+    area?: number;           // Area of material used
+    areaUnit?: AreaUnit;     // Unit of area measurement
+    volume?: number;         // Volume of material used
+    volumeUnit?: VolumeUnit; // Unit of volume measurement
+  }>;
 }
 
 /**
@@ -94,7 +123,12 @@ export interface ItemComponent {
  * @returns True if the item is a populated object with a name property
  */
 export function isPopulatedItem(item: string | Item | null | undefined): item is Item {
-  return item !== null && item !== undefined && typeof item === 'object' && 'name' in item;
+  return item !== null &&
+         item !== undefined &&
+         typeof item === 'object' &&
+         'name' in item &&
+         typeof item.name === 'string' &&
+         item.name.length > 0;
 }
 
 // Define sale item interface
@@ -153,6 +187,7 @@ export interface PurchaseItem {
   volume: number;            // Volume purchased
   volumeUnit?: VolumeUnit;   // Unit of volume measurement
   costPerUnit: number;       // Cost per unit
+  originalCost?: number;     // Original cost before quantity division
   discountAmount?: number;   // Discount amount for this item
   discountPercentage?: number; // Discount percentage for this item
   totalCost: number;         // Total cost
@@ -164,6 +199,14 @@ export interface PurchaseItem {
       unit: string;
     };
     quantityPerPackage: number;
+  };
+  // New fields for asset tracking
+  isAsset?: boolean;         // Whether this item should be tracked as an asset
+  assetInfo?: {
+    name?: string;           // Name for the asset (defaults to item name)
+    category?: string;       // Asset category
+    location?: string;       // Where the asset is stored/used
+    assignedTo?: string;     // Person responsible for the asset
   };
 }
 
@@ -244,4 +287,39 @@ export interface PurchaseTrendItem {
   lengthTotal?: number;
   areaTotal?: number;
   volumeTotal?: number;
+}
+
+// Define business asset interface
+export interface BusinessAsset {
+  _id?: string;
+  name: string;
+  assetTag?: string;
+  category: string;
+  purchaseDate?: Date;
+  purchaseId?: string | Purchase; // Link to the purchase record
+  initialCost: number;
+  currentValue: number;
+  location?: string;
+  assignedTo?: string;
+  manufacturer?: string;
+  model?: string;
+  serialNumber?: string;
+  notes?: string;
+  status: AssetStatus;
+  maintenanceSchedule?: {
+    frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+    lastMaintenance?: Date;
+    nextMaintenance?: Date;
+  };
+  maintenanceHistory?: {
+    date: Date;
+    description: string;
+    cost: number;
+    performedBy: string;
+  }[];
+  imageUrl?: string;
+  tags?: string[];
+  createdAt?: Date;
+  updatedAt?: Date;
+  isInventoryItem: false; // Flag to distinguish from inventory items
 }
