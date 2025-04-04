@@ -128,7 +128,7 @@ export const calculateSaleItemTotal = (saleItem: SaleItem): number => {
 export const useSales = () => {
   return useQuery({
     queryKey: [SALES_KEY],
-    queryFn: () => get<Sale[]>('/api/sales')
+    queryFn: () => get<Sale[]>('/sales')
   });
 };
 
@@ -136,7 +136,7 @@ export const useSales = () => {
 export const useSale = (id: string | undefined) => {
   return useQuery({
     queryKey: [SALES_KEY, id],
-    queryFn: () => get<Sale>(`/api/sales/${id}`),
+    queryFn: () => get<Sale>(`/sales/${id}`),
     enabled: !!id, // Only run if id exists
   });
 };
@@ -148,7 +148,7 @@ export const useCreateSale = () => {
   return useMutation({
     mutationFn: (sale: Sale) => {
       // Fix any potential URL duplication issues
-      const endpoint = '/api/sales';
+      const endpoint = '/sales';
       console.log('Creating sale with data:', sale);
       return post<Sale>(endpoint, sale);
     },
@@ -168,7 +168,7 @@ export const useUpdateSale = (id: string | undefined) => {
   return useMutation({
     mutationFn: (sale: Partial<Sale>) => {
       if (!id) throw new Error("Sale ID is required for updates");
-      return patch<Sale>(`/api/sales/${id}`, sale);
+      return patch<Sale>(`/sales/${id}`, sale);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
@@ -185,7 +185,7 @@ export const useDeleteSale = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => del<void>(`/api/sales/${id}`),
+    mutationFn: (id: string) => del<void>(`/sales/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
       queryClient.invalidateQueries({ queryKey: [SALES_REPORT_KEY] });
@@ -204,7 +204,7 @@ export const useSalesReport = (startDate?: string, endDate?: string) => {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      return get<SalesReport>(`/api/sales/reports/by-date?${params.toString()}`);
+      return get<SalesReport>(`/sales/reports/by-date?${params.toString()}`);
     },
     enabled: !!(startDate && endDate)
   });
@@ -214,7 +214,7 @@ export const useSalesReport = (startDate?: string, endDate?: string) => {
 export const useItemSales = (itemId: string | undefined) => {
   return useQuery({
     queryKey: [SALES_KEY, 'item', itemId],
-    queryFn: () => get<Sale[]>(`/api/sales/item/${itemId}`),
+    queryFn: () => get<Sale[]>(`/sales/item/${itemId}`),
     enabled: !!itemId // Only run if itemId exists
   });
 };
@@ -237,7 +237,7 @@ export function useSalesTrend(startDate?: string, endDate?: string) {
           data: SalesTrendItem[];
         }
 
-        const response = await apiClientInstance.get<SalesTrendResponse>(`/api/sales/trends?startDate=${startDate}&endDate=${endDate}`);
+        const response = await apiClientInstance.get<SalesTrendResponse>(`/sales/trends?startDate=${startDate}&endDate=${endDate}`);
 
         // Process data to include measurement type information
         const processedData = (response.data.data || []).map((item: SalesTrendItem) => ({

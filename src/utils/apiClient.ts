@@ -54,47 +54,35 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Helper function to handle API paths with or without /api
-const getApiPath = (path: string): string => {
-  // If the API_URL already ends with /api, don't add /api to the path
-  if (config.API_URL.endsWith("/api")) {
-    // Remove leading /api if present to avoid duplication
-    return path.replace(/^\/api/, "");
-  }
-
-  // Otherwise, ensure path starts with /api
-  return path.startsWith("/api") ? path : `/api${path}`;
-};
-
 // HTTP methods
 export const get = async <T>(path: string, config?: AxiosRequestConfig): Promise<T> => {
-  const response = await apiClient.get<T>(getApiPath(path), config);
+  const response = await apiClient.get<T>(path, config);
   return response.data;
 };
 
 export const post = async <T>(path: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
-  const response = await apiClient.post<T>(getApiPath(path), data, config);
+  const response = await apiClient.post<T>(path, data, config);
   return response.data;
 };
 
 export const put = async <T>(path: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
-  const response = await apiClient.put<T>(getApiPath(path), data, config);
+  const response = await apiClient.put<T>(path, data, config);
   return response.data;
 };
 
 export const patch = async <T>(path: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
-  const response = await apiClient.patch<T>(getApiPath(path), data, config);
+  const response = await apiClient.patch<T>(path, data, config);
   return response.data;
 };
 
 export const del = async <T>(path: string, config?: AxiosRequestConfig): Promise<T> => {
-  const response = await apiClient.delete<T>(getApiPath(path), config);
+  const response = await apiClient.delete<T>(path, config);
   return response.data;
 };
 
 // Special case for form data (file uploads)
 export const postFormData = async <T>(path: string, formData: FormData): Promise<T> => {
-  const response = await apiClient.post<T>(getApiPath(path), formData, {
+  const response = await apiClient.post<T>(path, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -105,7 +93,7 @@ export const postFormData = async <T>(path: string, formData: FormData): Promise
 
 // Special case for form data updates (for file uploads in PATCH requests)
 export const patchFormData = async <T>(path: string, formData: FormData): Promise<T> => {
-  const response = await apiClient.patch<T>(getApiPath(path), formData, {
+  const response = await apiClient.patch<T>(path, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },

@@ -8,7 +8,7 @@ const ASSETS_KEY = 'assets';
 export const useAssets = () => {
   return useQuery({
     queryKey: [ASSETS_KEY],
-    queryFn: () => get<BusinessAsset[]>('/api/assets')
+    queryFn: () => get<BusinessAsset[]>('/assets')
   });
 };
 
@@ -16,7 +16,7 @@ export const useAssets = () => {
 export const useAsset = (id: string | undefined) => {
   return useQuery({
     queryKey: [ASSETS_KEY, id],
-    queryFn: () => get<BusinessAsset>(`/api/assets/${id}`),
+    queryFn: () => get<BusinessAsset>(`/assets/${id}`),
     enabled: !!id, // Only run if id exists
   });
 };
@@ -26,7 +26,7 @@ export const useCreateAsset = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (asset: Partial<BusinessAsset> | FormData) => post<BusinessAsset>('/api/assets', asset),
+    mutationFn: (asset: Partial<BusinessAsset> | FormData) => post<BusinessAsset>('/assets', asset),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ASSETS_KEY] });
     }
@@ -38,7 +38,7 @@ export const useUpdateAsset = (id?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (asset: Partial<BusinessAsset> | FormData) => put<BusinessAsset>(`/api/assets/${id || (asset as BusinessAsset)._id}`, asset),
+    mutationFn: (asset: Partial<BusinessAsset> | FormData) => put<BusinessAsset>(`/assets/${id || (asset as BusinessAsset)._id}`, asset),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [ASSETS_KEY] });
       if (id || (variables as BusinessAsset)._id) {
@@ -53,7 +53,7 @@ export const useDeleteAsset = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => del<void>(`/api/assets/${id}`),
+    mutationFn: (id: string) => del<void>(`/assets/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ASSETS_KEY] });
     }
@@ -66,7 +66,7 @@ export const useCreateAssetFromPurchase = () => {
 
   return useMutation({
     mutationFn: (data: { purchaseId: string; itemIndex: number; assetData: Partial<BusinessAsset> }) =>
-      post<BusinessAsset>('/api/assets/from-purchase', data),
+      post<BusinessAsset>('/assets/from-purchase', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ASSETS_KEY] });
     }
@@ -85,7 +85,7 @@ export const useAddMaintenanceRecord = () => {
       cost: number;
       performedBy: string;
       frequency?: string;
-    }) => post<BusinessAsset>(`/api/assets/${data.assetId}/maintenance`, {
+    }) => post<BusinessAsset>(`/assets/${data.assetId}/maintenance`, {
       date: data.date,
       description: data.description,
       cost: data.cost,
@@ -103,7 +103,7 @@ export const useAddMaintenanceRecord = () => {
 export const useAssetCategories = () => {
   return useQuery({
     queryKey: [ASSETS_KEY, 'categories'],
-    queryFn: () => get<string[]>('/api/assets/categories')
+    queryFn: () => get<string[]>('/assets/categories')
   });
 };
 
@@ -111,7 +111,7 @@ export const useAssetCategories = () => {
 export const useAssetsByPurchase = (purchaseId: string | undefined) => {
   return useQuery({
     queryKey: [ASSETS_KEY, 'purchase', purchaseId],
-    queryFn: () => get<BusinessAsset[]>(`/api/assets/purchase/${purchaseId}`),
+    queryFn: () => get<BusinessAsset[]>(`/assets/purchase/${purchaseId}`),
     enabled: !!purchaseId
   });
 };

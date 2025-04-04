@@ -15,7 +15,7 @@ const SKU_KEY = 'nextSku';
 export const useItems = () => {
   return useQuery({
     queryKey: [ITEMS_KEY],
-    queryFn: () => get<Item[]>('/api/items')
+    queryFn: () => get<Item[]>('/items')
   });
 };
 
@@ -26,7 +26,7 @@ export const useItem = (id: string | undefined) => {
     queryFn: async () => {
       try {
         // Always request populated version for relationship data
-        return await get<Item>(`/api/items/${id}?populate=true`);
+        return await get<Item>(`/items/${id}?populate=true`);
       } catch (error) {
         console.error(`Error fetching item ${id}:`, error);
         throw error;
@@ -75,7 +75,7 @@ export const useCreateItem = () => {
                 jsonData[key] = value;
               }
             }
-            return await post<Item>('/api/items', jsonData);
+            return await post<Item>('/items', jsonData);
           }
 
           // Using FormData for file upload
@@ -90,7 +90,7 @@ export const useCreateItem = () => {
 
           const response = await axios({
             method: 'post',
-            url: `${config.API_URL.replace(/\/+$/, '')}/api/items`,
+            url: `${config.API_URL.replace(/\/+$/, '')}/items`,
             data: itemData,
             // Let browser set the content type with boundary
             headers: {},
@@ -101,7 +101,7 @@ export const useCreateItem = () => {
           return response.data;
         } else {
           // Regular JSON data
-          return await post<Item>('/api/items', itemData);
+          return await post<Item>('/items', itemData);
         }
       } catch (error: unknown) {
         // Type narrowing for different error types
@@ -162,21 +162,13 @@ export const useUpdateItem = (initialId?: string) => {
               jsonData[key] = value;
             }
           }
-          return await patch<Item>(`/api/items/${id}`, jsonData);
+          return await patch<Item>(`/items/${id}`, jsonData);
         }
 
         try {
-          // Fix the URL - remove duplicate /api/ segment
           const baseUrl = config.API_URL.replace(/\/+$/, '');
-          let apiPath = `/api/items/${id}`;
-
-          // Parse URL to ensure no duplicate path segments
+          const apiPath = `/items/${id}`;
           const url = new URL(baseUrl);
-          // Make sure there's only one /api in the path
-          if (url.pathname.endsWith('/api')) {
-            apiPath = apiPath.replace(/^\/api/, '');
-          }
-
           const requestUrl = url.toString() + apiPath;
 
           console.log(`Making PATCH request to: ${requestUrl}`);
@@ -216,7 +208,7 @@ export const useUpdateItem = (initialId?: string) => {
         }
       } else {
         // Regular JSON data
-        return await patch<Item>(`/api/items/${effectiveId}`, itemData);
+        return await patch<Item>(`/items/${effectiveId}`, itemData);
       }
     },
     onSuccess: (_, __, id) => {
@@ -231,7 +223,7 @@ export const useDeleteItem = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => del<void>(`/api/items/${id}`),
+    mutationFn: (id: string) => del<void>(`/items/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
     }
@@ -244,7 +236,7 @@ export const useNextSku = () => {
     queryKey: [SKU_KEY],
     queryFn: async () => {
       try {
-        const response = await get<{ nextSku: string }>('/api/items/nextsku');
+        const response = await get<{ nextSku: string }>('/items/nextsku');
         return response.nextSku;
       } catch (error) {
         console.error('Error in getNextSku:', error);
@@ -261,7 +253,7 @@ export const useCategories = () => {
     queryKey: [CATEGORIES_KEY],
     queryFn: async () => {
       try {
-        return await get<string[]>('/api/items/categories');
+        return await get<string[]>('/items/categories');
       } catch (error) {
         console.error('Error in getCategories:', error);
         return []; // Default fallback
@@ -276,7 +268,7 @@ export const useTags = () => {
     queryKey: [TAGS_KEY],
     queryFn: async () => {
       try {
-        return await get<string[]>('/api/items/tags');
+        return await get<string[]>('/items/tags');
       } catch (error) {
         console.error('Error in getTags:', error);
         return []; // Default fallback
@@ -290,7 +282,7 @@ export const useRebuildRelationships = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => post('/api/items/rebuild-relationships'),
+    mutationFn: () => post('/items/rebuild-relationships'),
     onSuccess: () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
@@ -331,7 +323,7 @@ export const useCreateBreakdownItems = () => {
         return await post<{
           sourceItem: Item;
           derivedItems: Item[];
-        }>(`/api/items/${breakdownData.sourceItemId}/breakdown`, breakdownData);
+        }>(`/items/${breakdownData.sourceItemId}/breakdown`, breakdownData);
       } catch (error: unknown) {
         // Type narrowing for different error types
         if (error && typeof error === 'object' && 'response' in error) {
@@ -363,7 +355,7 @@ export const useCreateBreakdownItems = () => {
 export const useDerivedItems = (itemId: string | undefined) => {
   return useQuery({
     queryKey: [ITEMS_KEY, itemId, 'derived'],
-    queryFn: () => get<Item[]>(`/api/items/${itemId}/derived`),
+    queryFn: () => get<Item[]>(`/items/${itemId}/derived`),
     enabled: !!itemId, // Only run if id exists
   });
 };
@@ -372,7 +364,7 @@ export const useDerivedItems = (itemId: string | undefined) => {
 export const useParentItem = (itemId: string | undefined) => {
   return useQuery({
     queryKey: [ITEMS_KEY, itemId, 'parent'],
-    queryFn: () => get<Item>(`/api/items/${itemId}/parent`),
+    queryFn: () => get<Item>(`/items/${itemId}/parent`),
     enabled: !!itemId, // Only run if id exists
   });
 };
@@ -387,7 +379,7 @@ export const useRebuildInventory = () => {
     mutationFn: async () => {
       // Add back the 'utility/' segment in the URL
       const response = await post<{ processed: number; updated: number; errors: number; details: any[] }>(
-        '/api/items/utility/rebuild-inventory'
+        '/items/utility/rebuild-inventory'
       );
       return response;
     },
@@ -411,7 +403,7 @@ export const useRebuildItemInventory = (itemId?: string) => {
       }
       // Add back the 'utility/' segment in the URL
       const response = await post<{ updated: boolean; changes: any }>(
-        `/api/items/utility/rebuild-inventory/${itemId}`
+        `/items/utility/rebuild-inventory/${itemId}`
       );
       return response;
     },

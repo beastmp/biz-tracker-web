@@ -135,7 +135,7 @@ export const formatPurchaseItemMeasurement = (purchaseItem: PurchaseItem): strin
 export const usePurchases = () => {
   return useQuery({
     queryKey: [PURCHASES_KEY],
-    queryFn: () => get<Purchase[]>('/api/purchases')
+    queryFn: () => get<Purchase[]>('/purchases')
   });
 };
 
@@ -143,7 +143,7 @@ export const usePurchases = () => {
 export const usePurchase = (id: string | undefined) => {
   return useQuery({
     queryKey: [PURCHASES_KEY, id],
-    queryFn: () => get<Purchase>(`/api/purchases/${id}`),
+    queryFn: () => get<Purchase>(`/purchases/${id}`),
     enabled: !!id, // Only run if id exists
   });
 };
@@ -153,7 +153,7 @@ export const useCreatePurchase = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (purchase: Purchase) => post<Purchase>('/api/purchases', purchase),
+    mutationFn: (purchase: Purchase) => post<Purchase>('/purchases', purchase),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY] });
       queryClient.invalidateQueries({ queryKey: [PURCHASES_REPORT_KEY] });
@@ -170,7 +170,7 @@ export const useUpdatePurchase = (id: string | undefined) => {
   return useMutation({
     mutationFn: (purchase: Partial<Purchase>) => {
       if (!id) throw new Error("Purchase ID is required for updates");
-      return patch<Purchase>(`/api/purchases/${id}`, purchase);
+      return patch<Purchase>(`/purchases/${id}`, purchase);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY] });
@@ -187,7 +187,7 @@ export const useDeletePurchase = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => del<void>(`/api/purchases/${id}`),
+    mutationFn: (id: string) => del<void>(`/purchases/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY] });
       queryClient.invalidateQueries({ queryKey: [PURCHASES_REPORT_KEY] });
@@ -206,7 +206,7 @@ export const usePurchasesReport = (startDate?: string, endDate?: string) => {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      return get<PurchasesReport>(`/api/purchases/reports/by-date?${params.toString()}`);
+      return get<PurchasesReport>(`/purchases/reports/by-date?${params.toString()}`);
     },
     enabled: !!(startDate && endDate)
   });
@@ -216,7 +216,7 @@ export const usePurchasesReport = (startDate?: string, endDate?: string) => {
 export const useItemPurchases = (itemId: string | undefined) => {
   return useQuery({
     queryKey: [PURCHASES_KEY, 'item', itemId],
-    queryFn: () => get<Purchase[]>(`/api/purchases/item/${itemId}`),
+    queryFn: () => get<Purchase[]>(`/purchases/item/${itemId}`),
     enabled: !!itemId // Only run if itemId exists
   });
 };
@@ -240,7 +240,7 @@ export function usePurchasesTrend(startDate?: string, endDate?: string) {
         }
 
         const response = await apiClientInstance.get<PurchaseTrendResponse>(
-          `/api/purchases/trends?startDate=${startDate}&endDate=${endDate}`
+          `/purchases/trends?startDate=${startDate}&endDate=${endDate}`
         );
 
         // Process data to include measurement type information

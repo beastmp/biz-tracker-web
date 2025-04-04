@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:prod": "vite --mode production",
     "build": "tsc -b && vite build",
+    "deploy": "npm run build && firebase deploy --only hosting",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -176,7 +176,7 @@ export default function InventoryForm() {
               cache[comp.item._id] = comp.item;
             } else if (typeof comp.item === 'string') {
               try {
-                const material = await get<Item>(`/api/items/${comp.item}`);
+                const material = await get<Item>(`/items/${comp.item}`);
                 cache[comp.item] = material;
               } catch (err) {
                 console.error(`Failed to load component ${comp.item}`, err);
