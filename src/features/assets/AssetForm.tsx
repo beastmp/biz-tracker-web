@@ -184,6 +184,7 @@ export default function AssetForm() {
             const newAsset = await createAsset.mutateAsync(assetData);
 
             // Then upload image
+            if (!newAsset._id) throw new Error("Asset ID is missing");
             const imageUrl = await uploadImage.mutateAsync({
               file: imageFile,
               id: newAsset._id
