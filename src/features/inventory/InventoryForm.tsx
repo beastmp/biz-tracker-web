@@ -73,6 +73,7 @@ import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
 import { get } from '@utils/apiClient';
 import { formatCurrency } from '@utils/formatters';
+import { useImageUpload } from "../../hooks/useImageUpload";
 
 // Styled components
 const VisuallyHiddenInput = styled('input')({
@@ -143,6 +144,8 @@ export default function InventoryForm() {
   const [materialQuantity, setMaterialQuantity] = useState('1');
   const [materialWeight, setMaterialWeight] = useState('');
   const [componentsCache, setComponentsCache] = useState<Record<string, Item>>({});
+
+  const uploadImage = useImageUpload("items");
 
   // Load existing item data if in edit mode or set next SKU for new items
   useEffect(() => {
@@ -238,89 +241,74 @@ export default function InventoryForm() {
     try {
       // Validate required fields
       if (!formData.name?.trim()) {
-        setError('Item name is required');
+        setError("Item name is required");
         return;
       }
 
       if (!formData.sku?.trim()) {
-        setError('SKU is required');
+        setError("SKU is required");
         return;
       }
 
-      // Only use FormData if we actually have an image file to upload
+      // Create base item data
+      const finalItemData = {
+        ...formData,
+        tags
+      };
+
+      // STEP 1: If we have a new image file, upload it first
       if (imageFile) {
-        // Use FormData when uploading a new image
-        const formDataToSend = new FormData();
+        try {
+          // For new items, first create the item, then update with image
+          if (!isEditMode) {
+            // Create item first without image
+            const newItem = await createItem.mutateAsync(finalItemData);
 
-        // Add all form fields
-        formDataToSend.append('name', formData.name || '');
-        formDataToSend.append('sku', formData.sku || '');
-        formDataToSend.append('category', formData.category || '');
-        formDataToSend.append('trackingType', formData.trackingType || 'quantity');
-        formDataToSend.append('itemType', formData.itemType || 'product');
-        formDataToSend.append('quantity', String(formData.quantity || 0));
-        formDataToSend.append('weight', String(formData.weight || 0));
-        formDataToSend.append('weightUnit', formData.weightUnit || 'lb');
-        formDataToSend.append('length', String(formData.length || 0));
-        formDataToSend.append('lengthUnit', formData.lengthUnit || 'in');
-        formDataToSend.append('area', String(formData.area || 0));
-        formDataToSend.append('areaUnit', formData.areaUnit || 'sqft');
-        formDataToSend.append('volume', String(formData.volume || 0));
-        formDataToSend.append('volumeUnit', formData.volumeUnit || 'l');
-        formDataToSend.append('price', String(formData.price || 0));
-        formDataToSend.append('priceType', formData.priceType || 'each');
+            // Then upload image
+            const imageUrl = await uploadImage.mutateAsync({
+              file: imageFile,
+              id: newItem._id
+            });
 
-        if (formData.description) {
-          formDataToSend.append('description', formData.description);
-        }
+            // We're done since the image endpoint already updates the item
+            console.log("New item created with image:", imageUrl);
+            navigate("/inventory");
+            return;
+          } else if (id) {
+            // For existing items, upload the image first
+            const imageUrl = await uploadImage.mutateAsync({
+              file: imageFile,
+              id
+            });
 
-        // Add tags as JSON string
-        formDataToSend.append('tags', JSON.stringify(tags || []));
-
-        // Check file size
-        if (imageFile.size > 5 * 1024 * 1024) {
-          setError('Image file size should be less than 5MB');
+            // The image is now updated on the server, no need to include it again
+            console.log("Item image updated:", imageUrl);
+            navigate("/inventory");
+            return;
+          }
+        } catch (imgError) {
+          console.error("Failed to upload image:", imgError);
+          const errorMessage = imgError instanceof Error
+            ? imgError.message
+            : "Failed to upload image. Please try again.";
+          setError(errorMessage);
           return;
         }
-
-        // Append image
-        formDataToSend.append('image', imageFile, imageFile.name);
-
-        // Log form data for debugging
-        console.log('Form data contents:');
-        for (const pair of formDataToSend.entries()) {
-          if (pair[1] instanceof File) {
-            console.log(`${pair[0]}: File: ${pair[1].name} (${pair[1].type}, ${pair[1].size} bytes)`);
-          } else {
-            console.log(`${pair[0]}: ${pair[1]}`);
-          }
-        }
-
-        if (isEditMode && id) {
-          await updateItem.mutateAsync(formDataToSend);
-        } else {
-          await createItem.mutateAsync(formDataToSend);
-        }
       } else {
-        // Without an image file, just send a regular JSON object
-        const itemData = {
-          ...formData,
-          tags,
-          // Include existing imageUrl if there is one
-          ...(imagePreview && formData.imageUrl ? { imageUrl: formData.imageUrl } : {})
-        };
-
+        // STEP 2: No image to upload, just update the item data
         if (isEditMode && id) {
-          await updateItem.mutateAsync(itemData);
+          await updateItem.mutateAsync(finalItemData);
         } else {
-          await createItem.mutateAsync(itemData);
+          await createItem.mutateAsync(finalItemData);
         }
       }
 
-      navigate('/inventory');
+      navigate("/inventory");
     } catch (err) {
-      console.error('Failed to save item:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save item. Please try again.';
+      console.error("Failed to save item:", err);
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Failed to save item. Please try again.";
       setError(errorMessage);
     }
   };

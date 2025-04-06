@@ -37,6 +37,7 @@ import { useAsset, useCreateAsset, useUpdateAsset } from '@hooks/useAssets';
 import { BusinessAsset } from '@custTypes/models';
 import LoadingScreen from '@components/ui/LoadingScreen';
 import ErrorFallback from '@components/ui/ErrorFallback';
+import { useImageUpload } from "../../hooks/useImageUpload";
 
 // Styled components
 const VisuallyHiddenInput = styled('input')({
@@ -60,6 +61,7 @@ export default function AssetForm() {
   const { data: existingAsset, isLoading: assetLoading, error: assetError } = useAsset(id);
   const createAsset = useCreateAsset();
   const updateAsset = useUpdateAsset(id);
+  const uploadImage = useImageUpload("assets");
 
   // Form state
   const [formData, setFormData] = useState<Partial<BusinessAsset>>({
@@ -158,12 +160,12 @@ export default function AssetForm() {
     try {
       // Validate required fields
       if (!formData.name?.trim()) {
-        setError('Asset name is required');
+        setError("Asset name is required");
         return;
       }
 
       if (!formData.category?.trim()) {
-        setError('Category is required');
+        setError("Category is required");
         return;
       }
 
@@ -173,40 +175,46 @@ export default function AssetForm() {
         tags
       };
 
-      // Only use FormData if we actually have an image file to upload
+      // Only handle image separately if we have a new image file
       if (imageFile) {
-        // Use FormData when uploading a new image
-        const formDataToSend = new FormData();
+        try {
+          // For new assets, first create the asset, then update with image
+          if (!isEditMode) {
+            // Create asset first without image
+            const newAsset = await createAsset.mutateAsync(assetData);
 
-        // Add all form fields
-        Object.entries(assetData).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            if (Array.isArray(value)) {
-              formDataToSend.append(key, JSON.stringify(value));
-            } else if (typeof value === 'object' && !(value instanceof File)) {
-              formDataToSend.append(key, JSON.stringify(value));
-            } else {
-              formDataToSend.append(key, String(value));
-            }
+            // Then upload image
+            const imageUrl = await uploadImage.mutateAsync({
+              file: imageFile,
+              id: newAsset._id
+            });
+
+            // We're done since the image endpoint already updates the asset
+            console.log("New asset created with image:", imageUrl);
+            navigate("/assets");
+            return;
+          } else if (id) {
+            // For existing assets, upload the image first
+            const imageUrl = await uploadImage.mutateAsync({
+              file: imageFile,
+              id
+            });
+
+            // The image is now updated on the server, no need to include it again
+            console.log("Asset image updated:", imageUrl);
+            navigate("/assets");
+            return;
           }
-        });
-
-        // Check file size
-        if (imageFile.size > 5 * 1024 * 1024) {
-          setError('Image file size should be less than 5MB');
+        } catch (imgError) {
+          console.error("Failed to upload image:", imgError);
+          const errorMessage = imgError instanceof Error
+            ? imgError.message
+            : "Failed to upload image. Please try again.";
+          setError(errorMessage);
           return;
         }
-
-        // Append image
-        formDataToSend.append('image', imageFile, imageFile.name);
-
-        if (isEditMode && id) {
-          await updateAsset.mutateAsync(formDataToSend);
-        } else {
-          await createAsset.mutateAsync(formDataToSend);
-        }
       } else {
-        // Without an image file, just send a regular JSON object
+        // No image to upload, just update the asset data
         if (isEditMode && id) {
           await updateAsset.mutateAsync(assetData);
         } else {
@@ -214,10 +222,12 @@ export default function AssetForm() {
         }
       }
 
-      navigate('/assets');
+      navigate("/assets");
     } catch (err) {
-      console.error('Failed to save asset:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save asset. Please try again.';
+      console.error("Failed to save asset:", err);
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Failed to save asset. Please try again.";
       setError(errorMessage);
     }
   };
