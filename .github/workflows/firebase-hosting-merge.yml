@@ -24,6 +24,8 @@ jobs:
         run: |
           echo "NODE_ENV=production" >> $GITHUB_ENV
           echo "VITE_USE_SINGLE_BUNDLE=true" >> $GITHUB_ENV
+          echo "VITE_ROUTER_BASE_URL=${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
+          echo "PUBLIC_URL=/${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
           npm run build
 
       - name: Deploy to Firebase
