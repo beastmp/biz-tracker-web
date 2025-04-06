@@ -1,21 +1,21 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@features': path.resolve(__dirname, './src/features'),
-      '@services': path.resolve(__dirname, './src/services'),
-      '@hooks': path.resolve(__dirname, './src/hooks'),
-      '@utils': path.resolve(__dirname, './src/utils'),
-      '@custTypes': path.resolve(__dirname, './src/types'),
-      '@config': path.resolve(__dirname, './src/config'),
-      '@context': path.resolve(__dirname, './src/context'),
+      "@": path.resolve(__dirname, "./src"),
+      "@components": path.resolve(__dirname, "./src/components"),
+      "@features": path.resolve(__dirname, "./src/features"),
+      "@services": path.resolve(__dirname, "./src/services"),
+      "@hooks": path.resolve(__dirname, "./src/hooks"),
+      "@utils": path.resolve(__dirname, "./src/utils"),
+      "@custTypes": path.resolve(__dirname, "./src/types"),
+      "@config": path.resolve(__dirname, "./src/config"),
+      "@context": path.resolve(__dirname, "./src/context"),
     }
   },
   server: {
@@ -26,27 +26,29 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist',
-    sourcemap: process.env.NODE_ENV !== 'production',
-    minify: 'terser',
+    outDir: "dist",
+    sourcemap: process.env.NODE_ENV !== "production",
+    minify: "terser",
     chunkSizeWarningLimit: 1000,
 
-    // Disable code splitting for GitHub builds
+    // When building with single bundle approach, disable all splitting
     cssCodeSplit: !process.env.VITE_USE_SINGLE_BUNDLE,
 
     rollupOptions: {
       output: {
-        // Use a more reliable approach for CI builds - completely disabling chunks
+        // For GitHub builds, use a true single-file approach
         ...(process.env.VITE_USE_SINGLE_BUNDLE === "true" ? {
-          // Disable code splitting entirely
+          // Completely disable code splitting
           manualChunks: undefined,
-          inlineDynamicImports: true
+          inlineDynamicImports: true,
+          // Force one single output file for maximum compatibility
+          format: "iife"
         } : {
+          // For development, use your existing chunking strategy
           manualChunks: (id) => {
             // Node modules bundling strategy
             if (id.includes("node_modules")) {
-              // Single vendor bundle for React, React DOM, and React Router
-              // This ensures context is properly initialized before use
+              // Bundle all React, Router and related packages together
               if (id.includes("react") ||
                   id.includes("scheduler") ||
                   id.includes("prop-types") ||
