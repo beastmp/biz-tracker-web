@@ -31,14 +31,16 @@ export default defineConfig({
     minify: 'terser',
     chunkSizeWarningLimit: 1000,
 
-    // Add this line to disable chunking optimization for GitHub builds
-    cssCodeSplit: process.env.CI !== "true",
+    // Disable code splitting for GitHub builds
+    cssCodeSplit: !process.env.VITE_USE_SINGLE_BUNDLE,
 
     rollupOptions: {
       output: {
-        // Disable manualChunks and use simpler strategy for GitHub builds
-        ...(process.env.CI === "true" ? {
-          manualChunks: undefined
+        // Use a more reliable approach for CI builds - completely disabling chunks
+        ...(process.env.VITE_USE_SINGLE_BUNDLE === "true" ? {
+          // Disable code splitting entirely
+          manualChunks: undefined,
+          inlineDynamicImports: true
         } : {
           manualChunks: (id) => {
             // Node modules bundling strategy
