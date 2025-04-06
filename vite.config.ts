@@ -36,7 +36,8 @@ export default defineConfig({
         manualChunks: (id) => {
           // Node modules bundling strategy
           if (id.includes("node_modules")) {
-            // React and React Router need to be bundled together to ensure context is available
+            // Single vendor bundle for React, React DOM, and React Router
+            // This ensures context is properly initialized before use
             if (id.includes("react") ||
                 id.includes("scheduler") ||
                 id.includes("prop-types") ||
