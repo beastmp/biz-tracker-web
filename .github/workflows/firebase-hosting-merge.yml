@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "18" # Specify the Node.js version you use locally
+          node-version: "22.10.0" # Specify the Node.js version you use locally
 
       - name: Install dependencies
         run: npm ci
@@ -23,6 +23,7 @@ jobs:
       - name: Build with consistent environment
         run: |
           echo "NODE_ENV=production" >> $GITHUB_ENV
+          echo "CI=true" >> $GITHUB_ENV
           npm run build
 
       - name: Deploy to Firebase
