@@ -36,6 +36,13 @@ export default defineConfig({
         manualChunks: (id) => {
           // Node modules bundling strategy
           if (id.includes("node_modules")) {
+            // React Router needs to be bundled separately but together
+            if (id.includes("react-router") ||
+                id.includes("/history/") ||
+                id.includes("@remix-run/router")) {
+              return "vendor-router";
+            }
+
             // ALL React and React-related packages need to be bundled together
             // to ensure proper initialization order
             if (id.includes("react") ||
@@ -44,7 +51,6 @@ export default defineConfig({
                 id.includes("use-sync-external-store") ||
                 id.includes("react-is") ||
                 id.includes("react-dom") ||
-                id.includes("react-router") ||
                 id.includes("@emotion") ||
                 id.includes("use-")) {
               return "vendor-react";
@@ -66,6 +72,8 @@ export default defineConfig({
             if (id.includes("formik") || id.includes("yup")) {
               return "vendor-forms";
             }
+
+            // Rest of your existing config...
             if (id.includes("i18n") || id.includes("intl")) {
               return "vendor-i18n";
             }
