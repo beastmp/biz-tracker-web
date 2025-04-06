@@ -14,13 +14,13 @@ function AppRoutes() {
 function App() {
   return (
     <ErrorBoundary>
-      <AppProvider>
-        <SettingsProvider>
-          <BrowserRouter>
+      <BrowserRouter basename={process.env.PUBLIC_URL || '/'}>
+        <AppProvider>
+          <SettingsProvider>
             <AppRoutes />
-          </BrowserRouter>
-        </SettingsProvider>
-      </AppProvider>
+          </SettingsProvider>
+        </AppProvider>
+      </BrowserRouter>
     </ErrorBoundary>
   );
 }
