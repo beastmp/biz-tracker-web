@@ -36,15 +36,7 @@ export default defineConfig({
         manualChunks: (id) => {
           // Node modules bundling strategy
           if (id.includes("node_modules")) {
-            // React Router needs to be bundled separately but together
-            if (id.includes("react-router") ||
-                id.includes("/history/") ||
-                id.includes("@remix-run/router")) {
-              return "vendor-router";
-            }
-
-            // ALL React and React-related packages need to be bundled together
-            // to ensure proper initialization order
+            // React and React Router need to be bundled together to ensure context is available
             if (id.includes("react") ||
                 id.includes("scheduler") ||
                 id.includes("prop-types") ||
@@ -52,8 +44,13 @@ export default defineConfig({
                 id.includes("react-is") ||
                 id.includes("react-dom") ||
                 id.includes("@emotion") ||
+                id.includes("react-router") ||
+                id.includes("/history/") ||
+                id.includes("/mini-create-react-context/") ||
+                id.includes("react-router-dom") ||
+                id.includes("@remix-run/router") ||
                 id.includes("use-")) {
-              return "vendor-react";
+              return "vendor-react-core";
             }
 
             // MUI packages
@@ -95,7 +92,7 @@ export default defineConfig({
             if (moduleName) {
               // React-related utilities should be with React
               if (moduleUtilsList.includes(moduleName)) {
-                return "vendor-react";
+                return "vendor-react-core";
               }
 
               // Group potentially problematic modules by category
