@@ -93,6 +93,10 @@ export default function InventoryForm() {
   const navigate = useNavigate();
   const isEditMode = Boolean(id);
 
+  // Add mutable references for id and edit mode
+  const mutableItemId = useRef<string | undefined>(id);
+  const mutableEditMode = useRef<boolean>(isEditMode);
+
   // React Query hooks
   const { data: existingItem, isLoading: itemLoading, error: itemError } = useItem(id);
   const { data: nextSkuData, isLoading: skuLoading } = useNextSku();
@@ -250,42 +254,33 @@ export default function InventoryForm() {
         return;
       }
 
-      // Create base item data
-      const finalItemData = {
-        ...formData,
-        tags
-      };
+      let imageUrl: string | undefined = formData.imageUrl;
 
       // STEP 1: If we have a new image file, upload it first
       if (imageFile) {
         try {
-          // For new items, first create the item, then update with image
-          if (!isEditMode) {
-            // Create item first without image
-            const newItem = await createItem.mutateAsync(finalItemData);
-
-            // Then upload image
-            const imageUrl = await uploadImage.mutateAsync({
-              file: imageFile,
-              id: newItem._id
-            });
-
-            // We're done since the image endpoint already updates the item
-            console.log("New item created with image:", imageUrl);
-            navigate("/inventory");
-            return;
-          } else if (id) {
+          if (mutableEditMode.current && mutableItemId.current) {
             // For existing items, upload the image first
-            const imageUrl = await uploadImage.mutateAsync({
+            imageUrl = await uploadImage.mutateAsync({
               file: imageFile,
-              id
+              id: mutableItemId.current
+            });
+          } else if (!mutableEditMode.current) {
+            // For new items, create an initial record to get an ID
+            const initialItem = await createItem.mutateAsync(formData);
+
+            // Then upload image using the new item's ID
+            imageUrl = await uploadImage.mutateAsync({
+              file: imageFile,
+              id: initialItem._id
             });
 
-            // The image is now updated on the server, no need to include it again
-            console.log("Item image updated:", imageUrl);
-            navigate("/inventory");
-            return;
+            // Update the mutable references instead of constants
+            mutableItemId.current = initialItem._id;
+            mutableEditMode.current = true;
           }
+
+          console.log("Image uploaded successfully:", imageUrl);
         } catch (imgError) {
           console.error("Failed to upload image:", imgError);
           const errorMessage = imgError instanceof Error
@@ -294,13 +289,22 @@ export default function InventoryForm() {
           setError(errorMessage);
           return;
         }
-      } else {
-        // STEP 2: No image to upload, just update the item data
-        if (isEditMode && id) {
-          await updateItem.mutateAsync(finalItemData);
-        } else {
-          await createItem.mutateAsync(finalItemData);
-        }
+      }
+
+      // STEP 2: Update or create the item with all data including image URL
+      const finalItemData = {
+        ...formData,
+        tags,
+        imageUrl
+      };
+
+      if (mutableEditMode.current && mutableItemId.current) {
+        await updateItem.mutateAsync(finalItemData);
+        console.log("Item updated successfully");
+      } else if (!imageFile) {
+        // Only create a new item here if we didn't already create one for the image
+        await createItem.mutateAsync(finalItemData);
+        console.log("New item created successfully");
       }
 
       navigate("/inventory");
