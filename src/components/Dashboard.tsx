@@ -223,10 +223,10 @@ export default function Dashboard() {
 
       {/* Quick Stats & Overview */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Grid container spacing={3}>
             {/* Business Summary Stats */}
-            <Grid item xs={12} sm={6} lg={3}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{ height: '100%', borderRadius: 3 }}>
                 <CardContent>
                   <Box sx={{
@@ -262,7 +262,7 @@ export default function Dashboard() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} lg={3}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{ height: '100%', borderRadius: 3 }}>
                 <CardContent>
                   <Box sx={{
@@ -298,7 +298,7 @@ export default function Dashboard() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} lg={3}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{ height: '100%', borderRadius: 3 }}>
                 <CardContent>
                   <Box sx={{
@@ -334,7 +334,7 @@ export default function Dashboard() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} lg={3}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{ height: '100%', borderRadius: 3 }}>
                 <CardContent>
                   <Box sx={{
@@ -371,7 +371,7 @@ export default function Dashboard() {
             </Grid>
 
             {/* Sales & Purchases Chart */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Card sx={{ borderRadius: 3 }}>
                 <CardHeader
                   title="Revenue Overview"
@@ -437,7 +437,7 @@ export default function Dashboard() {
         </Grid>
 
         {/* Quick Actions Panel */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ mb: 3, borderRadius: 3, overflow: 'visible' }}>
             <CardHeader
               title="Quick Actions"
@@ -466,7 +466,7 @@ export default function Dashboard() {
                 </Button>
 
                 <Grid container spacing={1.5}>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Button
                       variant="outlined"
                       fullWidth
@@ -478,7 +478,7 @@ export default function Dashboard() {
                       New Sale
                     </Button>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Button
                       variant="outlined"
                       fullWidth
@@ -490,7 +490,7 @@ export default function Dashboard() {
                       New Purchase
                     </Button>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Button
                       variant="outlined"
                       fullWidth
@@ -501,7 +501,7 @@ export default function Dashboard() {
                       Create Product
                     </Button>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Button
                       variant="outlined"
                       fullWidth
@@ -618,7 +618,7 @@ export default function Dashboard() {
       {/* Low Stock and Search */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Search Inventory */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: '100%', borderRadius: 3 }}>
             <CardHeader
               title="Search Inventory"
@@ -690,11 +690,11 @@ export default function Dashboard() {
                         <ListItemText
                           primary={item.name}
                           secondary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+                            <Box component="span" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }} component="span">
                                 SKU: {item.sku}
                               </Typography>
-                              <Typography variant="body2" fontWeight="medium" color="primary.main">
+                              <Typography variant="body2" fontWeight="medium" color="primary.main" component="span">
                                 {formatCurrency(item.price)}
                               </Typography>
                             </Box>
@@ -742,7 +742,7 @@ export default function Dashboard() {
         </Grid>
 
         {/* Low Stock Items */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: '100%', borderRadius: 3 }}>
             <CardHeader
               avatar={
@@ -815,24 +815,26 @@ export default function Dashboard() {
                           </Box>
                         }
                         secondary={
-                          <Grid container alignItems="center" sx={{ mt: 0.5 }}>
-                            <Grid item xs={8}>
-                              <LinearProgress
-                                variant="determinate"
-                                value={item.trackingType === 'quantity'
-                                  ? Math.min(item.quantity / settings.quantityThreshold * 50, 100)
-                                  : 30 // Simplified for weight-based items
-                                }
-                                color="warning"
-                                sx={{ height: 6, borderRadius: 3 }}
-                              />
+                          <Typography component="span" variant="body2">
+                            <Grid container component="span" alignItems="center" sx={{ mt: 0.5 }}>
+                              <Grid size={{ xs: 8 }} component="span">
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={item.trackingType === 'quantity'
+                                    ? Math.min(item.quantity / settings.quantityThreshold * 50, 100)
+                                    : 30 // Simplified for weight-based items
+                                  }
+                                  color="warning"
+                                  sx={{ height: 6, borderRadius: 3 }}
+                                />
+                              </Grid>
+                              <Grid size={{ xs: 4 }} component="span" sx={{ textAlign: 'right' }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  SKU: {item.sku}
+                                </Typography>
+                              </Grid>
                             </Grid>
-                            <Grid item xs={4} sx={{ textAlign: 'right' }}>
-                              <Typography variant="caption" color="text.secondary">
-                                SKU: {item.sku}
-                              </Typography>
-                            </Grid>
-                          </Grid>
+                          </Typography>
                         }
                       />
                     </ListItem>
@@ -865,7 +867,7 @@ export default function Dashboard() {
       {/* Recent Activity */}
       <Grid container spacing={3}>
         {/* Recent Sales */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: '100%', borderRadius: 3 }}>
             <CardHeader
               avatar={<Avatar sx={{ bgcolor: alpha(theme.palette.success.main, 0.8) }}><ShoppingCartOutlined /></Avatar>}
@@ -918,10 +920,10 @@ export default function Dashboard() {
                             </Box>
                           }
                           secondary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box component="span" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <CalendarToday fontSize="small" color="action" sx={{ fontSize: '0.9rem' }} />
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" color="text.secondary" component="span">
                                   {formatDate(sale.createdAt || new Date())}
                                 </Typography>
                               </Box>
@@ -968,7 +970,7 @@ export default function Dashboard() {
         </Grid>
 
         {/* Recent Purchases */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: '100%', borderRadius: 3 }}>
             <CardHeader
               avatar={<Avatar sx={{ bgcolor: alpha(theme.palette.info.main, 0.8) }}><LocalShippingOutlined /></Avatar>}
@@ -1021,15 +1023,17 @@ export default function Dashboard() {
                             </Box>
                           }
                           secondary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <CalendarToday fontSize="small" color="action" sx={{ fontSize: '0.9rem' }} />
-                                <Typography variant="caption" color="text.secondary">
-                                  {formatDate(purchase.purchaseDate || new Date())}
-                                </Typography>
+                            <Typography component="span" variant="body2">
+                              <Box component="span" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <CalendarToday fontSize="small" color="action" sx={{ fontSize: '0.9rem' }} />
+                                  <Typography variant="caption" color="text.secondary" component="span">
+                                    {formatDate(purchase.purchaseDate || new Date())}
+                                  </Typography>
+                                </Box>
+                                <StatusChip status={purchase.status} size="small" />
                               </Box>
-                              <StatusChip status={purchase.status} size="small" />
-                            </Box>
+                            </Typography>
                           }
                         />
                       </ListItem>

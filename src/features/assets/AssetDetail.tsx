@@ -25,8 +25,7 @@ import {
   Select,
   FormControl,
   InputLabel,
-  InputAdornment,
-  Grid2
+  InputAdornment
 } from '@mui/material';
 import {
   ArrowBack,
@@ -130,8 +129,8 @@ export default function AssetDetail() {
     <Box>
       {/* Header with navigation and actions */}
       <Box sx={{ mb: 3 }}>
-        <Grid2 container alignItems="center" spacing={2}>
-          <Grid2 size="grow">
+        <Grid container alignItems="center" spacing={2}>
+          <Grid size="grow">
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Button
                 component={RouterLink}
@@ -161,8 +160,8 @@ export default function AssetDetail() {
                 Asset Tag: {asset.assetTag}
               </Typography>
             )}
-          </Grid2>
-          <Grid2>
+          </Grid>
+          <Grid>
             <Stack direction="row" spacing={1}>
               <Button
                 variant="outlined"
@@ -190,8 +189,8 @@ export default function AssetDetail() {
                 Delete
               </Button>
             </Stack>
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </Box>
 
       {successMessage && (
@@ -202,7 +201,7 @@ export default function AssetDetail() {
 
       <Grid container spacing={3}>
         {/* Left column - Main details */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           {/* Asset Image */}
           <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
             {asset.imageUrl ? (
@@ -245,12 +244,12 @@ export default function AssetDetail() {
             <Divider sx={{ mb: 2 }} />
 
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="subtitle2" color="text.secondary">Category</Typography>
                 <Typography variant="body1">{asset.category}</Typography>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="subtitle2" color="text.secondary">Status</Typography>
                 <Typography variant="body1">
                   <Chip
@@ -266,27 +265,27 @@ export default function AssetDetail() {
               </Grid>
 
               {asset.manufacturer && (
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="subtitle2" color="text.secondary">Manufacturer</Typography>
                   <Typography variant="body1">{asset.manufacturer}</Typography>
                 </Grid>
               )}
 
               {asset.model && (
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="subtitle2" color="text.secondary">Model</Typography>
                   <Typography variant="body1">{asset.model}</Typography>
                 </Grid>
               )}
 
               {asset.serialNumber && (
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="subtitle2" color="text.secondary">Serial Number</Typography>
                   <Typography variant="body1">{asset.serialNumber}</Typography>
                 </Grid>
               )}
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="subtitle2" color="text.secondary">Purchase Date</Typography>
                 <Typography variant="body1">
                   {asset.purchaseDate ? formatDate(asset.purchaseDate) : 'Not specified'}
@@ -294,31 +293,31 @@ export default function AssetDetail() {
               </Grid>
 
               {asset.location && (
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="subtitle2" color="text.secondary">Location</Typography>
                   <Typography variant="body1">{asset.location}</Typography>
                 </Grid>
               )}
 
               {asset.assignedTo && (
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="subtitle2" color="text.secondary">Assigned To</Typography>
                   <Typography variant="body1">{asset.assignedTo}</Typography>
                 </Grid>
               )}
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="subtitle2" color="text.secondary">Initial Cost</Typography>
                 <Typography variant="body1" color="primary">{formatCurrency(asset.initialCost)}</Typography>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="subtitle2" color="text.secondary">Current Value</Typography>
                 <Typography variant="body1">{formatCurrency(asset.currentValue)}</Typography>
               </Grid>
 
               {asset.purchaseId && (
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="subtitle2" color="text.secondary">Purchase Reference</Typography>
                   <Button
                     component={RouterLink}
@@ -345,14 +344,14 @@ export default function AssetDetail() {
             {asset.maintenanceSchedule ? (
               <Box>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <Typography variant="subtitle2" color="text.secondary">Frequency</Typography>
                     <Typography variant="body1" sx={{ textTransform: 'capitalize' }}>
                       {asset.maintenanceSchedule.frequency}
                     </Typography>
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <Typography variant="subtitle2" color="text.secondary">Last Maintenance</Typography>
                     <Typography variant="body1">
                       {asset.maintenanceSchedule.lastMaintenance
@@ -361,7 +360,7 @@ export default function AssetDetail() {
                     </Typography>
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <Typography variant="subtitle2" color="text.secondary">Next Maintenance Due</Typography>
                     <Typography variant="body1" color={
                       asset.maintenanceSchedule.nextMaintenance &&
@@ -452,7 +451,7 @@ export default function AssetDetail() {
         </Grid>
 
         {/* Right column */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           {/* Financial Summary */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -539,7 +538,7 @@ export default function AssetDetail() {
         <DialogTitle>Add Maintenance Record</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Date"
@@ -551,7 +550,7 @@ export default function AssetDetail() {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Description"
@@ -564,7 +563,7 @@ export default function AssetDetail() {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="Cost"
@@ -578,7 +577,7 @@ export default function AssetDetail() {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="Performed By"
@@ -589,7 +588,7 @@ export default function AssetDetail() {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControl fullWidth>
                 <InputLabel>Maintenance Frequency</InputLabel>
                 <Select

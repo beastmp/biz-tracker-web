@@ -5,7 +5,7 @@ import {
   Typography,
   Button,
   Divider,
-  Grid2,
+  Grid,
   Stack,
   Table,
   TableBody,
@@ -154,8 +154,8 @@ export default function PurchaseDetail() {
         </Stack>
       </Box>
 
-      <Grid2 container spacing={3}>
-        <Grid2 size={{ xs: 12, md: 6 }}>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>Purchase Information</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -191,9 +191,9 @@ export default function PurchaseDetail() {
               </Box>
             )}
           </Paper>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>Supplier Information</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -232,9 +232,9 @@ export default function PurchaseDetail() {
               </Typography>
             )}
           </Paper>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12 }}>
+        <Grid size={{ xs: 12 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>Items Purchased</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -338,9 +338,9 @@ export default function PurchaseDetail() {
               </Table>
             </TableContainer>
           </Paper>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12 }}>
+        <Grid size={{ xs: 12 }}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>Purchase Summary</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -389,8 +389,8 @@ export default function PurchaseDetail() {
               </Box>
             </Box>
           </Paper>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

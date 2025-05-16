@@ -5,7 +5,7 @@ import {
   Paper,
   Typography,
   Button,
-  Grid2,
+  Grid,
   Divider,
   Chip,
   Card,
@@ -301,8 +301,8 @@ export default function InventoryDetail() {
 
       {/* Header with navigation and actions */}
       <Box sx={{ mb: 3 }}>
-        <Grid2 container alignItems="center" spacing={2}>
-          <Grid2 size="grow">
+        <Grid container alignItems="center" spacing={2}>
+          <Grid size="grow">
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Button
                 component={RouterLink}
@@ -340,8 +340,8 @@ export default function InventoryDetail() {
             <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
               SKU: {data?.sku}
             </Typography>
-          </Grid2>
-          <Grid2>
+          </Grid>
+          <Grid>
             <Stack direction="row" spacing={1}>
               {/* Add rebuild button */}
               <Button
@@ -384,16 +384,16 @@ export default function InventoryDetail() {
                 Delete
               </Button>
             </Stack>
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </Box>
 
-      <Grid2 container spacing={3}>
+      <Grid container spacing={3}>
         {/* Left column */}
-        <Grid2 size={{ xs: 12, md: 8 }}>
-          <Grid2 container spacing={3}>
+        <Grid size={{ xs: 12, md: 8 }}>
+          <Grid container spacing={3}>
             {/* Item Image */}
-            <Grid2 size={{ xs: 12 }}>
+            <Grid size={{ xs: 12 }}>
               <Paper sx={{ p: 3, height: '100%', overflow: 'hidden', borderRadius: 2 }}>
                 {data?.imageUrl ? (
                   <Box
@@ -425,10 +425,10 @@ export default function InventoryDetail() {
                   </Box>
                 )}
               </Paper>
-            </Grid2>
+            </Grid>
 
             {/* Key Metrics */}
-            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -447,9 +447,9 @@ export default function InventoryDetail() {
                   </Box>
                 </CardContent>
               </Card>
-            </Grid2>
+            </Grid>
 
-            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{
                 bgcolor:
                   getStockStatusColor(data) === 'success' ? 'success.light' :
@@ -479,9 +479,9 @@ export default function InventoryDetail() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid2>
+            </Grid>
 
-            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card sx={{ bgcolor: 'info.light', color: 'info.contrastText' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -496,9 +496,9 @@ export default function InventoryDetail() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid2>
+            </Grid>
 
-            <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -510,11 +510,11 @@ export default function InventoryDetail() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid2>
+            </Grid>
 
             {/* Item Description */}
             {data?.description && (
-              <Grid2 size={{ xs: 12 }}>
+              <Grid size={{ xs: 12 }}>
                 <Paper sx={{ p: 3 }}>
                   <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                     <Category sx={{ mr: 1, fontSize: 20 }} />
@@ -525,11 +525,11 @@ export default function InventoryDetail() {
                     {data?.description}
                   </Typography>
                 </Paper>
-              </Grid2>
+              </Grid>
             )}
 
             {/* Tags */}
-            <Grid2 size={{ xs: 12 }}>
+            <Grid size={{ xs: 12 }}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                   <LocalOffer sx={{ mr: 1, fontSize: 20 }} />
@@ -555,12 +555,12 @@ export default function InventoryDetail() {
                   </Typography>
                 )}
               </Paper>
-            </Grid2>
-          </Grid2>
-        </Grid2>
+            </Grid>
+          </Grid>
+        </Grid>
 
         {/* Right Column */}
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           {/* Item Details */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -1034,8 +1034,8 @@ export default function InventoryDetail() {
               </Box>
               <Divider sx={{ mb: 2 }} />
 
-              <Grid2 container spacing={2}>
-                <Grid2 size={{ xs: 12, md: 8 }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 8 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     {data.derivedFrom.item.imageUrl ? (
                       <Box
@@ -1085,9 +1085,9 @@ export default function InventoryDetail() {
                       </Typography>
                     </Box>
                   </Box>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 4 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Derivation Details
                   </Typography>
@@ -1110,8 +1110,8 @@ export default function InventoryDetail() {
                       </Typography>
                     </Box>
                   )}
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
 
               <Divider sx={{ my: 2 }} />
 
@@ -1355,8 +1355,8 @@ export default function InventoryDetail() {
               </Stack>
             </Paper>
           )}
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
 
       {/* Breakdown Dialog */}
       <BreakdownItemsDialog

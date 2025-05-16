@@ -4,7 +4,7 @@ import {
   Paper,
   Typography,
   Button,
-  Grid2,
+  Grid,
   Divider,
   Chip,
   Stack,
@@ -169,8 +169,8 @@ export default function SaleDetail() {
         </Stack>
       </Box>
 
-      <Grid2 container spacing={3}>
-        <Grid2 size={{ xs: 12, md: 4 }}>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Sale Information
@@ -206,9 +206,9 @@ export default function SaleDetail() {
               )}
             </List>
           </Paper>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Customer Information
@@ -239,9 +239,9 @@ export default function SaleDetail() {
               </List>
             )}
           </Paper>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Sale Summary
@@ -275,9 +275,9 @@ export default function SaleDetail() {
               </Typography>
             </Box>
           </Paper>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12 }}>
+        <Grid size={{ xs: 12 }}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Sale Items
@@ -363,8 +363,8 @@ export default function SaleDetail() {
               </Table>
             </TableContainer>
           </Paper>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

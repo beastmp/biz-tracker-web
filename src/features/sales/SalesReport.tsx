@@ -4,7 +4,7 @@ import {
   Box,
   Paper,
   Typography,
-  Grid2,
+  Grid,
   Card,
   CardContent,
   TextField,
@@ -610,8 +610,8 @@ export default function SalesReport() {
       </Box>
 
       <Paper sx={{ p: 3, mb: 4 }}>
-        <Grid2 container spacing={3} alignItems="center" component="form" onSubmit={handleSubmit}>
-          <Grid2 size={{ xs: 12, sm: compareMode ? 3 : 4 }}>
+        <Grid container spacing={3} alignItems="center" component="form" onSubmit={handleSubmit}>
+          <Grid size={{ xs: 12, sm: compareMode ? 3 : 4 }}>
             <TextField
               fullWidth
               label={compareMode ? "Current Period Start" : "Start Date"}
@@ -620,8 +620,8 @@ export default function SalesReport() {
               onChange={(e) => setStartDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, sm: compareMode ? 3 : 4 }}>
+          </Grid>
+          <Grid size={{ xs: 12, sm: compareMode ? 3 : 4 }}>
             <TextField
               fullWidth
               label={compareMode ? "Current Period End" : "End Date"}
@@ -630,10 +630,10 @@ export default function SalesReport() {
               onChange={(e) => setEndDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
-          </Grid2>
+          </Grid>
           {compareMode && (
             <>
-              <Grid2 size={{ xs: 12, sm: 3 }}>
+              <Grid size={{ xs: 12, sm: 3 }}>
                 <TextField
                   fullWidth
                   label="Previous Period Start"
@@ -642,8 +642,8 @@ export default function SalesReport() {
                   onChange={(e) => setCompareStartDate(e.target.value)}
                   InputLabelProps={{ shrink: true }}
                 />
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 3 }}>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 3 }}>
                 <TextField
                   fullWidth
                   label="Previous Period End"
@@ -652,10 +652,10 @@ export default function SalesReport() {
                   onChange={(e) => setCompareEndDate(e.target.value)}
                   InputLabelProps={{ shrink: true }}
                 />
-              </Grid2>
+              </Grid>
             </>
           )}
-          <Grid2 size={{ xs: 12, sm: compareMode ? 12 : 4 }} sx={{ display: 'flex', mt: compareMode ? 2 : 0, gap: 2 }}>
+          <Grid size={{ xs: 12, sm: compareMode ? 12 : 4 }} sx={{ display: 'flex', mt: compareMode ? 2 : 0, gap: 2 }}>
             <Button
               variant="contained"
               color="primary"
@@ -684,8 +684,8 @@ export default function SalesReport() {
                 <Print />
               </Button>
             </Tooltip>
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
 
         {error && (
           <Alert severity="error" sx={{ mt: 2 }}>
@@ -696,8 +696,8 @@ export default function SalesReport() {
 
       {reportData && (
         <>
-          <Grid2 container spacing={3} sx={{ mb: 4 }}>
-            <Grid2 size={{ xs: 12, sm: 4 }}>
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -714,9 +714,9 @@ export default function SalesReport() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid2>
+            </Grid>
 
-            <Grid2 size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -733,9 +733,9 @@ export default function SalesReport() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid2>
+            </Grid>
 
-            <Grid2 size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -752,16 +752,16 @@ export default function SalesReport() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid2>
-          </Grid2>
+            </Grid>
+          </Grid>
 
           {compareMode && comparisonMetrics && (
             <Box sx={{ mb: 4 }}>
               <Typography variant="h5" gutterBottom>
                 Period Comparison
               </Typography>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, sm: 4 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <Card>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -783,9 +783,9 @@ export default function SalesReport() {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <Card>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -807,9 +807,9 @@ export default function SalesReport() {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <Card>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -831,8 +831,8 @@ export default function SalesReport() {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </Box>
           )}
 
@@ -860,8 +860,8 @@ export default function SalesReport() {
 
             {/* Summary Tab */}
             <TabPanel value={tabValue} index={0}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -893,9 +893,9 @@ export default function SalesReport() {
                       </ResponsiveContainer>
                     </Box>
                   </Paper>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -927,14 +927,14 @@ export default function SalesReport() {
                       </ResponsiveContainer>
                     </Box>
                   </Paper>
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </TabPanel>
 
             {/* Trends Tab */}
             <TabPanel value={tabValue} index={1}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -958,9 +958,9 @@ export default function SalesReport() {
                       </ResponsiveContainer>
                     </Box>
                   </Paper>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -984,14 +984,14 @@ export default function SalesReport() {
                       </ResponsiveContainer>
                     </Box>
                   </Paper>
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </TabPanel>
 
             {/* Customers Tab */}
             <TabPanel value={tabValue} index={2}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -1023,9 +1023,9 @@ export default function SalesReport() {
                       </ResponsiveContainer>
                     </Box>
                   </Paper>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -1051,14 +1051,14 @@ export default function SalesReport() {
                       </Select>
                     </FormControl>
                   </Paper>
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </TabPanel>
 
             {/* Items Tab */}
             <TabPanel value={tabValue} index={3}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -1090,9 +1090,9 @@ export default function SalesReport() {
                       </ResponsiveContainer>
                     </Box>
                   </Paper>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -1118,14 +1118,14 @@ export default function SalesReport() {
                       </Select>
                     </FormControl>
                   </Paper>
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </TabPanel>
 
             {/* Categories Tab */}
             <TabPanel value={tabValue} index={4}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -1157,9 +1157,9 @@ export default function SalesReport() {
                       </ResponsiveContainer>
                     </Box>
                   </Paper>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -1185,9 +1185,9 @@ export default function SalesReport() {
                       </Select>
                     </FormControl>
                   </Paper>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -1219,9 +1219,9 @@ export default function SalesReport() {
                       </ResponsiveContainer>
                     </Box>
                   </Paper>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -1247,14 +1247,14 @@ export default function SalesReport() {
                       </Select>
                     </FormControl>
                   </Paper>
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </TabPanel>
 
             {/* Measurement Types Tab */}
             <TabPanel value={tabValue} index={5}>
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -1290,9 +1290,9 @@ export default function SalesReport() {
                       </ResponsiveContainer>
                     </Box>
                   </Paper>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 3, height: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">
@@ -1343,9 +1343,9 @@ export default function SalesReport() {
                       </Select>
                     </FormControl>
                   </Paper>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12 }}>
+                <Grid size={{ xs: 12 }}>
                   <Paper sx={{ p: 3 }}>
                     <Typography variant="h6" gutterBottom>
                       Items by Measurement Type
@@ -1412,8 +1412,8 @@ export default function SalesReport() {
                       </Table>
                     </TableContainer>
                   </Paper>
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </TabPanel>
           </Paper>
 

@@ -18,7 +18,7 @@ import {
   CardContent,
   CardActions,
   Divider,
-  Grid2,
+  Grid,
   Stack,
   Tooltip,
   Menu,
@@ -592,13 +592,13 @@ export default function PurchasesList() {
         </>
       ) : (
         <>
-          <Grid2 container spacing={3}>
+          <Grid container spacing={3}>
             {paginatedPurchases.map((purchase) => {
               // Format items display for grid view
               const itemsDisplay = getPurchaseItemsDisplayText(purchase);
 
               return (
-                <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={purchase._id}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={purchase._id}>
                   <Card sx={{
                     height: '100%',
                     display: 'flex',
@@ -669,10 +669,10 @@ export default function PurchasesList() {
                       </Button>
                     </CardActions>
                   </Card>
-                </Grid2>
+                </Grid>
               );
             })}
-          </Grid2>
+          </Grid>
           <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
             <TablePagination
               rowsPerPageOptions={[5, 10, 15, 20]}
