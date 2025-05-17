@@ -19,7 +19,7 @@ import {
   Divider,
   Card,
   CardContent,
-  Grid2,
+  Grid,
   styled,
   Tooltip,
   Paper,
@@ -389,8 +389,8 @@ export default function InventoryForm() {
     <Box>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
-        <Grid2 container alignItems="center" spacing={2}>
-          <Grid2 size="grow">
+        <Grid container alignItems="center" spacing={2}>
+          <Grid size="grow">
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Button
                 component={RouterLink}
@@ -404,8 +404,8 @@ export default function InventoryForm() {
                 {isEditMode ? 'Edit Item' : 'Create New Item'}
               </Typography>
             </Box>
-          </Grid2>
-          <Grid2>
+          </Grid>
+          <Grid>
             <Button
               type="submit"
               variant="contained"
@@ -417,8 +417,8 @@ export default function InventoryForm() {
             >
               {isSaving ? 'Saving...' : 'Save Item'}
             </Button>
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </Box>
 
       {error && (
@@ -427,9 +427,9 @@ export default function InventoryForm() {
         </Alert>
       )}
 
-      <Grid2 container spacing={3}>
+      <Grid container spacing={3}>
         {/* Left column - Main details */}
-        <Grid2 size={{ xs: 12, md: 8 }}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
@@ -438,8 +438,8 @@ export default function InventoryForm() {
               </Typography>
               <Divider sx={{ mb: 3 }} />
 
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     required
                     fullWidth
@@ -449,9 +449,9 @@ export default function InventoryForm() {
                     onChange={handleInputChange}
                     disabled={isSaving}
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     required
                     fullWidth
@@ -462,9 +462,9 @@ export default function InventoryForm() {
                     disabled={isSaving}
                     helperText="Stock Keeping Unit - must be unique"
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Autocomplete
                     freeSolo
                     options={categoriesData}
@@ -482,9 +482,9 @@ export default function InventoryForm() {
                     )}
                     disabled={isSaving}
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth margin="normal">
                     <InputLabel>Item Type</InputLabel>
                     <Select
@@ -502,11 +502,11 @@ export default function InventoryForm() {
                       Products are items you sell. Materials are used to create products.
                     </FormHelperText>
                   </FormControl>
-                </Grid2>
+                </Grid>
 
                 {/* Pack Information Section */}
                 {(formData.itemType === 'material' || formData.itemType === 'both') && (
-                  <Grid2 size={{ xs: 12 }}>
+                  <Grid size={{ xs: 12 }}>
                     <Paper sx={{ p: 2, mt: 2, bgcolor: 'background.default', borderLeft: '4px solid', borderColor: 'primary.main' }}>
                       <Typography variant="subtitle2" gutterBottom>Pack Information</Typography>
 
@@ -522,8 +522,8 @@ export default function InventoryForm() {
                       />
 
                       {formData.packInfo?.isPack && (
-                        <Grid2 container spacing={2} sx={{ mt: 1 }}>
-                          <Grid2 size={{ xs: 12, sm: 6 }}>
+                        <Grid container spacing={2} sx={{ mt: 1 }}>
+                          <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
                               fullWidth
                               type="number"
@@ -533,8 +533,8 @@ export default function InventoryForm() {
                               disabled={isSaving}
                               InputProps={{ inputProps: { min: 1 } }}
                             />
-                          </Grid2>
-                          <Grid2 size={{ xs: 12, sm: 6 }}>
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
                               fullWidth
                               type="number"
@@ -547,16 +547,16 @@ export default function InventoryForm() {
                                 inputProps: { min: 0, step: 0.01 }
                               }}
                             />
-                          </Grid2>
-                        </Grid2>
+                          </Grid>
+                        </Grid>
                       )}
                     </Paper>
-                  </Grid2>
+                  </Grid>
                 )}
 
                 {/* Components Management - only show for products */}
                 {(formData.itemType === 'product' || formData.itemType === 'both') && (
-                  <Grid2 size={{ xs: 12 }}>
+                  <Grid size={{ xs: 12 }}>
                     <Paper sx={{ p: 2, mt: 2, bgcolor: 'background.default', borderLeft: '4px solid', borderColor: 'secondary.main' }}>
                       <Typography variant="subtitle2" gutterBottom>Materials Used in This Product</Typography>
 
@@ -642,9 +642,9 @@ export default function InventoryForm() {
                         </Typography>
                       )}
                     </Paper>
-                  </Grid2>
+                  </Grid>
                 )}
-              </Grid2>
+              </Grid>
             </CardContent>
           </Card>
 
@@ -661,8 +661,8 @@ export default function InventoryForm() {
               </Typography>
               <Divider sx={{ mb: 3 }} />
 
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth>
                     <InputLabel>Tracking Type</InputLabel>
                     <Select
@@ -706,11 +706,11 @@ export default function InventoryForm() {
                               : 'Track the volume of your inventory'}
                     </FormHelperText>
                   </FormControl>
-                </Grid2>
+                </Grid>
 
                 {/* Quantity tracking */}
                 {formData.trackingType === 'quantity' && (
-                  <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       type="number"
@@ -728,13 +728,13 @@ export default function InventoryForm() {
                         ),
                       }}
                     />
-                  </Grid2>
+                  </Grid>
                 )}
 
                 {/* Weight tracking */}
                 {formData.trackingType === 'weight' && (
                   <>
-                    <Grid2 size={{ xs: 12, sm: 6 }}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <TextField
                         fullWidth
                         type="number"
@@ -763,11 +763,11 @@ export default function InventoryForm() {
                           ),
                         }}
                       />
-                    </Grid2>
+                    </Grid>
 
                     {/* Add quantity field when price type is "each" */}
                     {formData.priceType === 'each' && (
-                      <Grid2 size={{ xs: 12, sm: 6 }}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -786,7 +786,7 @@ export default function InventoryForm() {
                           }}
                           helperText="Number of items at specified weight"
                         />
-                      </Grid2>
+                      </Grid>
                     )}
                   </>
                 )}
@@ -794,7 +794,7 @@ export default function InventoryForm() {
                 {/* Length tracking */}
                 {formData.trackingType === 'length' && (
                   <>
-                    <Grid2 size={{ xs: 12, sm: 6 }}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <TextField
                         fullWidth
                         type="number"
@@ -825,11 +825,11 @@ export default function InventoryForm() {
                           ),
                         }}
                       />
-                    </Grid2>
+                    </Grid>
 
                     {/* Add quantity field when price type is "each" */}
                     {formData.priceType === 'each' && (
-                      <Grid2 size={{ xs: 12, sm: 6 }}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -848,7 +848,7 @@ export default function InventoryForm() {
                           }}
                           helperText="Number of items at specified length"
                         />
-                      </Grid2>
+                      </Grid>
                     )}
                   </>
                 )}
@@ -856,7 +856,7 @@ export default function InventoryForm() {
                 {/* Area tracking */}
                 {formData.trackingType === 'area' && (
                   <>
-                    <Grid2 size={{ xs: 12, sm: 6 }}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <TextField
                         fullWidth
                         type="number"
@@ -886,11 +886,11 @@ export default function InventoryForm() {
                           ),
                         }}
                       />
-                    </Grid2>
+                    </Grid>
 
                     {/* Add quantity field when price type is "each" */}
                     {formData.priceType === 'each' && (
-                      <Grid2 size={{ xs: 12, sm: 6 }}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -909,7 +909,7 @@ export default function InventoryForm() {
                           }}
                           helperText="Number of items at specified area"
                         />
-                      </Grid2>
+                      </Grid>
                     )}
                   </>
                 )}
@@ -917,7 +917,7 @@ export default function InventoryForm() {
                 {/* Volume tracking */}
                 {formData.trackingType === 'volume' && (
                   <>
-                    <Grid2 size={{ xs: 12, sm: 6 }}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <TextField
                         fullWidth
                         type="number"
@@ -948,11 +948,11 @@ export default function InventoryForm() {
                           ),
                         }}
                       />
-                    </Grid2>
+                    </Grid>
 
                     {/* Add quantity field when price type is "each" */}
                     {formData.priceType === 'each' && (
-                      <Grid2 size={{ xs: 12, sm: 6 }}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -971,11 +971,11 @@ export default function InventoryForm() {
                           }}
                           helperText="Number of items at specified volume"
                         />
-                      </Grid2>
+                      </Grid>
                     )}
                   </>
                 )}
-              </Grid2>
+              </Grid>
             </CardContent>
           </Card>
 
@@ -987,8 +987,8 @@ export default function InventoryForm() {
               </Typography>
               <Divider sx={{ mb: 3 }} />
 
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     required
                     fullWidth
@@ -1004,10 +1004,10 @@ export default function InventoryForm() {
                     }}
                     helperText="Sale price for customers"
                   />
-                </Grid2>
+                </Grid>
 
                 {/* Add this new Cost field */}
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     type="number"
@@ -1022,9 +1022,9 @@ export default function InventoryForm() {
                     }}
                     helperText="Your purchase cost/wholesale price"
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth>
                     <InputLabel>Price Type</InputLabel>
                     <Select
@@ -1068,9 +1068,9 @@ export default function InventoryForm() {
                                 : `Price per ${formData.volumeUnit} of this item`}
                     </FormHelperText>
                   </FormControl>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12 }}>
+                <Grid size={{ xs: 12 }}>
                   <Paper variant="outlined" sx={{ p: 2, mt: 2, bgcolor: 'background.default' }}>
                     <Typography variant="subtitle2" gutterBottom>Markup Information</Typography>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
@@ -1090,8 +1090,8 @@ export default function InventoryForm() {
                       </Typography>
                     </Box>
                   </Paper>
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </CardContent>
           </Card>
 
@@ -1115,10 +1115,10 @@ export default function InventoryForm() {
               />
             </CardContent>
           </Card>
-        </Grid2>
+        </Grid>
 
         {/* Right column - Image upload and tags */}
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
@@ -1250,8 +1250,8 @@ export default function InventoryForm() {
               />
             </CardContent>
           </Card>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
 
       {/* Material Component Selection Dialog */}
       <Dialog
@@ -1325,8 +1325,8 @@ export default function InventoryForm() {
               </Button>
 
               <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-                <Grid2 container spacing={2} alignItems="center">
-                  <Grid2 size={{ xs: 2 }}>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid size={{ xs: 2 }}>
                     {selectedMaterial.imageUrl ? (
                       <Avatar
                         src={selectedMaterial.imageUrl}
@@ -1341,22 +1341,22 @@ export default function InventoryForm() {
                         <Category />
                       </Avatar>
                     )}
-                  </Grid2>
-                  <Grid2 size={{ xs: 10 }}>
+                  </Grid>
+                  <Grid size={{ xs: 10 }}>
                     <Typography variant="h6">{selectedMaterial.name}</Typography>
                     <Typography variant="body2" color="text.secondary">
                       SKU: {selectedMaterial.sku} | Cost: {formatCurrency(selectedMaterial.cost || 0)}
                     </Typography>
-                  </Grid2>
-                </Grid2>
+                  </Grid>
+                </Grid>
               </Paper>
 
               <Typography variant="subtitle2" gutterBottom>
                 Specify Amount:
               </Typography>
 
-              <Grid2 container spacing={2}>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Quantity"
@@ -1372,10 +1372,10 @@ export default function InventoryForm() {
                       ),
                     }}
                   />
-                </Grid2>
+                </Grid>
 
                 {selectedMaterial.trackingType === 'weight' && (
-                  <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       label={`Weight per Unit (${selectedMaterial.weightUnit})`}
@@ -1396,9 +1396,9 @@ export default function InventoryForm() {
                         )
                       }}
                     />
-                  </Grid2>
+                  </Grid>
                 )}
-              </Grid2>
+              </Grid>
 
               <Box sx={{ mt: 2 }}>
                 <Typography variant="body2">

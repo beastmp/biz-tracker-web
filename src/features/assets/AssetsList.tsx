@@ -16,8 +16,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Alert,
-  Grid2
+  Alert
 } from '@mui/material';
 import {
   Add,
@@ -161,8 +160,8 @@ export default function AssetsList() {
 
       {/* Search and filters */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Grid2 container spacing={2} alignItems="center">
-          <Grid2 size={{ xs: 12, md: 6 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               placeholder="Search assets..."
@@ -176,8 +175,8 @@ export default function AssetsList() {
                 ),
               }}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 6, md:3 }}>
+          </Grid>
+          <Grid size={{ xs: 6, md:3 }}>
             <Button
               fullWidth
               variant="outlined"
@@ -265,8 +264,8 @@ export default function AssetsList() {
                 Lost
               </MenuItem>
             </Menu>
-          </Grid2>
-          <Grid2 size={{ xs: 6, md: 3 }}>
+          </Grid>
+          <Grid size={{ xs: 6, md: 3 }}>
             <Button
               fullWidth
               variant="outlined"
@@ -326,15 +325,15 @@ export default function AssetsList() {
                 Purchase Date (Oldest First)
               </MenuItem>
             </Menu>
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </Paper>
 
       {/* Assets grid */}
       <Grid container spacing={3}>
         {filteredAssets.length > 0 ? (
           filteredAssets.map(asset => (
-            <Grid item xs={12} sm={6} md={4} key={asset._id}>
+            <Grid size={{ xs:12, sm:6, md:4 }} key={asset._id}>
               <Card>
                 <CardContent>
                   <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -453,7 +452,7 @@ export default function AssetsList() {
             </Grid>
           ))
         ) : (
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Paper sx={{ p: 3, textAlign: 'center' }}>
               <Typography variant="h6" color="text.secondary">
                 No assets found

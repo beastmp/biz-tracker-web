@@ -7,7 +7,7 @@ import {
   Typography,
   TextField,
   Button,
-  Grid2,
+  Grid,
   Alert,
   InputAdornment,
   MenuItem,
@@ -974,8 +974,8 @@ export default function PurchaseForm() {
         <Typography variant="h6" gutterBottom>Supplier Information</Typography>
         <Divider sx={{ mb: 2 }} />
 
-        <Grid2 container spacing={2}>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Supplier Name"
@@ -987,8 +987,8 @@ export default function PurchaseForm() {
               helperText={error?.includes('Supplier name') ? 'Supplier name is required' : ''}
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Contact Name"
@@ -997,8 +997,8 @@ export default function PurchaseForm() {
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Email"
@@ -1008,8 +1008,8 @@ export default function PurchaseForm() {
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Phone"
@@ -1018,8 +1018,8 @@ export default function PurchaseForm() {
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Invoice Number"
@@ -1028,8 +1028,8 @@ export default function PurchaseForm() {
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Purchase Date"
@@ -1040,8 +1040,8 @@ export default function PurchaseForm() {
               InputLabelProps={{ shrink: true }}
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -1252,8 +1252,8 @@ export default function PurchaseForm() {
                                 </TableCell>
 
                                 <TableCell>
-                                  <Grid2 container spacing={1} alignItems="center">
-                                    <Grid2 size={{ xs: 6 }}>
+                                  <Grid container spacing={1} alignItems="center">
+                                    <Grid size={{ xs: 6 }}>
                                       <TextField
                                         size="small"
                                         type="number"
@@ -1267,8 +1267,8 @@ export default function PurchaseForm() {
                                           endAdornment: <InputAdornment position="end">%</InputAdornment>,
                                         }}
                                       />
-                                    </Grid2>
-                                    <Grid2 size={{ xs: 6 }}>
+                                    </Grid>
+                                    <Grid size={{ xs: 6 }}>
                                       <TextField
                                         size="small"
                                         type="number"
@@ -1282,8 +1282,8 @@ export default function PurchaseForm() {
                                           startAdornment: <InputAdornment position="start">$</InputAdornment>,
                                         }}
                                       />
-                                    </Grid2>
-                                  </Grid2>
+                                    </Grid>
+                                  </Grid>
                                 </TableCell>
 
                                 <TableCell align="right">{formatCurrency(totalCost)}</TableCell>
@@ -1314,8 +1314,8 @@ export default function PurchaseForm() {
         <Typography variant="h6" gutterBottom>Payment Details</Typography>
         <Divider sx={{ mb: 2 }} />
 
-        <Grid2 container spacing={2}>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth margin="normal">
               <InputLabel>Payment Method</InputLabel>
               <Select
@@ -1333,8 +1333,8 @@ export default function PurchaseForm() {
                 <MenuItem value="other">Other</MenuItem>
               </Select>
             </FormControl>
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth margin="normal">
               <InputLabel>Status</InputLabel>
               <Select
@@ -1350,8 +1350,8 @@ export default function PurchaseForm() {
                 <MenuItem value="cancelled">Cancelled</MenuItem>
               </Select>
             </FormControl>
-          </Grid2>
-          <Grid2 size={{ xs: 12 }}>
+          </Grid>
+          <Grid size={{ xs: 12 }}>
             <TextField
               fullWidth
               label="Notes"
@@ -1363,16 +1363,16 @@ export default function PurchaseForm() {
               rows={3}
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Purchase Summary</Typography>
         <Divider sx={{ mb: 2 }} />
 
-        <Grid2 container spacing={2}>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Subtotal"
@@ -1384,8 +1384,8 @@ export default function PurchaseForm() {
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Discount Amount"
@@ -1399,8 +1399,8 @@ export default function PurchaseForm() {
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Tax Rate (%)"
@@ -1411,8 +1411,8 @@ export default function PurchaseForm() {
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Tax Amount"
@@ -1424,8 +1424,8 @@ export default function PurchaseForm() {
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Shipping Cost"
@@ -1439,8 +1439,8 @@ export default function PurchaseForm() {
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
             />
-          </Grid2>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Total"
@@ -1452,8 +1452,8 @@ export default function PurchaseForm() {
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
             />
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </Paper>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
@@ -1557,8 +1557,8 @@ export default function PurchaseForm() {
             You'll be able to add it to your purchase after creation.
           </Alert>
 
-          <Grid2 container spacing={2}>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 label="Item Name"
@@ -1569,8 +1569,8 @@ export default function PurchaseForm() {
                 error={!!newItemErrors.name}
                 helperText={newItemErrors.name}
               />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 label="SKU"
@@ -1581,8 +1581,8 @@ export default function PurchaseForm() {
                 error={!!newItemErrors.sku}
                 helperText={newItemErrors.sku}
               />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Autocomplete
                 freeSolo
                 options={categories}
@@ -1606,8 +1606,8 @@ export default function PurchaseForm() {
                 )}
                 disabled={createItem.isPending}
               />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth margin="normal" required>
                 <InputLabel>Item Type</InputLabel>
                 <Select
@@ -1620,8 +1620,8 @@ export default function PurchaseForm() {
                   <MenuItem value="both">Both</MenuItem>
                 </Select>
               </FormControl>
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth margin="normal" required>
                 <InputLabel>Tracking Type</InputLabel>
                 <Select
@@ -1647,10 +1647,10 @@ export default function PurchaseForm() {
                           : 'Track the volume of your inventory'}
                 </FormHelperText>
               </FormControl>
-            </Grid2>
+            </Grid>
 
             {newItem.trackingType === 'weight' ? (
-              <Grid2 size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
                   label="Weight"
@@ -1678,9 +1678,9 @@ export default function PurchaseForm() {
                     ),
                   }}
                 />
-              </Grid2>
+              </Grid>
             ) : newItem.trackingType === 'length' ? (
-              <Grid2 size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
                   label="Length"
@@ -1710,9 +1710,9 @@ export default function PurchaseForm() {
                     ),
                   }}
                 />
-              </Grid2>
+              </Grid>
             ) : newItem.trackingType === 'area' ? (
-              <Grid2 size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
                   label="Area"
@@ -1741,9 +1741,9 @@ export default function PurchaseForm() {
                     ),
                   }}
                 />
-              </Grid2>
+              </Grid>
             ) : newItem.trackingType === 'volume' ? (
-              <Grid2 size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
                   label="Volume"
@@ -1773,10 +1773,10 @@ export default function PurchaseForm() {
                     ),
                   }}
                 />
-              </Grid2>
+              </Grid>
             ) : null}
 
-            <Grid2 size={{ xs: 12 }}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Description"
@@ -1786,8 +1786,8 @@ export default function PurchaseForm() {
                 multiline
                 rows={3}
               />
-            </Grid2>
-          </Grid2>
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateItemDialogOpen(false)}>
@@ -1897,8 +1897,8 @@ export default function PurchaseForm() {
             Create a new business asset to add to your purchase.
           </Alert>
 
-          <Grid2 container spacing={2}>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 label="Asset Name"
@@ -1909,8 +1909,8 @@ export default function PurchaseForm() {
                 error={!!newAssetErrors.name}
                 helperText={newAssetErrors.name}
               />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Autocomplete
                 freeSolo
                 options={assetCategories || []}
@@ -1929,8 +1929,8 @@ export default function PurchaseForm() {
                   />
                 )}
               />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth margin="normal" required>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -1944,8 +1944,8 @@ export default function PurchaseForm() {
                   <MenuItem value="lost">Lost</MenuItem>
                 </Select>
               </FormControl>
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 label="Location"
@@ -1953,8 +1953,8 @@ export default function PurchaseForm() {
                 onChange={(e) => handleNewAssetChange('location', e.target.value)}
                 margin="normal"
               />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 label="Initial Cost"
@@ -1970,8 +1970,8 @@ export default function PurchaseForm() {
                   startAdornment: <InputAdornment position="start">$</InputAdornment>,
                 }}
               />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 6 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 label="Current Value"
@@ -1983,8 +1983,8 @@ export default function PurchaseForm() {
                   startAdornment: <InputAdornment position="start">$</InputAdornment>,
                 }}
               />
-            </Grid2>
-            <Grid2 size={{ xs: 12 }}>
+            </Grid>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 multiline
@@ -1994,8 +1994,8 @@ export default function PurchaseForm() {
                 onChange={(e) => handleNewAssetChange('notes', e.target.value)}
                 margin="normal"
               />
-            </Grid2>
-          </Grid2>
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateAssetDialogOpen(false)}>

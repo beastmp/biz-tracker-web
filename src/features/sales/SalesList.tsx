@@ -18,7 +18,7 @@ import {
   Card,
   CardContent,
   CardActions,
-  Grid2,
+  Grid,
   Stack,
   Tooltip,
   Divider,
@@ -513,13 +513,13 @@ export default function SalesList() {
         </>
       ) : (
         <>
-          <Grid2 container spacing={3}>
+          <Grid container spacing={3}>
             {paginatedSales.map((sale) => {
               // Calculate total items with all measurement types support
               const itemsDisplay = getSaleItemsDisplayText(sale);
 
               return (
-                <Grid2 size= {{ xs: 12, sm: 6, md: 4, lg: 3 }} key={sale._id}>
+                <Grid size= {{ xs: 12, sm: 6, md: 4, lg: 3 }} key={sale._id}>
                   <Card sx={{
                     height: '100%',
                     display: 'flex',
@@ -584,10 +584,10 @@ export default function SalesList() {
                       </Button>
                     </CardActions>
                   </Card>
-                </Grid2>
+                </Grid>
               );
             })}
-          </Grid2>
+          </Grid>
           <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
             <TablePagination
               rowsPerPageOptions={[8, 16, 24, 32]}

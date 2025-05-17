@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import {
   Box, Typography, Paper, TableContainer, Table, TableHead,
   TableBody, TableRow, TableCell, TableSortLabel, Chip, Card,
-  CardContent, Grid2
+  CardContent, Grid
 } from '@mui/material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -134,8 +134,8 @@ export default function InventoryProfitReport() {
       </Typography>
 
       {/* Summary cards */}
-      <Grid2 container spacing={3} sx={{ mb: 4 }}>
-        <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <Card>
             <CardContent>
               <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -146,9 +146,9 @@ export default function InventoryProfitReport() {
               </Typography>
             </CardContent>
           </Card>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <Card>
             <CardContent>
               <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -159,9 +159,9 @@ export default function InventoryProfitReport() {
               </Typography>
             </CardContent>
           </Card>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <Card>
             <CardContent>
               <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -172,9 +172,9 @@ export default function InventoryProfitReport() {
               </Typography>
             </CardContent>
           </Card>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12, sm: 6, lg: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <Card>
             <CardContent>
               <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -185,8 +185,8 @@ export default function InventoryProfitReport() {
               </Typography>
             </CardContent>
           </Card>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
 
       {/* Chart */}
       <Paper sx={{ p: 3, mb: 4 }}>

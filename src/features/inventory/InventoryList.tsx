@@ -22,7 +22,7 @@ import {
   Select,
   FormControl,
   InputLabel,
-  Grid2,
+  Grid,
   Alert
 } from '@mui/material';
 import {
@@ -457,9 +457,9 @@ export default function InventoryList() {
   // Add component for rendering group cards
   const renderGroupCards = () => {
     return (
-      <Grid2 container spacing={1}>
+      <Grid container spacing={1}>
         {Object.entries(groupedItems).map(([group, groupItems]) => (
-          <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={group}>
+          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={group}>
             <Card
               sx={{
                 height: '100%',
@@ -486,9 +486,9 @@ export default function InventoryList() {
                 </Button>
               </CardActions>
             </Card>
-          </Grid2>
+          </Grid>
         ))}
-      </Grid2>
+      </Grid>
     );
   };
 
@@ -513,8 +513,8 @@ export default function InventoryList() {
       )}
       {/* Header with title and actions */}
       <Box sx={{ mb: 3 }}>
-        <Grid2 container spacing={2} alignItems="center">
-          <Grid2 size="grow">
+        <Grid container spacing={2} alignItems="center">
+          <Grid size="grow">
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Typography variant="h4" component="h1">
                 {selectedGroup ?
@@ -542,8 +542,8 @@ export default function InventoryList() {
                 )}`
               }
             </Typography>
-          </Grid2>
-          <Grid2>
+          </Grid>
+          <Grid>
             <Stack direction="row" spacing={1}>
               <Button
                 component={RouterLink}
@@ -573,16 +573,16 @@ export default function InventoryList() {
                 Add Item
               </Button>
             </Stack>
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </Box>
 
       {/* Search and Filters Bar - Context-aware based on view */}
       <Paper sx={{ p: 2, mb: 3 }}>
         {/* Groups view filters - simplified when showing groups */}
         {!selectedGroup ? (
-          <Grid2 container spacing={2} alignItems="center">
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <TextField
                 fullWidth
                 placeholder="Search items..."
@@ -604,9 +604,9 @@ export default function InventoryList() {
                 }}
                 size="small"
               />
-            </Grid2>
+            </Grid>
 
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Group By</InputLabel>
                 <Select
@@ -622,10 +622,10 @@ export default function InventoryList() {
                   <MenuItem value="category">Category</MenuItem>
                 </Select>
               </FormControl>
-            </Grid2>
+            </Grid>
 
             {/* Remove the Item Type filter from the group view
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Stack direction="row" spacing={1} justifyContent="flex-end">
                 <Tooltip title="Grid View">
                   <IconButton
@@ -644,14 +644,14 @@ export default function InventoryList() {
                   </IconButton>
                 </Tooltip>
               </Stack>
-            </Grid2> */}
-          </Grid2>
+            </Grid> */}
+          </Grid>
         ) : (
           // Items view filters - simplified to just search and sort
           <>
-            <Grid2 container spacing={2} alignItems="center">
+            <Grid container spacing={2} alignItems="center">
               {/* Search Field */}
-              <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <TextField
                   fullWidth
                   placeholder="Search in this group..."
@@ -673,10 +673,10 @@ export default function InventoryList() {
                   }}
                   size="small"
                 />
-              </Grid2>
+              </Grid>
 
               {/* Sorting Options */}
-              <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Button
                   fullWidth
                   variant="outlined"
@@ -711,10 +711,10 @@ export default function InventoryList() {
                     <ListItemText>Stock: High to Low</ListItemText>
                   </MenuItem>
                 </Menu>
-              </Grid2>
+              </Grid>
 
               {/* View Mode Toggles */}
-              <Grid2 size={{ xs: 12, md: 2 }}>
+              <Grid size={{ xs: 12, md: 2 }}>
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Tooltip title="Grid View">
                     <IconButton
@@ -733,8 +733,8 @@ export default function InventoryList() {
                     </IconButton>
                   </Tooltip>
                 </Stack>
-              </Grid2>
-            </Grid2>
+              </Grid>
+            </Grid>
 
             {/* Remove the additional filters row since we're using contextual grouping */}
           </>
@@ -806,9 +806,9 @@ export default function InventoryList() {
 
                       {/* Grid View for this subgroup */}
                       {viewMode === 'grid' && (
-                        <Grid2 container spacing={3}>
+                        <Grid container spacing={3}>
                           {subgroupItems.map((item) => (
-                            <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item._id}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item._id}>
                               {/* Existing card component */}
                               <Card sx={{
                                 height: '100%',
@@ -1038,9 +1038,9 @@ export default function InventoryList() {
                                   </Button>
                                 </CardActions>
                               </Card>
-                            </Grid2>
+                            </Grid>
                           ))}
-                        </Grid2>
+                        </Grid>
                       )}
 
                       {/* List View for this subgroup */}
@@ -1053,9 +1053,9 @@ export default function InventoryList() {
                                 p: 2,
                                 '&:hover': { bgcolor: 'action.hover' }
                               }}>
-                                <Grid2 container spacing={2} alignItems="center">
+                                <Grid container spacing={2} alignItems="center">
                                   {/* Image */}
-                                  <Grid2 size={{ xs: 12, sm: 2, md: 1 }}>
+                                  <Grid size={{ xs: 12, sm: 2, md: 1 }}>
                                     <Box
                                       sx={{
                                         width: '60px',
@@ -1076,10 +1076,10 @@ export default function InventoryList() {
                                         </Typography>
                                       )}
                                     </Box>
-                                  </Grid2>
+                                  </Grid>
 
                                   {/* Item Details */}
-                                  <Grid2 size={{ xs: 12, sm: 5, md: 6 }}>
+                                  <Grid size={{ xs: 12, sm: 5, md: 6 }}>
                                     <Box>
                                       <Typography variant="h6">{item.name}</Typography>
                                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -1105,10 +1105,10 @@ export default function InventoryList() {
                                         ))}
                                       </Box>
                                     </Box>
-                                  </Grid2>
+                                  </Grid>
 
                                   {/* Stock */}
-                                  <Grid2 size={{ xs: 6, sm: 2 }}>
+                                  <Grid size={{ xs: 6, sm: 2 }}>
                                     {item._id === editingItem ? (
                                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                         <TextField
@@ -1187,20 +1187,20 @@ export default function InventoryList() {
                                         </IconButton>
                                       </Box>
                                     )}
-                                  </Grid2>
+                                  </Grid>
 
                                   {/* Price */}
-                                  <Grid2 size={{ xs: 6, sm: 2, md: 1.5 }}>
+                                  <Grid size={{ xs: 6, sm: 2, md: 1.5 }}>
                                     <Typography variant="h6" color="primary">
                                       {formatCurrency(item.price)}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
                                       Total: {formatCurrency(calculateTotalValue(item))}
                                     </Typography>
-                                  </Grid2>
+                                  </Grid>
 
                                   {/* Actions */}
-                                  <Grid2 size={{ xs: 12, sm: 3, md: 1.5 }}>
+                                  <Grid size={{ xs: 12, sm: 3, md: 1.5 }}>
                                     <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
                                       <Tooltip title="View Details">
                                         <IconButton
@@ -1232,8 +1232,8 @@ export default function InventoryList() {
                                         </IconButton>
                                       </Tooltip>
                                     </Stack>
-                                  </Grid2>
-                                </Grid2>
+                                  </Grid>
+                                </Grid>
                               </Box>
                             </Box>
                           ))}
@@ -1248,13 +1248,13 @@ export default function InventoryList() {
                   {/* Grid View */}
                   {viewMode === 'grid' && (
                     <>
-                      <Grid2 container spacing={3}>
+                      <Grid container spacing={3}>
                         {(selectedGroup ?
                           groupedItems[selectedGroup] || [] :
                           filteredItems
                         ).map((item) => (
                           // Existing item card code
-                          <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item._id}>
+                          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item._id}>
                             <Card sx={{
                               height: '100%',
                               display: 'flex',
@@ -1483,9 +1483,9 @@ export default function InventoryList() {
                                 </Button>
                               </CardActions>
                             </Card>
-                          </Grid2>
+                          </Grid>
                         ))}
-                      </Grid2>
+                      </Grid>
                     </>
                   )}
 
@@ -1502,9 +1502,9 @@ export default function InventoryList() {
                             p: 2,
                             '&:hover': { bgcolor: 'action.hover' }
                           }}>
-                            <Grid2 container spacing={2} alignItems="center">
+                            <Grid container spacing={2} alignItems="center">
                               {/* Image */}
-                              <Grid2 size={{ xs: 12, sm: 2, md: 1 }}>
+                              <Grid size={{ xs: 12, sm: 2, md: 1 }}>
                                 <Box
                                   sx={{
                                     width: '60px',
@@ -1525,10 +1525,10 @@ export default function InventoryList() {
                                     </Typography>
                                   )}
                                 </Box>
-                              </Grid2>
+                              </Grid>
 
                               {/* Item Details */}
-                              <Grid2 size={{ xs: 12, sm: 5, md: 6 }}>
+                              <Grid size={{ xs: 12, sm: 5, md: 6 }}>
                                 <Box>
                                   <Typography variant="h6">{item.name}</Typography>
                                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -1554,10 +1554,10 @@ export default function InventoryList() {
                                     ))}
                                   </Box>
                                 </Box>
-                              </Grid2>
+                              </Grid>
 
                               {/* Stock */}
-                              <Grid2 size={{ xs: 6, sm: 2 }}>
+                              <Grid size={{ xs: 6, sm: 2 }}>
                                 {item._id === editingItem ? (
                                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <TextField
@@ -1636,20 +1636,20 @@ export default function InventoryList() {
                                     </IconButton>
                                   </Box>
                                 )}
-                              </Grid2>
+                              </Grid>
 
                               {/* Price */}
-                              <Grid2 size={{ xs: 6, sm: 2, md: 1.5 }}>
+                              <Grid size={{ xs: 6, sm: 2, md: 1.5 }}>
                                 <Typography variant="h6" color="primary">
                                   {formatCurrency(item.price)}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
                                   Total: {formatCurrency(calculateTotalValue(item))}
                                 </Typography>
-                              </Grid2>
+                              </Grid>
 
                               {/* Actions */}
-                              <Grid2 size={{ xs: 12, sm: 3, md: 1.5 }}>
+                              <Grid size={{ xs: 12, sm: 3, md: 1.5 }}>
                                 <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
                                   <Tooltip title="View Details">
                                     <IconButton
@@ -1681,8 +1681,8 @@ export default function InventoryList() {
                                     </IconButton>
                                   </Tooltip>
                                 </Stack>
-                              </Grid2>
-                            </Grid2>
+                              </Grid>
+                            </Grid>
                           </Box>
                         </Box>
                       ))}

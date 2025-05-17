@@ -6,7 +6,7 @@ import {
     DialogActions,
     Button,
     TextField,
-    Grid2,
+    Grid,
     FormControl,
     InputLabel,
     Select,
@@ -246,8 +246,8 @@ export default function CreateProductDialog({
                         </Alert>
                     )}
 
-                    <Grid2 container spacing={3}>
-                        <Grid2 size={{ xs: 12, sm: 6 }}>
+                    <Grid container spacing={3}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
                                 fullWidth
                                 required
@@ -256,8 +256,8 @@ export default function CreateProductDialog({
                                 onChange={(e) => setNewProductName(e.target.value)}
                                 margin="normal"
                             />
-                        </Grid2>
-                        <Grid2 size={{ xs: 12, sm: 6 }}>
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
                                 fullWidth
                                 required
@@ -266,8 +266,8 @@ export default function CreateProductDialog({
                                 onChange={(e) => setNewProductSku(e.target.value)}
                                 margin="normal"
                             />
-                        </Grid2>
-                        <Grid2 size={{ xs: 12, sm: 6 }}>
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <FormControl fullWidth margin="normal">
                                 <InputLabel>Category</InputLabel>
                                 <Select
@@ -283,16 +283,16 @@ export default function CreateProductDialog({
                                     ))}
                                 </Select>
                             </FormControl>
-                        </Grid2>
-                        <Grid2 size={{ xs: 12, sm: 6 }}>
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <Box sx={{ mt: 2, mb: 1 }}>
                                 <Typography variant="subtitle2">Materials Cost</Typography>
                                 <Typography variant="h6" color="text.secondary">
                                     {formatCurrency(calculateMaterialsCost())}
                                 </Typography>
                             </Box>
-                        </Grid2>
-                        <Grid2 size={{ xs: 12 }}>
+                        </Grid>
+                        <Grid size={{ xs: 12 }}>
                             <TextField
                                 fullWidth
                                 multiline
@@ -302,8 +302,8 @@ export default function CreateProductDialog({
                                 onChange={(e) => setNewProductDescription(e.target.value)}
                                 margin="normal"
                             />
-                        </Grid2>
-                    </Grid2>
+                        </Grid>
+                    </Grid>
 
                     <Divider sx={{ my: 3 }} />
                     <Typography variant="h6" gutterBottom>Materials</Typography>
@@ -372,8 +372,8 @@ export default function CreateProductDialog({
                     <Divider sx={{ my: 3 }} />
 
                     <Typography variant="h6" gutterBottom>Pricing</Typography>
-                    <Grid2 container spacing={2} alignItems="center">
-                        <Grid2 size={{ xs: 12 }}>
+                    <Grid container spacing={2} alignItems="center">
+                        <Grid size={{ xs: 12 }}>
                             <FormControlLabel
                                 control={
                                     <Switch
@@ -383,11 +383,11 @@ export default function CreateProductDialog({
                                 }
                                 label={isManualPrice ? "Set Final Price" : "Set Markup Percentage"}
                             />
-                        </Grid2>
+                        </Grid>
 
                         {!isManualPrice ? (
                             // Markup Percentage Mode
-                            <Grid2 size={{ xs: 12, md: 6 }}>
+                            <Grid size={{ xs: 12, md: 6 }}>
                                 <Box>
                                     <Typography variant="body2" gutterBottom>
                                         Markup percentage: {newProductMarkup}%
@@ -403,10 +403,10 @@ export default function CreateProductDialog({
                                         valueLabelFormat={(value) => `${value}%`}
                                     />
                                 </Box>
-                            </Grid2>
+                            </Grid>
                         ) : (
                             // Final Price Mode
-                            <Grid2 size={{ xs: 12, md: 6 }}>
+                            <Grid size={{ xs: 12, md: 6 }}>
                                 <TextField
                                     fullWidth
                                     label="Final Price"
@@ -427,10 +427,10 @@ export default function CreateProductDialog({
                                         inputProps: { min: 0, step: 0.01 }
                                     }}
                                 />
-                            </Grid2>
+                            </Grid>
                         )}
 
-                        <Grid2 size={{ xs: 12, md: 6 }}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
                                 <Typography variant="body2" color="text.secondary">
                                     Materials Cost: {formatCurrency(calculateMaterialsCost())}
@@ -443,8 +443,8 @@ export default function CreateProductDialog({
                                     Final Price: {formatCurrency(calculateProductPrice())}
                                 </Typography>
                             </Paper>
-                        </Grid2>
-                    </Grid2>
+                        </Grid>
+                    </Grid>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={onClose}>Cancel</Button>

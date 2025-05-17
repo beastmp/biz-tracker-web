@@ -10,7 +10,7 @@ import {
   Select,
   MenuItem,
   FormHelperText,
-  Grid2,
+  Grid,
   Divider,
   Card,
   CardContent,
@@ -249,8 +249,8 @@ export default function AssetForm() {
     <Box>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
-        <Grid2 container alignItems="center" spacing={2}>
-          <Grid2 size="grow">
+        <Grid container alignItems="center" spacing={2}>
+          <Grid size="grow">
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Button
                 component={RouterLink}
@@ -264,8 +264,8 @@ export default function AssetForm() {
                 {isEditMode ? 'Edit Asset' : 'Add New Asset'}
               </Typography>
             </Box>
-          </Grid2>
-          <Grid2>
+          </Grid>
+          <Grid>
             <Button
               type="submit"
               variant="contained"
@@ -277,8 +277,8 @@ export default function AssetForm() {
             >
               {isSaving ? 'Saving...' : 'Save Asset'}
             </Button>
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </Box>
 
       {error && (
@@ -287,9 +287,9 @@ export default function AssetForm() {
         </Alert>
       )}
 
-      <Grid2 container spacing={3}>
+      <Grid container spacing={3}>
         {/* Left column - Main details */}
-        <Grid2 size={{ xs: 12, md: 8 }}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
@@ -298,8 +298,8 @@ export default function AssetForm() {
               </Typography>
               <Divider sx={{ mb: 3 }} />
 
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     required
                     fullWidth
@@ -309,9 +309,9 @@ export default function AssetForm() {
                     onChange={handleInputChange}
                     disabled={isSaving}
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Asset Tag"
@@ -321,9 +321,9 @@ export default function AssetForm() {
                     disabled={isSaving}
                     helperText="Unique identifier for this asset"
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     required
                     fullWidth
@@ -334,9 +334,9 @@ export default function AssetForm() {
                     disabled={isSaving}
                     helperText="E.g. Equipment, Furniture, Computer, Vehicle"
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth>
                     <InputLabel>Status</InputLabel>
                     <Select
@@ -355,9 +355,9 @@ export default function AssetForm() {
                       Current status of the asset
                     </FormHelperText>
                   </FormControl>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     type="date"
@@ -368,8 +368,8 @@ export default function AssetForm() {
                     disabled={isSaving}
                     InputLabelProps={{ shrink: true }}
                   />
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </CardContent>
           </Card>
 
@@ -381,8 +381,8 @@ export default function AssetForm() {
               </Typography>
               <Divider sx={{ mb: 3 }} />
 
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     required
                     fullWidth
@@ -398,9 +398,9 @@ export default function AssetForm() {
                     }}
                     helperText="Original purchase price"
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     required
                     fullWidth
@@ -416,8 +416,8 @@ export default function AssetForm() {
                     }}
                     helperText="Present value of the asset"
                   />
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </CardContent>
           </Card>
 
@@ -429,8 +429,8 @@ export default function AssetForm() {
               </Typography>
               <Divider sx={{ mb: 3 }} />
 
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Location"
@@ -440,9 +440,9 @@ export default function AssetForm() {
                     disabled={isSaving}
                     helperText="Where the asset is stored/used"
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Assigned To"
@@ -452,9 +452,9 @@ export default function AssetForm() {
                     disabled={isSaving}
                     helperText="Person responsible for this asset"
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Manufacturer"
@@ -463,9 +463,9 @@ export default function AssetForm() {
                     onChange={handleInputChange}
                     disabled={isSaving}
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Model"
@@ -474,9 +474,9 @@ export default function AssetForm() {
                     onChange={handleInputChange}
                     disabled={isSaving}
                   />
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12 }}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     label="Serial Number"
@@ -486,8 +486,8 @@ export default function AssetForm() {
                     disabled={isSaving}
                     helperText="Unique manufacturer serial number"
                   />
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </CardContent>
           </Card>
 
@@ -500,8 +500,8 @@ export default function AssetForm() {
               </Typography>
               <Divider sx={{ mb: 3 }} />
 
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth>
                     <InputLabel>Maintenance Frequency</InputLabel>
                     <Select
@@ -529,9 +529,9 @@ export default function AssetForm() {
                       How often this asset requires maintenance
                     </FormHelperText>
                   </FormControl>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     type="date"
@@ -554,8 +554,8 @@ export default function AssetForm() {
                     InputLabelProps={{ shrink: true }}
                     helperText="When was maintenance last performed"
                   />
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </CardContent>
           </Card>
 
@@ -580,10 +580,10 @@ export default function AssetForm() {
               />
             </CardContent>
           </Card>
-        </Grid2>
+        </Grid>
 
         {/* Right column - Image upload and tags */}
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
@@ -715,8 +715,8 @@ export default function AssetForm() {
               />
             </CardContent>
           </Card>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

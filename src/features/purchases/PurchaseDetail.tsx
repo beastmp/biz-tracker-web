@@ -6,7 +6,7 @@ import {
   Paper,
   Button,
   Divider,
-  Grid2,
+  Grid,
   IconButton,
   Tooltip,
   Alert,
@@ -225,8 +225,8 @@ export default function PurchaseDetail() {
         </Box>
       </Box>
 
-      <Grid2 container spacing={3}>
-        <Grid2 size={{ xs: 12, md: 8 }}>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Box sx={{
               display: "flex",
@@ -240,8 +240,8 @@ export default function PurchaseDetail() {
               <StatusChip status={purchase.status} />
             </Box>
 
-            <Grid2 container spacing={2} sx={{ mb: 2 }}>
-              <Grid2 size={{ xs: 12, md: 6 }}>
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Purchase Date
                 </Typography>
@@ -250,66 +250,80 @@ export default function PurchaseDetail() {
                     formatDate(purchase.purchaseDate) :
                     "Not specified"}
                 </Typography>
-              </Grid2>
-              <Grid2 size={{ xs: 12, md: 6 }}>
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Invoice Number
                 </Typography>
                 <Typography variant="body1">
                   {purchase.invoiceNumber || "Not specified"}
                 </Typography>
-              </Grid2>
-              <Grid2 size={{ xs: 12, md: 6 }}>
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Payment Method
                 </Typography>
                 <Typography variant="body1">
                   {formatPaymentMethod(purchase.paymentMethod)}
                 </Typography>
-              </Grid2>
-              <Grid2 size={{ xs: 12, md: 6 }}>
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Total Amount
                 </Typography>
                 <Typography variant="body1" fontWeight="bold">
                   {formatCurrency(purchase.total || 0)}
                 </Typography>
-              </Grid2>
-            </Grid2>
+              </Grid>
+            </Grid>
 
             <Divider sx={{ my: 2 }} />
 
             <Typography variant="h6" gutterBottom>
               Contact Information
             </Typography>
-            <Grid2 container spacing={2}>
-              <Grid2 size={{ xs: 12, md: 6 }}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Contact Name
                 </Typography>
                 <Typography variant="body1">
                   {purchase.supplier?.contactName || "Not specified"}
                 </Typography>
-              </Grid2>
-              <Grid2 size={{ xs: 12, md: 6 }}>
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Email
                 </Typography>
                 <Typography variant="body1">
                   {purchase.supplier?.email || "Not specified"}
                 </Typography>
-              </Grid2>
-              <Grid2 size={{ xs: 12, md: 6 }}>
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Phone
                 </Typography>
                 <Typography variant="body1">
                   {purchase.supplier?.phone || "Not specified"}
                 </Typography>
-              </Grid2>
-            </Grid2>
+              </Grid>
+            </Grid>
 
             {purchase.notes && (
+              <Box sx={{ mb: 1.5 }}>
+                <Typography variant="body2" color="text.secondary">Notes</Typography>
+                <Typography variant="body1" style={{ whiteSpace: 'pre-wrap' }}>{purchase.notes}</Typography>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>Supplier Information</Typography>
+            <Divider sx={{ mb: 2 }} />
+
+            {purchase.supplier && purchase.supplier.name ? (
               <>
                 <Divider sx={{ my: 2 }} />
                 <Typography variant="h6" gutterBottom>
@@ -319,7 +333,9 @@ export default function PurchaseDetail() {
               </>
             )}
           </Paper>
+        </Grid>
 
+        <Grid size={{ xs: 12 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h5" component="h2" gutterBottom>
               Purchased Items
@@ -402,9 +418,9 @@ export default function PurchaseDetail() {
               </Typography>
             )}
           </Paper>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ mb: 3 }}>
             <CardHeader title="Payment Summary" />
             <CardContent>
@@ -525,8 +541,8 @@ export default function PurchaseDetail() {
               </Box>
             </CardContent>
           </Card>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

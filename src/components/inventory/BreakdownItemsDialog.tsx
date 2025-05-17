@@ -6,7 +6,7 @@ import {
     DialogActions,
     Button,
     TextField,
-    Grid2,
+    Grid,
     Box,
     Typography,
     TableContainer,
@@ -517,8 +517,8 @@ export default function BreakdownItemsDialog({
                     <>
                         {/* Source Item Information */}
                         <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-                            <Grid2 container spacing={2} alignItems="center">
-                                <Grid2 size={{ xs: 12, sm: 6 }}>
+                            <Grid container spacing={2} alignItems="center">
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <Typography variant="subtitle1">Source Item</Typography>
                                     <Typography variant="h6">{sourceItem.name}</Typography>
                                     <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
@@ -534,9 +534,9 @@ export default function BreakdownItemsDialog({
                                             variant="outlined"
                                         />
                                     </Box>
-                                </Grid2>
+                                </Grid>
 
-                                <Grid2 size={{ xs: 12, sm: 6 }}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                                         <Box>
                                             <Typography variant="subtitle2" color="text.secondary">
@@ -556,8 +556,8 @@ export default function BreakdownItemsDialog({
                                             </Typography>
                                         </Box>
                                     </Box>
-                                </Grid2>
-                            </Grid2>
+                                </Grid>
+                            </Grid>
                         </Paper>
 
                         {/* Breakdown Mode Selector */}
@@ -725,8 +725,8 @@ export default function BreakdownItemsDialog({
                                             Set details for all derived items
                                         </Typography>
 
-                                        <Grid2 container spacing={2}>
-                                            <Grid2 size={{ xs: 12, sm: 6 }}>
+                                        <Grid container spacing={2}>
+                                            <Grid size={{ xs: 12, sm: 6 }}>
                                                 <FormControl fullWidth size="small">
                                                     <InputLabel>Category</InputLabel>
                                                     <Select
@@ -745,9 +745,9 @@ export default function BreakdownItemsDialog({
                                                         <MenuItem value={`${sourceItem.category} - Derived`}>{sourceItem.category} - Derived</MenuItem>
                                                     </Select>
                                                 </FormControl>
-                                            </Grid2>
+                                            </Grid>
 
-                                            <Grid2 size={{ xs: 12 }}>
+                                            <Grid size={{ xs: 12 }}>
                                                 <TextField
                                                     fullWidth
                                                     size="small"
@@ -763,8 +763,8 @@ export default function BreakdownItemsDialog({
                                                         })));
                                                     }}
                                                 />
-                                            </Grid2>
-                                        </Grid2>
+                                            </Grid>
+                                        </Grid>
                                     </Paper>
                                 )}
                             </>

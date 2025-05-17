@@ -314,7 +314,7 @@ export default function Settings() {
         {/* Inventory Settings */}
         <TabPanel value={currentTab} index={0}>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ height: '100%', borderRadius: 2 }}>
                 <CardHeader
                   title="Stock Management"
@@ -363,7 +363,7 @@ export default function Settings() {
                     </Typography>
                     <Box sx={{ pl: 2, pb: 2 }}>
                       <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <TextField
                             label="Kilograms (kg)"
                             type="number"
@@ -380,7 +380,7 @@ export default function Settings() {
                             sx={{ mb: 2 }}
                           />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <TextField
                             label="Grams (g)"
                             type="number"
@@ -397,7 +397,7 @@ export default function Settings() {
                             sx={{ mb: 2 }}
                           />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <TextField
                             label="Pounds (lb)"
                             type="number"
@@ -414,7 +414,7 @@ export default function Settings() {
                             sx={{ mb: 2 }}
                           />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <TextField
                             label="Ounces (oz)"
                             type="number"
@@ -438,7 +438,7 @@ export default function Settings() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ height: '100%', borderRadius: 2 }}>
                 <CardHeader
                   title="Inventory Display"
@@ -500,7 +500,7 @@ export default function Settings() {
               </Card>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Card variant="outlined" sx={{ borderRadius: 2 }}>
                 <CardHeader
                   title="Inventory Automation"
@@ -509,7 +509,7 @@ export default function Settings() {
                 <Divider />
                 <CardContent>
                   <Grid container spacing={3}>
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                       <FormControlLabel
                         control={
                           <Switch
@@ -529,7 +529,7 @@ export default function Settings() {
                       />
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                       <FormControlLabel
                         control={
                           <Switch
@@ -558,7 +558,7 @@ export default function Settings() {
         {/* Company Settings */}
         <TabPanel value={currentTab} index={1}>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ borderRadius: 2 }}>
                 <CardHeader
                   title="Company Information"
@@ -604,7 +604,7 @@ export default function Settings() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ borderRadius: 2 }}>
                 <CardHeader
                   title="Address"
@@ -621,7 +621,7 @@ export default function Settings() {
                   />
 
                   <Grid container spacing={2} sx={{ mb: 3 }}>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <TextField
                         label="City"
                         value={localSettings.address?.city || ''}
@@ -629,7 +629,7 @@ export default function Settings() {
                         fullWidth
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <TextField
                         label="State/Province"
                         value={localSettings.address?.state || ''}
@@ -640,7 +640,7 @@ export default function Settings() {
                   </Grid>
 
                   <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <TextField
                         label="Postal/ZIP Code"
                         value={localSettings.address?.postal || ''}
@@ -648,7 +648,7 @@ export default function Settings() {
                         fullWidth
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <TextField
                         label="Country"
                         value={localSettings.address?.country || ''}
@@ -666,7 +666,7 @@ export default function Settings() {
         {/* Sales & Taxes */}
         <TabPanel value={currentTab} index={2}>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ borderRadius: 2 }}>
                 <CardHeader
                   title="Sales Settings"
@@ -732,7 +732,7 @@ export default function Settings() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ borderRadius: 2 }}>
                 <CardHeader
                   title="Tax Settings"
@@ -788,7 +788,7 @@ export default function Settings() {
         {/* Display Settings */}
         <TabPanel value={currentTab} index={3}>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ borderRadius: 2 }}>
                 <CardHeader
                   title="Theme & Appearance"
@@ -875,7 +875,7 @@ export default function Settings() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ borderRadius: 2 }}>
                 <CardHeader
                   title="Language & Localization"
@@ -998,7 +998,7 @@ export default function Settings() {
               </Typography>
 
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -1011,7 +1011,7 @@ export default function Settings() {
                     label="Low stock items"
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -1024,7 +1024,7 @@ export default function Settings() {
                     label="New sales"
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -1037,7 +1037,7 @@ export default function Settings() {
                     label="New purchases"
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -1306,7 +1306,7 @@ export default function Settings() {
             </AccordionSummary>
             <AccordionDetails>
               <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" gutterBottom>
                     Data Caching Duration
                   </Typography>
@@ -1327,7 +1327,7 @@ export default function Settings() {
                   </Typography>
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -1406,7 +1406,7 @@ export default function Settings() {
               </Alert>
 
               <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -1421,7 +1421,7 @@ export default function Settings() {
 
                 {localSettings.enableExperimentalFeatures && (
                   <>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <FormControlLabel
                         control={
                           <Switch
@@ -1442,7 +1442,7 @@ export default function Settings() {
                       />
                     </Grid>
 
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <FormControlLabel
                         control={
                           <Switch
