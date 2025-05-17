@@ -139,8 +139,13 @@ export const getStatusColor = (status: string): 'success' | 'error' | 'warning' 
 /**
  * Format status string for display
  */
-export const formatStatus = (status: string): string => {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+export const formatStatus = (status: string | undefined | null): string => {
+  // Handle undefined or null status
+  if (status === undefined || status === null || status === "") {
+    return "Unknown";
+  }
+
+  return status.replace(/_/g, " ").replace(/\b\w/g, char => char.toUpperCase());
 };
 
 /**

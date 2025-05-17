@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import {
   Box,
   Paper,
@@ -38,7 +38,7 @@ import {
   Autocomplete,
   Stack,
   Chip
-} from '@mui/material';
+} from "@mui/material";
 import {
   Save,
   ArrowBack,
@@ -48,20 +48,84 @@ import {
   DeleteOutline,
   DragIndicator,
   BusinessCenter,
-  Inventory
-} from '@mui/icons-material';
-import { usePurchase, useCreatePurchase, useUpdatePurchase } from '@hooks/usePurchases';
-import { useItems, useCreateItem, useNextSku, useCategories } from '@hooks/useItems';
-import { useAssets, useAssetCategories, useCreateAsset } from '@hooks/useAssets';
-import { Purchase, PurchaseItem, Item, WeightUnit, TrackingType, ItemType, LengthUnit, AreaUnit, VolumeUnit, BusinessAsset, AssetStatus } from '@custTypes/models';
-import { formatCurrency } from '@utils/formatters';
-import LoadingScreen from '@components/ui/LoadingScreen';
-import ErrorFallback from '@components/ui/ErrorFallback';
+  Inventory,
+  AttachMoney,
+  Handyman,
+  RemoveCircleOutline
+} from "@mui/icons-material";
+import {
+  usePurchase,
+  useCreatePurchase,
+  useUpdatePurchase,
+  RelationshipPurchase,
+  createPurchaseMeasurement,
+  createPurchaseItemAttributes,
+  calculateTotalCost,
+  formatPurchaseMeasurement
+} from "@hooks/usePurchases";
+import { useItems, useCreateItem, useNextSku, useCategories } from "@hooks/useItems";
+import { useAssets, useAssetCategories, useCreateAsset } from "@hooks/useAssets";
+import {
+  Item,
+  WeightUnit,
+  TrackingType,
+  ItemType,
+  LengthUnit,
+  AreaUnit,
+  VolumeUnit,
+  BusinessAsset,
+  AssetStatus,
+  Relationship,
+  RelationshipMeasurement,
+  PurchaseItemAttributes,
+  PurchaseType
+} from "@custTypes/models";
+import { formatCurrency } from "@utils/formatters";
+import LoadingScreen from "@components/ui/LoadingScreen";
+import ErrorFallback from "@components/ui/ErrorFallback";
+import useRelationships from "@hooks/useRelationships";
+import { ENTITY_TYPES, RELATIONSHIP_TYPES } from "@utils/apiClient";
 
 // Utility function to round to 5 decimal places
 const roundToFiveDecimalPlaces = (num: number): number => {
   return Math.round(num * 100000) / 100000;
 };
+
+// Helper function to extract MongoDB document data
+const extractMongoData = <T,>(document: T | { _doc: T }): T => {
+  return (document as { _doc: T })._doc || document as T;
+};
+
+// Debug helper to inspect object structure and properties
+const debugObject = (obj: any, label = "Object"): void => {
+  console.log(`DEBUG ${label}:`, obj);
+  if (obj) {
+    console.log(`Keys:`, Object.keys(obj));
+
+    if (obj._doc) {
+      console.log(`_doc Keys:`, Object.keys(obj._doc));
+    }
+
+    if (Array.isArray(obj)) {
+      console.log(`Is Array with length:`, obj.length);
+      if (obj.length > 0) {
+        console.log(`First item:`, obj[0]);
+        console.log(`First item keys:`, Object.keys(obj[0]));
+      }
+    }
+  }
+};
+
+// Define RelationshipItem interface to track items in the form before saving
+interface RelationshipItem {
+  _id?: string;
+  itemId: string;
+  itemName: string;
+  purchaseType?: PurchaseType;
+  trackingType: TrackingType;
+  measurements: RelationshipMeasurement;
+  purchaseItemAttributes: PurchaseItemAttributes;
+}
 
 export default function PurchaseForm() {
   const { id } = useParams<{ id: string }>();
@@ -81,27 +145,34 @@ export default function PurchaseForm() {
   const createAsset = useCreateAsset();
 
   // Form state
-  const [purchase, setPurchase] = useState<Purchase>({
+  const [purchase, setPurchase] = useState<RelationshipPurchase>({
     supplier: {
-      name: '',
-      contactName: '',
-      email: '',
-      phone: ''
+      name: "",
+      contactName: "",
+      email: "",
+      phone: ""
     },
-    items: [],
+    invoiceNumber: "",
+    purchaseDate: new Date().toISOString(),
     subtotal: 0,
     discountAmount: 0,
     taxRate: 0,
     taxAmount: 0,
     shippingCost: 0,
     total: 0,
-    paymentMethod: 'debit',
-    status: 'received'
+    paymentMethod: "debit",
+    status: "received",
+    notes: "",
+    relationshipItems: []
   });
 
-  // Item selection state
+  // Add useRelationships hook
+  const { createPurchaseItemRelationship } = useRelationships();
+
+  // Item and Asset selection states
   const [selectedItems, setSelectedItems] = useState<Item[]>([]);
   const [itemSelectDialogOpen, setItemSelectDialogOpen] = useState(false);
+  const [itemTypeSelectDialogOpen, setItemTypeSelectDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Asset selection state
@@ -154,7 +225,78 @@ export default function PurchaseForm() {
   // Load existing purchase data if in edit mode
   useEffect(() => {
     if (isEditMode && existingPurchase) {
-      setPurchase(existingPurchase);
+      console.log("Raw purchase data from API:", existingPurchase);
+
+      // Extract the document from MongoDB wrapper if it exists
+      const cleanedPurchase = extractMongoData(existingPurchase);
+      console.log("Extracted purchase document:", cleanedPurchase);
+
+      // Check if we have relationshipItems from the usePurchase hook
+      if (existingPurchase.relationshipItems &&
+          Array.isArray(existingPurchase.relationshipItems)) {
+        console.log("Found relationshipItems array:",
+          existingPurchase.relationshipItems);
+
+        // Clean each relationship and initialize its properties
+        cleanedPurchase.relationshipItems = existingPurchase.relationshipItems.map(
+          (rel) => {
+            const cleanRel = extractMongoData(rel);
+            // Initialize nested objects to prevent undefined errors
+            return {
+              ...cleanRel,
+              measurements: cleanRel.measurements || {},
+              purchaseItemAttributes: cleanRel.purchaseItemAttributes || {},
+              metadata: cleanRel.metadata || {}
+            };
+          }
+        );
+      }
+      // Check for legacy structure from _doc.relationships
+      else if (existingPurchase._doc?.relationships?.items &&
+               Array.isArray(existingPurchase._doc.relationships.items)) {
+        console.log("Found legacy relationships.items array:",
+          existingPurchase._doc.relationships.items);
+
+        // Map legacy relationships to relationshipItems format
+        cleanedPurchase.relationshipItems =
+          existingPurchase._doc.relationships.items.map((rel) => {
+            const cleanRel = extractMongoData(rel);
+            return {
+              ...cleanRel,
+              measurements: cleanRel.measurements || {},
+              purchaseItemAttributes: cleanRel.purchaseItemAttributes || {},
+              metadata: cleanRel.metadata || {}
+            };
+          });
+      }
+      // Check for nested relationships property
+      else if (existingPurchase.relationships?.items &&
+               Array.isArray(existingPurchase.relationships.items)) {
+        console.log("Found relationships.items array:",
+          existingPurchase.relationships.items);
+
+        // Map relationships to relationshipItems format
+        cleanedPurchase.relationshipItems = existingPurchase.relationships.items.map(
+          (rel) => {
+            const cleanRel = extractMongoData(rel);
+            return {
+              ...cleanRel,
+              measurements: cleanRel.measurements || {},
+              purchaseItemAttributes: cleanRel.purchaseItemAttributes || {},
+              metadata: cleanRel.metadata || {}
+            };
+          }
+        );
+      }
+      // If we still don't have relationship items, initialize to empty array
+      if (!cleanedPurchase.relationshipItems) {
+        console.warn("No relationship items found, initializing empty array");
+        cleanedPurchase.relationshipItems = [];
+      }
+
+      console.log("Final cleaned purchase with relationships:", cleanedPurchase);
+
+      setPurchase(cleanedPurchase);
     }
   }, [isEditMode, existingPurchase]);
 
@@ -165,12 +307,15 @@ export default function PurchaseForm() {
     }
   }, [nextSku]);
 
-  // Update total costs whenever items, tax, discount, or shipping change
+  // Update total costs whenever relationshipItems change
   useEffect(() => {
-    const subtotal = purchase.items.reduce(
-      (sum, item) => sum + item.totalCost,
-      0
-    );
+    // Calculate subtotal from relationship items
+    const subtotal = purchase.relationshipItems
+      ? purchase.relationshipItems.reduce(
+          (sum, item) => sum + (item.purchaseItemAttributes?.totalCost || 0),
+          0
+        )
+      : 0;
 
     const discountAmount = purchase.discountAmount || 0;
     const taxAmount = roundToFiveDecimalPlaces(subtotal * ((purchase.taxRate || 0) / 100));
@@ -183,7 +328,7 @@ export default function PurchaseForm() {
       taxAmount,
       total
     }));
-  }, [purchase.items, purchase.taxRate, purchase.discountAmount, purchase.shippingCost]);
+  }, [purchase.relationshipItems, purchase.taxRate, purchase.discountAmount, purchase.shippingCost]);
 
   // First effect - update total cost when inputs change
   useEffect(() => {
@@ -251,12 +396,12 @@ export default function PurchaseForm() {
   }, [newItemUnitCost]);
 
   const handleTextChange = (field: string, value: string | number) => {
-    if (field.startsWith('supplier.')) {
-      const supplierField = field.split('.')[1];
+    if (field.startsWith("supplier.")) {
+      const supplierField = field.split(".")[1];
       setPurchase({
         ...purchase,
         supplier: {
-          ...purchase.supplier,
+          ...(purchase.supplier || {}),
           [supplierField]: value
         }
       });
@@ -295,59 +440,60 @@ export default function PurchaseForm() {
     }
   };
 
+  // Handle adding selected items as relationships
   const handleAddSelectedItems = () => {
     if (selectedItems.length === 0) return;
 
-    const newItems: PurchaseItem[] = selectedItems.map(item => {
-      const newItem: PurchaseItem = {
-        item: item._id || '',
+    const newRelationships: Relationship[] = selectedItems.map(item => {
+      // Default measurement based on tracking type
+      const measurements: RelationshipMeasurement = {};
+      const purchaseItemAttributes: PurchaseItemAttributes = {
         costPerUnit: item.cost || item.price || 0,
-        originalCost: item.cost || item.price || 0,
         totalCost: item.cost || item.price || 0,
-        // Add required properties with defaults
-        quantity: 1, // Default quantity to 1
-        weight: 0,
-        length: 0,
-        area: 0,
-        volume: 0,
-        discountAmount: 0,
-        discountPercentage: 0,
-        purchasedBy: 'quantity' // Default tracking type
+        originalCost: item.cost || item.price || 0,
+        purchasedBy: item.trackingType,
+        purchaseType: "inventory" // Set default purchase type to inventory
       };
 
       // Set appropriate measurement fields based on tracking type
       switch (item.trackingType) {
-        case 'weight':
-          newItem.weight = 1; // Default weight to 1
-          newItem.weightUnit = item.weightUnit;
-          newItem.purchasedBy = 'weight';
+        case "weight":
+          measurements.weight = 1;
+          measurements.weightUnit = item.weightUnit;
           break;
-        case 'length':
-          newItem.length = 1; // Default length to 1
-          newItem.lengthUnit = item.lengthUnit;
-          newItem.purchasedBy = 'length';
+        case "length":
+          measurements.length = 1;
+          measurements.lengthUnit = item.lengthUnit;
           break;
-        case 'area':
-          newItem.area = 1; // Default area to 1
-          newItem.areaUnit = item.areaUnit;
-          newItem.purchasedBy = 'area';
+        case "area":
+          measurements.area = 1;
+          measurements.areaUnit = item.areaUnit;
           break;
-        case 'volume':
-          newItem.volume = 1; // Default volume to 1
-          newItem.volumeUnit = item.volumeUnit;
-          newItem.purchasedBy = 'volume';
+        case "volume":
+          measurements.volume = 1;
+          measurements.volumeUnit = item.volumeUnit;
           break;
         default: // quantity
-          newItem.quantity = 1;
-          newItem.purchasedBy = 'quantity';
+          measurements.quantity = 1;
       }
 
-      return newItem;
+      // Create relationship
+      return {
+        _id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Temporary ID for UI manipulation
+        primaryId: "",  // Will be set when purchase is created
+        primaryType: ENTITY_TYPES.PURCHASE,
+        secondaryId: item._id || "",
+        secondaryType: ENTITY_TYPES.ITEM,
+        relationshipType: RELATIONSHIP_TYPES.PURCHASE_ITEM,
+        measurements,
+        purchaseItemAttributes,
+        metadata: { name: item.name }  // Store item name for UI display
+      } as Relationship;
     });
 
     setPurchase({
       ...purchase,
-      items: [...purchase.items, ...newItems]
+      relationshipItems: [...(purchase.relationshipItems || []), ...newRelationships]
     });
 
     // Reset selections and close dialog
@@ -355,39 +501,45 @@ export default function PurchaseForm() {
     setItemSelectDialogOpen(false);
   };
 
-  // Handle adding selected assets to the purchase
+  // Handle adding selected assets as relationships
   const handleAddSelectedAssets = () => {
     if (selectedAssets.length === 0) return;
 
-    const newItems: PurchaseItem[] = selectedAssets.map(asset => {
-      const assetItem: PurchaseItem = {
-        item: asset._id || '', // Use asset ID directly
+    const newRelationships: Relationship[] = selectedAssets.map(asset => {
+      // Create measurement and attributes for asset
+      const measurements: RelationshipMeasurement = {
+        quantity: 1
+      };
+
+      const purchaseItemAttributes: PurchaseItemAttributes = {
         costPerUnit: asset.currentValue || 0,
-        originalCost: asset.currentValue || 0,
         totalCost: asset.currentValue || 0,
-        quantity: 1,
-        weight: 0,
-        length: 0,
-        area: 0,
-        volume: 0,
-        discountAmount: 0,
-        discountPercentage: 0,
-        purchasedBy: 'quantity',
-        isAsset: true, // Mark as an asset
-        assetInfo: {
+        originalCost: asset.currentValue || 0,
+        purchasedBy: "quantity"
+      };
+
+      // Create relationship
+      return {
+        _id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Temporary ID for UI
+        primaryId: "",  // Will be set when purchase is created
+        primaryType: ENTITY_TYPES.PURCHASE,
+        secondaryId: asset._id || "",
+        secondaryType: ENTITY_TYPES.ASSET,
+        relationshipType: RELATIONSHIP_TYPES.PURCHASE_ASSET,
+        measurements,
+        purchaseItemAttributes,
+        metadata: {
           name: asset.name,
           category: asset.category,
           location: asset.location,
           assignedTo: asset.assignedTo
         }
-      };
-
-      return assetItem;
+      } as Relationship;
     });
 
     setPurchase({
       ...purchase,
-      items: [...purchase.items, ...newItems]
+      relationshipItems: [...(purchase.relationshipItems || []), ...newRelationships]
     });
 
     // Reset selections and close dialog
@@ -403,12 +555,13 @@ export default function PurchaseForm() {
     return selectedAssets.some(selectedAsset => selectedAsset._id === asset._id);
   };
 
+  // Handle removing a relationship item
   const handleRemoveItem = (index: number) => {
-    const updatedItems = [...purchase.items];
+    const updatedItems = [...(purchase.relationshipItems || [])];
     updatedItems.splice(index, 1);
     setPurchase({
       ...purchase,
-      items: updatedItems
+      relationshipItems: updatedItems
     });
   };
 
@@ -560,11 +713,14 @@ export default function PurchaseForm() {
     }
   };
 
-  // Enhance the validateForm function to check for whitespace-only strings
+  // Updated validation function to check for relationshipItems
   const validateForm = (): string | null => {
-    if (!purchase.supplier?.name || purchase.supplier.name.trim() === '') return 'Supplier name is required';
-    if (purchase.items.length === 0) return 'At least one item is required';
-    if (purchase.total <= 0) return 'Total must be greater than zero';
+    if (!purchase.supplier?.name || purchase.supplier.name.trim() === "")
+      return "Supplier name is required";
+    if (!purchase.relationshipItems || purchase.relationshipItems.length === 0)
+      return "At least one item is required";
+    if (purchase.total <= 0)
+      return "Total must be greater than zero";
 
     return null;
   };
@@ -618,128 +774,157 @@ export default function PurchaseForm() {
   // Create a lookup object for items for efficient access
   const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
 
-  const handleItemDiscountChange = (index: number, type: 'percentage' | 'amount', value: number) => {
-    const updatedItems = [...purchase.items];
-    const item = updatedItems[index];
+  // Handle relationship item quantity/measurement change
+  const handleRelationshipItemMeasurementChange = (index: number, value: number) => {
+    const updatedItems = [...(purchase.relationshipItems || [])];
+    const relationship = updatedItems[index];
 
-    if (type === 'percentage') {
-      // Update percentage discount
-      item.discountPercentage = roundToFiveDecimalPlaces(value);
+    if (!relationship) return;
 
-      // Calculate discount amount based on percentage
-      const baseAmount = calculateItemBaseAmount(item);
-      item.discountAmount = roundToFiveDecimalPlaces((value / 100) * baseAmount);
+    const purchasedBy = relationship.purchaseItemAttributes?.purchasedBy || "quantity";
+    const costPerUnit = relationship.purchaseItemAttributes?.costPerUnit || 0;
+
+    // Update the appropriate measurement based on tracking type
+    switch (purchasedBy) {
+      case "weight":
+        relationship.measurements = {
+          ...relationship.measurements,
+          weight: value
+        };
+        break;
+      case "length":
+        relationship.measurements = {
+          ...relationship.measurements,
+          length: value
+        };
+        break;
+      case "area":
+        relationship.measurements = {
+          ...relationship.measurements,
+          area: value
+        };
+        break;
+      case "volume":
+        relationship.measurements = {
+          ...relationship.measurements,
+          volume: value
+        };
+        break;
+      default: // quantity
+        relationship.measurements = {
+          ...relationship.measurements,
+          quantity: value
+        };
+    }
+
+    // Calculate total cost based on measurement and cost per unit
+    const totalCost = calculateTotalCost(
+      relationship.measurements,
+      purchasedBy,
+      costPerUnit
+    );
+
+    // Update purchase item attributes
+    relationship.purchaseItemAttributes = {
+      ...relationship.purchaseItemAttributes,
+      totalCost: roundToFiveDecimalPlaces(totalCost)
+    };
+
+    setPurchase({
+      ...purchase,
+      relationshipItems: updatedItems
+    });
+  };
+
+  // Handle relationship item cost per unit change
+  const handleRelationshipCostPerUnitChange = (index: number, value: number) => {
+    const updatedItems = [...(purchase.relationshipItems || [])];
+    const relationship = updatedItems[index];
+
+    if (!relationship) return;
+
+    const purchasedBy = relationship.purchaseItemAttributes?.purchasedBy || "quantity";
+
+    // Update cost per unit
+    relationship.purchaseItemAttributes = {
+      ...relationship.purchaseItemAttributes,
+      costPerUnit: value,
+      originalCost: value
+    };
+
+    // Calculate total cost based on measurement and new cost per unit
+    const totalCost = calculateTotalCost(
+      relationship.measurements || {},
+      purchasedBy,
+      value
+    );
+
+    // Update total cost
+    relationship.purchaseItemAttributes = {
+      ...relationship.purchaseItemAttributes,
+      totalCost: roundToFiveDecimalPlaces(totalCost)
+    };
+
+    setPurchase({
+      ...purchase,
+      relationshipItems: updatedItems
+    });
+  };
+
+  // Handle relationship item discount change
+  const handleRelationshipDiscountChange = (
+    index: number,
+    type: "percentage" | "amount",
+    value: number
+  ) => {
+    const updatedItems = [...(purchase.relationshipItems || [])];
+    const relationship = updatedItems[index];
+
+    if (!relationship) return;
+
+    const purchasedBy = relationship.purchaseItemAttributes?.purchasedBy || "quantity";
+    const costPerUnit = relationship.purchaseItemAttributes?.costPerUnit || 0;
+
+    // Calculate base amount before discount
+    const baseAmount = calculateTotalCost(
+      relationship.measurements || {},
+      purchasedBy,
+      costPerUnit
+    );
+
+    if (type === "percentage") {
+      // Calculate discount amount from percentage
+      const discountAmount = roundToFiveDecimalPlaces((value / 100) * baseAmount);
+
+      // Update attributes
+      relationship.purchaseItemAttributes = {
+        ...relationship.purchaseItemAttributes,
+        discountPercentage: value,
+        discountAmount: discountAmount,
+        totalCost: roundToFiveDecimalPlaces(Math.max(0, baseAmount - discountAmount))
+      };
     } else {
-      // Update amount discount
-      item.discountAmount = roundToFiveDecimalPlaces(value);
+      // Calculate percentage from amount
+      const discountPercentage = baseAmount > 0
+        ? roundToFiveDecimalPlaces((value / baseAmount) * 100)
+        : 0;
 
-      // Calculate percentage based on amount
-      const baseAmount = calculateItemBaseAmount(item);
-      item.discountPercentage = baseAmount > 0 ? roundToFiveDecimalPlaces((value / baseAmount) * 100) : 0;
+      // Update attributes
+      relationship.purchaseItemAttributes = {
+        ...relationship.purchaseItemAttributes,
+        discountAmount: value,
+        discountPercentage: discountPercentage,
+        totalCost: roundToFiveDecimalPlaces(Math.max(0, baseAmount - value))
+      };
     }
-
-    // Recalculate total cost
-    item.totalCost = roundToFiveDecimalPlaces(calculateItemTotalCost(item));
 
     setPurchase({
       ...purchase,
-      items: updatedItems
+      relationshipItems: updatedItems
     });
   };
 
-  // Helper function to calculate item's base amount before discount
-  const calculateItemBaseAmount = (item: PurchaseItem): number => {
-    // Calculate using cost per unit which is now derived from original cost and quantity
-    switch (item.purchasedBy) {
-      case 'quantity':
-        return roundToFiveDecimalPlaces(item.quantity * item.costPerUnit);
-      case 'weight':
-        return roundToFiveDecimalPlaces(item.weight * item.costPerUnit);
-      case 'length':
-        return roundToFiveDecimalPlaces(item.length * item.costPerUnit);
-      case 'area':
-        return roundToFiveDecimalPlaces(item.area * item.costPerUnit);
-      case 'volume':
-        return roundToFiveDecimalPlaces(item.volume * item.costPerUnit);
-      default:
-        return roundToFiveDecimalPlaces(item.quantity * item.costPerUnit);
-    }
-  };
-
-  // Helper function to calculate item's total cost after discount
-  const calculateItemTotalCost = (item: PurchaseItem): number => {
-    const baseAmount = calculateItemBaseAmount(item);
-    const discountAmount = item.discountAmount || 0;
-    return roundToFiveDecimalPlaces(Math.max(0, baseAmount - discountAmount));
-  };
-
-  // Add this handler function to update quantity in the items list
-  const handleItemQuantityChange = (index: number, value: number) => {
-    const updatedItems = [...purchase.items];
-    const item = updatedItems[index];
-
-    // Update quantity
-    if (item.purchasedBy === 'quantity') {
-      item.quantity = value;
-    } else if (item.purchasedBy === 'weight') {
-      item.weight = value;
-    } else if (item.purchasedBy === 'length') {
-      item.length = value;
-    } else if (item.purchasedBy === 'area') {
-      item.area = value;
-    } else if (item.purchasedBy === 'volume') {
-      item.volume = value;
-    }
-
-    // Recalculate cost per unit (if original cost exists)
-    if (item.originalCost) {
-      if (value > 0) {
-        item.costPerUnit = roundToFiveDecimalPlaces(item.originalCost / value);
-      } else {
-        item.costPerUnit = 0;
-      }
-    }
-
-    // Recalculate total cost
-    item.totalCost = roundToFiveDecimalPlaces(calculateItemTotalCost(item));
-
-    setPurchase({
-      ...purchase,
-      items: updatedItems
-    });
-  };
-
-  // Add this handler function to update original cost
-  const handleItemOriginalCostChange = (index: number, value: number) => {
-    const updatedItems = [...purchase.items];
-    const item = updatedItems[index];
-
-    // Update original cost
-    item.originalCost = value;
-
-    // Recalculate cost per unit
-    const quantity = item.purchasedBy === 'quantity' ? item.quantity :
-      item.purchasedBy === 'weight' ? item.weight :
-        item.purchasedBy === 'length' ? item.length :
-          item.purchasedBy === 'area' ? item.area :
-            item.purchasedBy === 'volume' ? item.volume : 0;
-
-    if (quantity > 0) {
-      item.costPerUnit = roundToFiveDecimalPlaces(value / quantity);
-    } else {
-      item.costPerUnit = 0;
-    }
-
-    // Recalculate total cost
-    item.totalCost = roundToFiveDecimalPlaces(calculateItemTotalCost(item));
-
-    setPurchase({
-      ...purchase,
-      items: updatedItems
-    });
-  };
-
-  // Handle drag end event for reordering
+  // Handle drag end event for reordering relationships
   const handleDragEnd = (result: DropResult) => {
     // If dropped outside the list or no destination, do nothing
     if (!result.destination) return;
@@ -747,8 +932,8 @@ export default function PurchaseForm() {
     // If the item was dropped in the same position, do nothing
     if (result.destination.index === result.source.index) return;
 
-    // Create a new array of purchase items
-    const updatedItems = Array.from(purchase.items);
+    // Create a new array of relationship items
+    const updatedItems = Array.from(purchase.relationshipItems || []);
 
     // Remove the dragged item from the array
     const [movedItem] = updatedItems.splice(result.source.index, 1);
@@ -759,7 +944,7 @@ export default function PurchaseForm() {
     // Update the state with the new order
     setPurchase({
       ...purchase,
-      items: updatedItems
+      relationshipItems: updatedItems
     });
   };
 
@@ -794,7 +979,7 @@ export default function PurchaseForm() {
             <TextField
               fullWidth
               label="Supplier Name"
-              value={purchase.supplier.name || ''}
+              value={purchase.supplier?.name || ''}
               onChange={(e) => handleTextChange('supplier.name', e.target.value)}
               margin="normal"
               required
@@ -807,7 +992,7 @@ export default function PurchaseForm() {
             <TextField
               fullWidth
               label="Contact Name"
-              value={purchase.supplier.contactName || ''}
+              value={purchase.supplier?.contactName || ''}
               onChange={(e) => handleTextChange('supplier.contactName', e.target.value)}
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
@@ -818,7 +1003,7 @@ export default function PurchaseForm() {
               fullWidth
               label="Email"
               type="email"
-              value={purchase.supplier.email || ''}
+              value={purchase.supplier?.email || ''}
               onChange={(e) => handleTextChange('supplier.email', e.target.value)}
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
@@ -828,7 +1013,7 @@ export default function PurchaseForm() {
             <TextField
               fullWidth
               label="Phone"
-              value={purchase.supplier.phone || ''}
+              value={purchase.supplier?.phone || ''}
               onChange={(e) => handleTextChange('supplier.phone', e.target.value)}
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
@@ -860,30 +1045,20 @@ export default function PurchaseForm() {
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, alignItems: "center" }}>
           <Typography variant="h6">Purchase Items</Typography>
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outlined"
-              startIcon={<BusinessCenter />}
-              onClick={() => setAssetSelectDialogOpen(true)}
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            >
-              Add Assets
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => setItemSelectDialogOpen(true)}
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            >
-              Add Items
-            </Button>
-          </Stack>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setItemTypeSelectDialogOpen(true)}
+            disabled={createPurchase.isPending || updatePurchase.isPending}
+          >
+            Add Items
+          </Button>
         </Box>
         <Divider sx={{ mb: 2 }} />
 
-        {purchase.items.length > 0 ? (
+        {purchase.relationshipItems && purchase.relationshipItems.length > 0 ? (
           <DragDropContext onDragEnd={handleDragEnd}>
             <TableContainer>
               <Table>
@@ -892,8 +1067,7 @@ export default function PurchaseForm() {
                     <TableCell width={50}></TableCell> {/* Drag handle column */}
                     <TableCell>Item</TableCell>
                     <TableCell>Type</TableCell>
-                    <TableCell>Quantity/Weight</TableCell>
-                    <TableCell>Original Cost</TableCell>
+                    <TableCell>Quantity/Measurement</TableCell>
                     <TableCell>Cost Per Unit</TableCell>
                     <TableCell>Discount</TableCell>
                     <TableCell align="right">Total Cost</TableCell>
@@ -906,14 +1080,46 @@ export default function PurchaseForm() {
                       {...provided.droppableProps}
                       ref={provided.innerRef}
                     >
-                      {purchase.items.map((item, index) => {
-                        const isAssetItem = item.isAsset === true;
-                        const itemDetails = !isAssetItem && typeof item.item === 'object' ? item.item : !isAssetItem && typeof item.item === 'string' ? itemLookup[item.item] : null;
+                      {purchase.relationshipItems.map((relationship, index) => {
+                        const isAssetItem = relationship.secondaryType === ENTITY_TYPES.ASSET;
+                        const itemDetails = !isAssetItem && relationship.secondaryId
+                          ? itemLookup[relationship.secondaryId]
+                          : null;
+
+                        // Get item name from various sources
+                        const itemName = itemDetails?.name ||
+                                        relationship.metadata?.name ||
+                                        (isAssetItem ? "Asset" : "Unknown Item");
+
+                        // Get purchase attributes
+                        const purchaseItemAttributes = relationship.purchaseItemAttributes || {};
+                        const purchasedBy = purchaseItemAttributes.purchasedBy || "quantity";
+                        const costPerUnit = purchaseItemAttributes.costPerUnit || 0;
+                        const totalCost = purchaseItemAttributes.totalCost || 0;
+                        const discountAmount = purchaseItemAttributes.discountAmount || 0;
+                        const discountPercentage = purchaseItemAttributes.discountPercentage || 0;
+
+                        // Get measurements
+                        const measurements = relationship.measurements || {};
+                        const measurementValue =
+                          purchasedBy === "weight" ? measurements.weight || 0 :
+                          purchasedBy === "length" ? measurements.length || 0 :
+                          purchasedBy === "area" ? measurements.area || 0 :
+                          purchasedBy === "volume" ? measurements.volume || 0 :
+                          measurements.quantity || 0;
+
+                        // Get measurement unit
+                        const measurementUnit =
+                          purchasedBy === "weight" ? measurements.weightUnit || "kg" :
+                          purchasedBy === "length" ? measurements.lengthUnit || "m" :
+                          purchasedBy === "area" ? measurements.areaUnit || "sqm" :
+                          purchasedBy === "volume" ? measurements.volumeUnit || "l" :
+                          "";
 
                         return (
                           <Draggable
-                            key={`item-${index}`}
-                            draggableId={`item-${index}`}
+                            key={relationship._id || `relationship-${index}`}
+                            draggableId={relationship._id || `relationship-${index}`}
                             index={index}
                           >
                             {(provided, snapshot) => (
@@ -922,19 +1128,19 @@ export default function PurchaseForm() {
                                 {...provided.draggableProps}
                                 sx={{
                                   backgroundColor: isAssetItem
-                                    ? (theme) => theme.palette.mode === 'dark'
-                                      ? 'rgba(144, 202, 249, 0.1)'
-                                      : 'rgba(33, 150, 243, 0.05)'
+                                    ? (theme) => theme.palette.mode === "dark"
+                                      ? "rgba(144, 202, 249, 0.1)"
+                                      : "rgba(33, 150, 243, 0.05)"
                                     : snapshot.isDragging
-                                      ? 'rgba(63, 81, 181, 0.08)'
-                                      : 'inherit',
-                                  '&:hover .drag-handle': {
+                                      ? "rgba(63, 81, 181, 0.08)"
+                                      : "inherit",
+                                  "&:hover .drag-handle": {
                                     opacity: 1,
                                   },
                                   // Add styling to ensure the dragged item remains visible
                                   ...(snapshot.isDragging && {
-                                    borderRadius: '4px',
-                                    outline: '1px solid #aaa',
+                                    borderRadius: "4px",
+                                    outline: "1px solid #aaa",
                                   })
                                 }}
                               >
@@ -942,79 +1148,121 @@ export default function PurchaseForm() {
                                   <Box
                                     {...provided.dragHandleProps}
                                     sx={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center'
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center"
                                     }}
                                   >
                                     <DragIndicator
                                       className="drag-handle"
                                       sx={{
-                                        cursor: 'grab',
+                                        cursor: "grab",
                                         opacity: 0.3,
-                                        transition: 'opacity 0.2s'
+                                        transition: "opacity 0.2s"
                                       }}
                                     />
                                   </Box>
                                 </TableCell>
 
-                                {/* ...existing table cell content... */}
                                 <TableCell>
-                                  {isAssetItem
-                                    ? (item.assetInfo?.name || 'Unnamed Asset')
-                                    : (itemDetails ? itemDetails.name : 'Unknown Item')
-                                  }
+                                  {itemName}
                                 </TableCell>
 
                                 <TableCell>
-                                  {isAssetItem
-                                    ? <Chip size="small" icon={<BusinessCenter fontSize="small" />} label="Asset" variant="outlined" color="primary" />
-                                    : <Chip size="small" icon={<Inventory fontSize="small" />} label="Inventory" variant="outlined" color="secondary" />
-                                  }
+                                  <FormControl fullWidth size="small">
+                                    <Select
+                                      value={purchaseItemAttributes.purchaseType || "inventory"}
+                                      onChange={(e) => {
+                                        // Update purchase type
+                                        const updatedItems = [...(purchase.relationshipItems || [])];
+                                        const relationship = updatedItems[index];
+                                        if (relationship) {
+                                          relationship.purchaseItemAttributes = {
+                                            ...relationship.purchaseItemAttributes,
+                                            purchaseType: e.target.value as PurchaseType
+                                          };
+                                          setPurchase({
+                                            ...purchase,
+                                            relationshipItems: updatedItems
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      <MenuItem value="inventory">
+                                        <Chip size="small" icon={<Inventory fontSize="small" />}
+                                          label="Inventory" variant="outlined" color="secondary" />
+                                      </MenuItem>
+                                      <MenuItem value="asset">
+                                        <Chip size="small" icon={<BusinessCenter fontSize="small" />}
+                                          label="Asset" variant="outlined" color="primary" />
+                                      </MenuItem>
+                                      <MenuItem value="expense">
+                                        <Chip size="small" icon={<AttachMoney fontSize="small" />}
+                                          label="Expense" variant="outlined" color="warning" />
+                                      </MenuItem>
+                                      <MenuItem value="service">
+                                        <Chip size="small" icon={<Handyman fontSize="small" />}
+                                          label="Service" variant="outlined" color="info" />
+                                      </MenuItem>
+                                      <MenuItem value="untracked">
+                                        <Chip
+                                          size="small"
+                                          icon={<RemoveCircleOutline fontSize="small" />}
+                                          label="Untracked"
+                                          variant="outlined"
+                                          color="default"
+                                        />
+                                      </MenuItem>
+                                    </Select>
+                                  </FormControl>
                                 </TableCell>
 
                                 <TableCell>
                                   <TextField
                                     size="small"
                                     type="number"
-                                    value={
-                                      item.purchasedBy === 'weight' ? item.weight :
-                                        item.purchasedBy === 'length' ? item.length :
-                                          item.purchasedBy === 'area' ? item.area :
-                                            item.purchasedBy === 'volume' ? item.volume :
-                                              item.quantity
-                                    }
-                                    onChange={(e) => handleItemQuantityChange(index, parseFloat(e.target.value) || 0)}
+                                    value={measurementValue}
+                                    onChange={(e) => handleRelationshipItemMeasurementChange(
+                                      index,
+                                      parseFloat(e.target.value) || 0
+                                    )}
                                     InputProps={{
-                                      endAdornment: <InputAdornment position="end">
-                                        {item.purchasedBy === 'weight' ? item.weightUnit :
-                                          item.purchasedBy === 'length' ? item.lengthUnit :
-                                            item.purchasedBy === 'area' ? item.areaUnit :
-                                              item.purchasedBy === 'volume' ? item.volumeUnit : ''}
-                                      </InputAdornment>,
+                                      endAdornment: measurementUnit ? (
+                                        <InputAdornment position="end">
+                                          {measurementUnit}
+                                        </InputAdornment>
+                                      ) : null,
                                     }}
                                   />
                                 </TableCell>
+
                                 <TableCell>
                                   <TextField
                                     size="small"
                                     type="number"
-                                    value={item.originalCost || 0}
-                                    onChange={(e) => handleItemOriginalCostChange(index, parseFloat(e.target.value) || 0)}
+                                    value={costPerUnit || 0}
+                                    onChange={(e) => handleRelationshipCostPerUnitChange(
+                                      index,
+                                      parseFloat(e.target.value) || 0
+                                    )}
                                     InputProps={{
                                       startAdornment: <InputAdornment position="start">$</InputAdornment>,
                                     }}
                                   />
                                 </TableCell>
-                                <TableCell>{formatCurrency(item.costPerUnit)}</TableCell>
+
                                 <TableCell>
                                   <Grid2 container spacing={1} alignItems="center">
                                     <Grid2 size={{ xs: 6 }}>
                                       <TextField
                                         size="small"
                                         type="number"
-                                        value={item.discountPercentage || 0}
-                                        onChange={(e) => handleItemDiscountChange(index, 'percentage', parseFloat(e.target.value) || 0)}
+                                        value={discountPercentage}
+                                        onChange={(e) => handleRelationshipDiscountChange(
+                                          index,
+                                          "percentage",
+                                          parseFloat(e.target.value) || 0
+                                        )}
                                         InputProps={{
                                           endAdornment: <InputAdornment position="end">%</InputAdornment>,
                                         }}
@@ -1024,8 +1272,12 @@ export default function PurchaseForm() {
                                       <TextField
                                         size="small"
                                         type="number"
-                                        value={item.discountAmount || 0}
-                                        onChange={(e) => handleItemDiscountChange(index, 'amount', parseFloat(e.target.value) || 0)}
+                                        value={discountAmount}
+                                        onChange={(e) => handleRelationshipDiscountChange(
+                                          index,
+                                          "amount",
+                                          parseFloat(e.target.value) || 0
+                                        )}
                                         InputProps={{
                                           startAdornment: <InputAdornment position="start">$</InputAdornment>,
                                         }}
@@ -1033,7 +1285,9 @@ export default function PurchaseForm() {
                                     </Grid2>
                                   </Grid2>
                                 </TableCell>
-                                <TableCell align="right">{formatCurrency(item.totalCost)}</TableCell>
+
+                                <TableCell align="right">{formatCurrency(totalCost)}</TableCell>
+
                                 <TableCell>
                                   <IconButton size="small" onClick={() => handleRemoveItem(index)}>
                                     <DeleteOutline fontSize="small" />
@@ -1754,6 +2008,64 @@ export default function PurchaseForm() {
             disabled={createAsset.isPending}
           >
             {createAsset.isPending ? 'Creating...' : 'Create Asset'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Item Type Selection Dialog */}
+      <Dialog
+        open={itemTypeSelectDialogOpen}
+        onClose={() => setItemTypeSelectDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6">What type of item do you want to add?</Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<Inventory />}
+              size="large"
+              onClick={() => {
+                setItemTypeSelectDialogOpen(false);
+                setItemSelectDialogOpen(true);
+              }}
+              sx={{ py: 2, justifyContent: "flex-start" }}
+            >
+              <Box sx={{ textAlign: "left" }}>
+                <Typography variant="subtitle1">Inventory Item</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Add an item that will be tracked in your inventory system
+                </Typography>
+              </Box>
+            </Button>
+
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<BusinessCenter />}
+              size="large"
+              onClick={() => {
+                setItemTypeSelectDialogOpen(false);
+                setAssetSelectDialogOpen(true);
+              }}
+              sx={{ py: 2, justifyContent: "flex-start" }}
+            >
+              <Box sx={{ textAlign: "left" }}>
+                <Typography variant="subtitle1">Business Asset</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Add a tracked asset for your business (equipment, vehicles, etc.)
+                </Typography>
+              </Box>
+            </Button>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setItemTypeSelectDialogOpen(false)}>
+            Cancel
           </Button>
         </DialogActions>
       </Dialog>

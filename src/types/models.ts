@@ -31,6 +31,125 @@ export type PurchaseStatus = 'pending' | 'received' | 'partially_received' | 'ca
 // Define asset status
 export type AssetStatus = 'active' | 'maintenance' | 'retired' | 'lost';
 
+// Define relationship types
+export type RelationshipType = 'purchase_item' | 'purchase_asset' | 'sale_item' | 'derived' | 'product_material';
+
+// Define entity types for relationships
+export type EntityType = 'Item' | 'Purchase' | 'Sale' | 'Asset';
+
+// Define purchase types - this is the new enum we're adding
+export type PurchaseType =
+  | "inventory"
+  | "asset"
+  | "expense"
+  | "service"
+  | "untracked";
+
+// Define measurement schema for relationships
+export interface RelationshipMeasurement {
+  quantity?: number;
+  weight?: number;
+  weightUnit?: WeightUnit;
+  length?: number;
+  lengthUnit?: LengthUnit;
+  area?: number;
+  areaUnit?: AreaUnit;
+  volume?: number;
+  volumeUnit?: VolumeUnit;
+}
+
+// Purchase item attributes
+export interface PurchaseItemAttributes {
+  costPerUnit?: number;
+  originalCost?: number;
+  discountAmount?: number;
+  discountPercentage?: number;
+  totalCost?: number;
+  purchasedBy?: TrackingType;
+  purchaseType?: PurchaseType; // New field to specify type of purchase
+  isPackage?: boolean;
+  packageSize?: {
+    value: number;
+    unit: string;
+  };
+  quantityPerPackage?: number;
+  // Asset specific attributes (when purchaseType is 'asset')
+  assetInfo?: {
+    name?: string;           // Name for the asset
+    category?: string;       // Asset category
+    location?: string;       // Where the asset is stored/used
+    assignedTo?: string;     // Person responsible for the asset
+    manufacturer?: string;   // Manufacturer info
+    model?: string;          // Model info
+    serialNumber?: string;   // Serial number if available
+  };
+  // Expense specific attributes (when purchaseType is 'expense')
+  expenseInfo?: {
+    category?: string;       // Expense category
+    department?: string;     // Department to charge expense to
+    projectCode?: string;    // Project code if applicable
+  };
+  // Service specific attributes (when purchaseType is 'service')
+  serviceInfo?: {
+    provider?: string;       // Service provider
+    startDate?: Date;        // Start date of service
+    endDate?: Date;          // End date of service
+    contractNumber?: string; // Contract reference
+  };
+}
+
+// Purchase asset attributes
+export interface PurchaseAssetAttributes {
+  name?: string;
+  category?: string;
+  location?: string;
+  assignedTo?: string;
+  costPerUnit?: number;
+  totalCost?: number;
+}
+
+// Sale item attributes
+export interface SaleItemAttributes {
+  name?: string;
+  priceAtSale?: number;
+  soldBy?: TrackingType;
+}
+
+// Main relationship interface
+export interface Relationship {
+  _id?: string;
+
+  // Primary entity (The "from" in the relationship)
+  primaryId: string;
+  primaryType: EntityType;
+
+  // Secondary entity (The "to" in the relationship)
+  secondaryId: string;
+  secondaryType: EntityType;
+
+  // Type of relationship
+  relationshipType: RelationshipType;
+
+  // Measurements
+  measurements?: RelationshipMeasurement;
+
+  // Type-specific attributes
+  purchaseItemAttributes?: PurchaseItemAttributes;
+  purchaseAssetAttributes?: PurchaseAssetAttributes;
+  saleItemAttributes?: SaleItemAttributes;
+
+  // Common fields
+  createdAt?: Date;
+  updatedAt?: Date;
+  notes?: string;
+
+  // Legacy flag
+  isLegacy?: boolean;
+
+  // Any additional metadata
+  metadata?: Record<string, any>;
+}
+
 // Define item interface
 /**
  * Interface representing an inventory item which can be either a material, product, or both
@@ -69,38 +188,11 @@ export interface Item {
     unitsPerPack: number;
     costPerUnit: number;
   };
-  components?: ItemComponent[];      // Materials used in this product
-  usedInProducts?: (string | Item)[]; // Products that use this material
-
-  // New fields for inventory breakdown relationships
-  derivedFrom?: {
-    item: string | Item;   // Reference to the parent item this was derived from
-    quantity: number;      // How much of the parent was used to create this
-    weight?: number;       // Weight allocated from parent (for weight tracking)
-    weightUnit?: WeightUnit; // Unit for weight
-    length?: number;         // Length of material used
-    lengthUnit?: LengthUnit; // Unit of length measurement
-    area?: number;           // Area of material used
-    areaUnit?: AreaUnit;     // Unit of area measurement
-    volume?: number;         // Volume of material used
-    volumeUnit?: VolumeUnit; // Unit of volume measurement
-  };
-  derivedItems?: Array<{   // Items created from this generic item
-    item: string | Item;   // Reference to the derived item
-    quantity: number;      // Quantity created
-    weight?: number;       // Weight allocated (for weight tracking)
-    weightUnit?: WeightUnit; // Unit for weight
-    length?: number;         // Length of material used
-    lengthUnit?: LengthUnit; // Unit of length measurement
-    area?: number;           // Area of material used
-    areaUnit?: AreaUnit;     // Unit of area measurement
-    volume?: number;         // Volume of material used
-    volumeUnit?: VolumeUnit; // Unit of volume measurement
-  }>;
 }
 
 /**
  * Represents a material component used in a product
+ * Used only for displaying relationships in the UI - not stored in the database
  */
 export interface ItemComponent {
   _id?: string;
@@ -200,13 +292,16 @@ export interface PurchaseItem {
     };
     quantityPerPackage: number;
   };
-  // New fields for asset tracking
-  isAsset?: boolean;         // Whether this item should be tracked as an asset
+  // Purchase type specific attributes
+  purchaseType?: PurchaseType; // The type of this purchase (inventory, asset, expense, service)
   assetInfo?: {
     name?: string;           // Name for the asset (defaults to item name)
     category?: string;       // Asset category
     location?: string;       // Where the asset is stored/used
     assignedTo?: string;     // Person responsible for the asset
+    manufacturer?: string;   // Manufacturer information
+    model?: string;          // Model information
+    serialNumber?: string;   // Serial number if available
   };
 }
 

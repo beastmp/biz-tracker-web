@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import React, { useState, useMemo } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import {
   Box,
   Paper,
@@ -24,7 +24,7 @@ import {
   CardHeader,
   Avatar,
   LinearProgress,
-} from '@mui/material';
+} from "@mui/material";
 import {
   AddCircleOutline,
   Inventory2Outlined,
@@ -42,25 +42,37 @@ import {
   Visibility,
   ViewList,
   Campaign
-} from '@mui/icons-material';
-import { useItems } from '@hooks/useItems';
-import { useSales } from '@hooks/useSales';
-import { usePurchases } from '@hooks/usePurchases';
-import { useAssets } from '@hooks/useAssets';
-import { formatCurrency, formatDate } from '@utils/formatters';
-import StatusChip from '@components/ui/StatusChip';
-import LoadingScreen from '@components/ui/LoadingScreen';
-import { useSettings } from '@hooks/useSettings';
-import CreateProductDialog from '@components/inventory/CreateProductDialog';
-import { Item } from '@custTypes/models';
-import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer } from 'recharts';
+} from "@mui/icons-material";
+import { useItems } from "@hooks/useItems";
+import { useSales } from "@hooks/useSales";
+import { usePurchases } from "@hooks/usePurchases";
+import { useAssets } from "@hooks/useAssets";
+import { formatCurrency, formatDate } from "@utils/formatters";
+import StatusChip from "@components/ui/StatusChip";
+import LoadingScreen from "@components/ui/LoadingScreen";
+import { useSettings } from "@hooks/useSettings";
+import CreateProductDialog from "@components/inventory/CreateProductDialog";
+import { Item } from "@custTypes/models";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as ChartTooltip,
+  Legend,
+  ResponsiveContainer
+} from "recharts";
 
 // Colors for charts
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
 export default function Dashboard() {
   const theme = useTheme();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -79,30 +91,38 @@ export default function Dashboard() {
       // If alerts are disabled, don't consider anything low stock
       if (!settings.lowStockAlertsEnabled) return false;
 
-      if (item.trackingType === 'quantity' && item.quantity <= settings.quantityThreshold) return true;
+      if (item.trackingType === "quantity" &&
+          item.quantity <= settings.quantityThreshold) {
+        return true;
+      }
 
-      if (item.trackingType === 'weight') {
-        if (item.priceType === 'each' && (item.quantity || 0) <= 3) return true;
+      if (item.trackingType === "weight") {
+        if (item.priceType === "each" && (item.quantity || 0) <= 3) return true;
 
         const threshold =
-          item.weightUnit === 'kg' ? settings.weightThresholds.kg :
-            item.weightUnit === 'g' ? settings.weightThresholds.g :
-              item.weightUnit === 'lb' ? settings.weightThresholds.lb :
-                item.weightUnit === 'oz' ? settings.weightThresholds.oz : 5;
+          item.weightUnit === "kg" ? settings.weightThresholds.kg :
+          item.weightUnit === "g" ? settings.weightThresholds.g :
+          item.weightUnit === "lb" ? settings.weightThresholds.lb :
+          item.weightUnit === "oz" ? settings.weightThresholds.oz : 5;
 
         if (item.weight <= threshold) return true;
       }
 
       return false;
     });
-  }, [items, settings.lowStockAlertsEnabled, settings.quantityThreshold, settings.weightThresholds]);
+  }, [
+    items,
+    settings.lowStockAlertsEnabled,
+    settings.quantityThreshold,
+    settings.weightThresholds
+  ]);
 
   const totalInventoryValue = useMemo(() => {
     return items.reduce((total, item) => {
-      if (item.trackingType === 'quantity') {
+      if (item.trackingType === "quantity") {
         return total + (item.price * item.quantity);
       } else {
-        if (item.priceType === 'each') {
+        if (item.priceType === "each") {
           return total + (item.price * (item.quantity || 0));
         }
         return total + (item.price * item.weight);
@@ -112,13 +132,16 @@ export default function Dashboard() {
 
   const recentSales = useMemo(() => {
     return [...(sales || [])]
-      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .sort((a, b) =>
+        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
       .slice(0, 5);
   }, [sales]);
 
   const recentPurchases = useMemo(() => {
     return [...(purchases || [])]
-      .sort((a, b) => new Date(b.purchaseDate || 0).getTime() - new Date(a.purchaseDate || 0).getTime())
+      .sort((a, b) =>
+        new Date(b.purchaseDate || 0).getTime() -
+        new Date(a.purchaseDate || 0).getTime())
       .slice(0, 5);
   }, [purchases]);
 
@@ -126,7 +149,8 @@ export default function Dashboard() {
   const filteredItems = useMemo(() => {
     return items
       .filter(
-        item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item =>
+          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           item.sku.toLowerCase().includes(searchQuery.toLowerCase())
       )
       .slice(0, 10);
@@ -136,7 +160,7 @@ export default function Dashboard() {
   const categoryData = useMemo(() => {
     const categories: Record<string, number> = {};
     items.forEach(item => {
-      const category = item.category || 'Uncategorized';
+      const category = item.category || "Uncategorized";
       if (!categories[category]) {
         categories[category] = 0;
       }
@@ -153,8 +177,8 @@ export default function Dashboard() {
       const date = new Date();
       date.setDate(date.getDate() - i);
       return {
-        date: date.toISOString().split('T')[0],
-        day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()],
+        date: date.toISOString().split("T")[0],
+        day: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()],
         sales: 0,
         purchases: 0
       };
@@ -162,7 +186,8 @@ export default function Dashboard() {
 
     // Aggregate sales by day
     sales.forEach(sale => {
-      const saleDate = new Date(sale.createdAt ?? new Date()).toISOString().split('T')[0];
+      const saleDate =
+        new Date(sale.createdAt ?? new Date()).toISOString().split("T")[0];
       const dayData = last7Days.find(day => day.date === saleDate);
       if (dayData) {
         dayData.sales += sale.total;
@@ -171,7 +196,8 @@ export default function Dashboard() {
 
     // Aggregate purchases by day
     purchases.forEach(purchase => {
-      const purchaseDate = new Date(purchase.purchaseDate || new Date()).toISOString().split('T')[0];
+      const purchaseDate =
+        new Date(purchase.purchaseDate || new Date()).toISOString().split("T")[0];
       const dayData = last7Days.find(day => day.date === purchaseDate);
       if (dayData) {
         dayData.purchases += purchase.total;
@@ -200,7 +226,7 @@ export default function Dashboard() {
           sx={{
             mb: 3,
             boxShadow: theme.shadows[2],
-            animation: 'fadeIn 0.5s ease',
+            animation: "fadeIn 0.5s ease",
             borderRadius: 2
           }}
           onClose={() => setSuccessMessage(null)}
@@ -210,12 +236,25 @@ export default function Dashboard() {
       )}
 
       {/* Dashboard Header */}
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+      <Box
+        sx={{
+          mb: 4,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 2
+        }}
+      >
         <Box>
           <Typography variant="h4" component="h1" fontWeight="700" sx={{ mb: 0.5 }}>
             Welcome to BizTracker
           </Typography>
-          <Typography color="text.secondary" variant="subtitle1">
+          <Typography
+            color="text.secondary"
+            variant="subtitle1"
+            component="div"
+          >
             Here's what's happening with your business today
           </Typography>
         </Box>
@@ -227,25 +266,38 @@ export default function Dashboard() {
           <Grid container spacing={3}>
             {/* Business Summary Stats */}
             <Grid item xs={12} sm={6} lg={3}>
-              <Card sx={{ height: '100%', borderRadius: 3 }}>
+              <Card sx={{ height: "100%", borderRadius: 3 }}>
                 <CardContent>
-                  <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    mb: 2
-                  }}>
-                    <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1) }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 2
+                    }}
+                  >
+                    <Avatar
+                      sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1) }}
+                    >
                       <Inventory2Outlined color="primary" />
                     </Avatar>
-                    <Typography variant="subtitle1" color="text.secondary">
+                    <Typography
+                      variant="subtitle1"
+                      color="text.secondary"
+                      component="div"
+                    >
                       Inventory
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" fontWeight="bold">
                     {items.length}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    component="div"
+                    sx={{ mb: 1 }}
+                  >
                     {formatCurrency(totalInventoryValue)} total value
                   </Typography>
 
@@ -263,31 +315,42 @@ export default function Dashboard() {
             </Grid>
 
             <Grid item xs={12} sm={6} lg={3}>
-              <Card sx={{ height: '100%', borderRadius: 3 }}>
+              <Card sx={{ height: "100%", borderRadius: 3 }}>
                 <CardContent>
-                  <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    mb: 2
-                  }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 2
+                    }}
+                  >
                     <Avatar sx={{ bgcolor: alpha(theme.palette.success.main, 0.1) }}>
                       <ShoppingCartOutlined color="success" />
                     </Avatar>
-                    <Typography variant="subtitle1" color="text.secondary">
+                    <Typography
+                      variant="subtitle1"
+                      color="text.secondary"
+                      component="div"
+                    >
                       Sales
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" fontWeight="bold">
                     {sales.length}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    component="div"
+                    sx={{ mb: 1 }}
+                  >
                     {formatCurrency(sales.reduce((sum, sale) => sum + sale.total, 0))}
                   </Typography>
 
-                  {sales.filter(s => s.status === 'pending').length > 0 && (
+                  {sales.filter(s => s.status === "pending").length > 0 && (
                     <Chip
-                      label={`${sales.filter(s => s.status === 'pending').length} pending`}
+                      label={`${sales.filter(s => s.status === "pending").length} pending`}
                       color="info"
                       size="small"
                       icon={<Info fontSize="small" />}
@@ -299,31 +362,46 @@ export default function Dashboard() {
             </Grid>
 
             <Grid item xs={12} sm={6} lg={3}>
-              <Card sx={{ height: '100%', borderRadius: 3 }}>
+              <Card sx={{ height: "100%", borderRadius: 3 }}>
                 <CardContent>
-                  <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    mb: 2
-                  }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 2
+                    }}
+                  >
                     <Avatar sx={{ bgcolor: alpha(theme.palette.info.main, 0.1) }}>
                       <LocalShippingOutlined color="info" />
                     </Avatar>
-                    <Typography variant="subtitle1" color="text.secondary">
+                    <Typography
+                      variant="subtitle1"
+                      color="text.secondary"
+                      component="div"
+                    >
                       Purchases
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" fontWeight="bold">
                     {purchases.length}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    {formatCurrency(purchases.reduce((sum, purchase) => sum + purchase.total, 0))}
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    component="div"
+                    sx={{ mb: 1 }}
+                  >
+                    {formatCurrency(
+                      purchases.reduce((sum, purchase) => sum + purchase.total, 0)
+                    )}
                   </Typography>
 
-                  {purchases.filter(p => p.status === 'pending').length > 0 && (
+                  {purchases.filter(p => p.status === "pending").length > 0 && (
                     <Chip
-                      label={`${purchases.filter(p => p.status === 'pending').length} in transit`}
+                      label={
+                        `${purchases.filter(p => p.status === "pending").length} in transit`
+                      }
                       color="secondary"
                       size="small"
                       icon={<LocalShippingOutlined fontSize="small" />}
@@ -335,31 +413,46 @@ export default function Dashboard() {
             </Grid>
 
             <Grid item xs={12} sm={6} lg={3}>
-              <Card sx={{ height: '100%', borderRadius: 3 }}>
+              <Card sx={{ height: "100%", borderRadius: 3 }}>
                 <CardContent>
-                  <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    mb: 2
-                  }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 2
+                    }}
+                  >
                     <Avatar sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.1) }}>
                       <BusinessCenter color="secondary" />
                     </Avatar>
-                    <Typography variant="subtitle1" color="text.secondary">
+                    <Typography
+                      variant="subtitle1"
+                      color="text.secondary"
+                      component="div"
+                    >
                       Assets
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" fontWeight="bold">
                     {assets.length}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    {formatCurrency(assets.reduce((sum, asset) => sum + asset.currentValue, 0))}
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    component="div"
+                    sx={{ mb: 1 }}
+                  >
+                    {formatCurrency(
+                      assets.reduce((sum, asset) => sum + asset.currentValue, 0)
+                    )}
                   </Typography>
 
-                  {assets.filter(a => a.status === 'maintenance').length > 0 && (
+                  {assets.filter(a => a.status === "maintenance").length > 0 && (
                     <Chip
-                      label={`${assets.filter(a => a.status === 'maintenance').length} in maintenance`}
+                      label={
+                        `${assets.filter(a => a.status === "maintenance").length} in maintenance`
+                      }
                       color="warning"
                       size="small"
                       icon={<Construction fontSize="small" />}
@@ -386,7 +479,7 @@ export default function Dashboard() {
                   }
                 />
                 <CardContent sx={{ pt: 0 }}>
-                  <Box sx={{ height: 250, width: '100%' }}>
+                  <Box sx={{ height: 250, width: "100%" }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
                         data={salesOverTime}
@@ -400,13 +493,16 @@ export default function Dashboard() {
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="day" />
                         <YAxis
-                          tickFormatter={(value) => value === 0 ? '$0' : `$${value}`}
+                          tickFormatter={(value) => value === 0 ? "$0" : `$${value}`}
                           axisLine={false}
                         />
                         <ChartTooltip
-                          formatter={(value) => [`${formatCurrency(value as number)}`, '']}
+                          formatter={(value) => [
+                            `${formatCurrency(value as number)}`,
+                            ""
+                          ]}
                           contentStyle={{ borderRadius: 8 }}
-                          labelStyle={{ fontWeight: 'bold' }}
+                          labelStyle={{ fontWeight: "bold" }}
                         />
                         <Legend />
                         <Line
@@ -438,10 +534,10 @@ export default function Dashboard() {
 
         {/* Quick Actions Panel */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ mb: 3, borderRadius: 3, overflow: 'visible' }}>
+          <Card sx={{ mb: 3, borderRadius: 3, overflow: "visible" }}>
             <CardHeader
               title="Quick Actions"
-              titleTypographyProps={{ variant: 'h6', fontWeight: 'bold' }}
+              titleTypographyProps={{ variant: "h6", fontWeight: "bold" }}
             />
             <CardContent sx={{ pt: 0 }}>
               <Stack spacing={2}>
@@ -455,11 +551,11 @@ export default function Dashboard() {
                   sx={{
                     py: 1.5,
                     bgcolor: theme.palette.primary.main,
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
+                    "&:hover": {
+                      transform: "translateY(-2px)",
                       boxShadow: 4
                     },
-                    transition: 'transform 0.2s, box-shadow 0.2s'
+                    transition: "transform 0.2s, box-shadow 0.2s"
                   }}
                 >
                   Add Inventory Item
@@ -525,26 +621,42 @@ export default function Dashboard() {
                     border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
                   }}
                 >
-                  <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
-                    <Campaign color="info" fontSize="small" sx={{ mr: 1 }} /> Business Insights
+                  <Typography
+                    variant="subtitle2"
+                    fontWeight="bold"
+                    sx={{
+                      mb: 1,
+                      display: "flex",
+                      alignItems: "center"
+                    }}
+                    component="div"
+                  >
+                    <Campaign color="info" fontSize="small" sx={{ mr: 1 }} />
+                    Business Insights
                   </Typography>
                   {lowStockItems.length > 0 ? (
-                    <Typography variant="body2">
-                      You have <strong>{lowStockItems.length} items</strong> running low on stock that need attention.
+                    <Typography variant="body2" component="div">
+                      You have <strong>{lowStockItems.length} items</strong> running low on stock
+                      that need attention.
                     </Typography>
                   ) : (
-                    <Typography variant="body2">
+                    <Typography variant="body2" component="div">
                       All inventory items are at healthy stock levels. Keep up the good work!
                     </Typography>
                   )}
-                  {sales.filter(s => s.status === 'pending').length > 0 && (
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      There are <strong>{sales.filter(s => s.status === 'pending').length} pending sales orders</strong> that require processing.
+                  {sales.filter(s => s.status === "pending").length > 0 && (
+                    <Typography variant="body2" sx={{ mt: 1 }} component="div">
+                      There are <strong>
+                        {sales.filter(s => s.status === "pending").length} pending
+                        sales orders
+                      </strong> that require processing.
                     </Typography>
                   )}
-                  {purchases.filter(p => p.status === 'pending').length > 0 && (
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      <strong>{purchases.filter(p => p.status === 'pending').length} purchases</strong> are currently in transit.
+                  {purchases.filter(p => p.status === "pending").length > 0 && (
+                    <Typography variant="body2" sx={{ mt: 1 }} component="div">
+                      <strong>
+                        {purchases.filter(p => p.status === "pending").length} purchases
+                      </strong> are currently in transit.
                     </Typography>
                   )}
                 </Paper>
@@ -556,7 +668,7 @@ export default function Dashboard() {
           <Card sx={{ borderRadius: 3 }}>
             <CardHeader
               title="Inventory by Category"
-              titleTypographyProps={{ variant: 'h6', fontWeight: 'bold' }}
+              titleTypographyProps={{ variant: "h6", fontWeight: "bold" }}
               action={
                 <Tooltip title="View All">
                   <IconButton component={RouterLink} to="/inventory">
@@ -566,7 +678,7 @@ export default function Dashboard() {
               }
             />
             <CardContent sx={{ pt: 0 }}>
-              <Box sx={{ height: 180, width: '100%' }}>
+              <Box sx={{ height: 180, width: "100%" }}>
                 {categoryData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -578,29 +690,38 @@ export default function Dashboard() {
                         fill="#8884d8"
                         dataKey="value"
                         nameKey="name"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) =>
+                          `${name}: ${(percent * 100).toFixed(0)}%`
+                        }
                         labelLine={false}
                       >
-                        {categoryData.map((_entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        {categoryData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}-${entry.name}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
                         ))}
                       </Pie>
-                      <ChartTooltip formatter={(value) => [`${value} items`, '']} />
+                      <ChartTooltip formatter={(value) => [`${value} items`, ""]} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <Box sx={{
-                    display: 'flex',
-                    height: '100%',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Typography color="text.secondary">No category data available</Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      height: "100%",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    <Typography color="text.secondary" component="div">
+                      No category data available
+                    </Typography>
                   </Box>
                 )}
               </Box>
               <Divider sx={{ mt: 2, mb: 1 }} />
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
                 <Button
                   component={RouterLink}
                   to="/inventory"
@@ -619,10 +740,10 @@ export default function Dashboard() {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Search Inventory */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%', borderRadius: 3 }}>
+          <Card sx={{ height: "100%", borderRadius: 3 }}>
             <CardHeader
               title="Search Inventory"
-              titleTypographyProps={{ variant: 'h6', fontWeight: 'bold' }}
+              titleTypographyProps={{ variant: "h6", fontWeight: "bold" }}
               action={
                 <Button
                   endIcon={<ArrowForward />}
@@ -652,20 +773,20 @@ export default function Dashboard() {
 
               <Divider sx={{ mb: 2 }} />
 
-              <List disablePadding sx={{ maxHeight: 350, overflow: 'auto' }}>
+              <List disablePadding sx={{ maxHeight: 350, overflow: "auto" }}>
                 {filteredItems.length > 0 ? (
                   filteredItems.map((item, index) => (
-                    <React.Fragment key={item._id || index}>
+                    <React.Fragment key={item._id || `item-${index}`}>
                       {index > 0 && <Divider component="li" />}
                       <ListItem
                         component={RouterLink}
                         to={`/inventory/${item._id}`}
                         sx={{
-                          textDecoration: 'none',
-                          color: 'inherit',
+                          textDecoration: "none",
+                          color: "inherit",
                           py: 1.5,
                           borderRadius: 1,
-                          '&:hover': {
+                          "&:hover": {
                             bgcolor: alpha(theme.palette.primary.main, 0.04),
                           }
                         }}
@@ -676,54 +797,91 @@ export default function Dashboard() {
                             height: 40,
                             borderRadius: 1,
                             bgcolor: alpha(theme.palette.primary.main, 0.1),
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                             mr: 2,
-                            backgroundImage: item.imageUrl ? `url(${item.imageUrl})` : 'none',
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
+                            backgroundImage: item.imageUrl ?
+                              `url(${item.imageUrl})` : "none",
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
                           }}
                         >
                           {!item.imageUrl && <Inventory2Outlined color="primary" />}
                         </Box>
                         <ListItemText
-                          primary={item.name}
+                          primary={
+                            <Typography component="div">{item.name}</Typography>
+                          }
                           secondary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+                            <Box
+                              component="div"
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                mt: 0.5
+                              }}
+                            >
+                              <Box
+                                component="span"
+                                sx={{
+                                  fontSize: "0.875rem",
+                                  color: "text.secondary",
+                                  flex: 1
+                                }}
+                              >
                                 SKU: {item.sku}
-                              </Typography>
-                              <Typography variant="body2" fontWeight="medium" color="primary.main">
+                              </Box>
+                              <Box
+                                component="span"
+                                sx={{
+                                  fontSize: "0.875rem",
+                                  fontWeight: "medium",
+                                  color: "primary.main"
+                                }}
+                              >
                                 {formatCurrency(item.price)}
-                              </Typography>
+                              </Box>
                             </Box>
                           }
                         />
                         <Chip
                           size="small"
-                          label={item.trackingType === 'quantity'
-                            ? `${item.quantity} in stock`
-                            : `${item.weight} ${item.weightUnit}`
+                          label={item.trackingType === "quantity" ?
+                            `${item.quantity} in stock` :
+                            `${item.weight} ${item.weightUnit}`
                           }
-                          color={lowStockItems.some(i => i._id === item._id) ? 'warning' : 'default'}
+                          color={
+                            lowStockItems.some(i => i._id === item._id) ?
+                            "warning" : "default"
+                          }
                           sx={{ ml: 1 }}
                         />
                       </ListItem>
                     </React.Fragment>
                   ))
                 ) : (
-                  <Box sx={{
-                    p: 4,
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    flexDirection: 'column',
-                    bgcolor: alpha(theme.palette.info.main, 0.02),
-                    borderRadius: 2
-                  }}>
-                    <Typography color="text.secondary" sx={{ fontStyle: 'italic', mb: 2 }}>
-                      {searchQuery ? "No items match your search" : "Your inventory list is empty. Add some items to get started!"}
+                  <Box
+                    sx={{
+                      p: 4,
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      flexDirection: "column",
+                      bgcolor: alpha(theme.palette.info.main, 0.02),
+                      borderRadius: 2
+                    }}
+                  >
+                    <Typography
+                      color="text.secondary"
+                      component="div"
+                      sx={{ fontStyle: "italic", mb: 2 }}
+                    >
+                      {searchQuery ?
+                        "No items match your search" :
+                        "Your inventory list is empty. Add some items to get started!"
+                      }
                     </Typography>
                     <Button
                       variant="outlined"
@@ -743,18 +901,24 @@ export default function Dashboard() {
 
         {/* Low Stock Items */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%', borderRadius: 3 }}>
+          <Card sx={{ height: "100%", borderRadius: 3 }}>
             <CardHeader
               avatar={
-                <Avatar sx={{ bgcolor: lowStockItems.length > 0 ? alpha(theme.palette.warning.main, 0.8) : alpha(theme.palette.success.main, 0.8) }}>
+                <Avatar
+                  sx={{
+                    bgcolor: lowStockItems.length > 0 ?
+                      alpha(theme.palette.warning.main, 0.8) :
+                      alpha(theme.palette.success.main, 0.8)
+                  }}
+                >
                   {lowStockItems.length > 0 ? <Warning /> : <CheckCircle />}
                 </Avatar>
               }
               title={lowStockItems.length > 0 ? "Low Stock Items" : "Stock Levels"}
-              titleTypographyProps={{ variant: 'h6', fontWeight: 'bold' }}
-              subheader={lowStockItems.length > 0
-                ? `${lowStockItems.length} items need attention`
-                : "All items are at healthy stock levels"
+              titleTypographyProps={{ variant: "h6", fontWeight: "bold" }}
+              subheader={lowStockItems.length > 0 ?
+                `${lowStockItems.length} items need attention` :
+                "All items are at healthy stock levels"
               }
               action={
                 <Button
@@ -762,7 +926,9 @@ export default function Dashboard() {
                   to="/inventory?filter=lowstock"
                   endIcon={<ArrowForward />}
                   size="small"
-                  sx={{ visibility: lowStockItems.length > 0 ? 'visible' : 'hidden' }}
+                  sx={{
+                    visibility: lowStockItems.length > 0 ? "visible" : "hidden"
+                  }}
                 >
                   View All
                 </Button>
@@ -772,63 +938,86 @@ export default function Dashboard() {
               <List
                 sx={{
                   maxHeight: 350,
-                  overflow: 'auto',
-                  '& .MuiListItem-root': {
+                  overflow: "auto",
+                  "& .MuiListItem-root": {
                     borderRadius: 2,
                     mb: 0.5,
-                    transition: 'all 0.2s',
+                    transition: "all 0.2s",
                   }
                 }}
               >
                 {lowStockItems.length > 0 ? (
                   lowStockItems.slice(0, 8).map((item) => (
                     <ListItem
-                      key={item._id}
+                      key={item._id || `low-stock-${item.sku}`}
                       component={RouterLink}
                       to={`/inventory/${item._id}`}
                       sx={{
-                        textDecoration: 'none',
-                        color: 'inherit',
+                        textDecoration: "none",
+                        color: "inherit",
                         p: 1.5,
                         bgcolor: alpha(theme.palette.warning.main, 0.05),
-                        '&:hover': {
+                        "&:hover": {
                           bgcolor: alpha(theme.palette.warning.main, 0.1),
-                          transform: 'translateY(-2px)'
+                          transform: "translateY(-2px)"
                         }
                       }}
                     >
                       <ListItemText
                         primary={
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography fontWeight={500} noWrap sx={{ maxWidth: '70%' }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center"
+                            }}
+                          >
+                            <Typography
+                              fontWeight={500}
+                              noWrap
+                              sx={{ maxWidth: "70%" }}
+                              component="div"
+                            >
                               {item.name}
                             </Typography>
                             <Chip
                               size="small"
                               color="warning"
                               icon={<Warning fontSize="small" />}
-                              label={item.trackingType === 'quantity'
-                                ? `${item.quantity} left`
-                                : `${item.weight} ${item.weightUnit} left`
+                              label={item.trackingType === "quantity" ?
+                                `${item.quantity} left` :
+                                `${item.weight} ${item.weightUnit} left`
                               }
                             />
                           </Box>
                         }
                         secondary={
-                          <Grid container alignItems="center" sx={{ mt: 0.5 }}>
-                            <Grid item xs={8}>
+                          <Grid
+                            container
+                            alignItems="center"
+                            sx={{ mt: 0.5 }}
+                            component="div"
+                          >
+                            <Grid item xs={8} component="div">
                               <LinearProgress
                                 variant="determinate"
-                                value={item.trackingType === 'quantity'
-                                  ? Math.min(item.quantity / settings.quantityThreshold * 50, 100)
-                                  : 30 // Simplified for weight-based items
+                                value={item.trackingType === "quantity" ?
+                                  Math.min(
+                                    item.quantity / settings.quantityThreshold * 50,
+                                    100
+                                  ) :
+                                  30 // Simplified for weight-based items
                                 }
                                 color="warning"
                                 sx={{ height: 6, borderRadius: 3 }}
                               />
                             </Grid>
-                            <Grid item xs={4} sx={{ textAlign: 'right' }}>
-                              <Typography variant="caption" color="text.secondary">
+                            <Grid item xs={4} sx={{ textAlign: "right" }}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                component="div"
+                              >
                                 SKU: {item.sku}
                               </Typography>
                             </Grid>
@@ -838,20 +1027,34 @@ export default function Dashboard() {
                     </ListItem>
                   ))
                 ) : (
-                  <Box sx={{
-                    p: 3,
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    flexDirection: 'column',
-                    color: 'success.main',
-                    mt: 2
-                  }}>
+                  <Box
+                    sx={{
+                      p: 3,
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      flexDirection: "column",
+                      color: "success.main",
+                      mt: 2
+                    }}
+                  >
                     <CheckCircle color="success" sx={{ fontSize: 60, mb: 2, opacity: 0.8 }} />
-                    <Typography textAlign="center" color="success.main" fontWeight={500} variant="h6">
+                    <Typography
+                      textAlign="center"
+                      color="success.main"
+                      fontWeight={500}
+                      variant="h6"
+                      component="div"
+                    >
                       All inventory items are at healthy levels
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 1 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      textAlign="center"
+                      sx={{ mt: 1 }}
+                      component="div"
+                    >
                       You're doing a great job managing your inventory!
                     </Typography>
                   </Box>
@@ -866,12 +1069,18 @@ export default function Dashboard() {
       <Grid container spacing={3}>
         {/* Recent Sales */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%', borderRadius: 3 }}>
+          <Card sx={{ height: "100%", borderRadius: 3 }}>
             <CardHeader
-              avatar={<Avatar sx={{ bgcolor: alpha(theme.palette.success.main, 0.8) }}><ShoppingCartOutlined /></Avatar>}
+              avatar={
+                <Avatar sx={{ bgcolor: alpha(theme.palette.success.main, 0.8) }}>
+                  <ShoppingCartOutlined />
+                </Avatar>
+              }
               title="Recent Sales"
-              titleTypographyProps={{ variant: 'h6', fontWeight: 'bold' }}
-              subheader={`Last ${Math.min(recentSales.length, 5)} of ${sales.length} total sales`}
+              titleTypographyProps={{ variant: "h6", fontWeight: "bold" }}
+              subheader={
+                `Last ${Math.min(recentSales.length, 5)} of ${sales.length} total sales`
+              }
               action={
                 <Button
                   component={RouterLink}
@@ -888,42 +1097,66 @@ export default function Dashboard() {
               <List disablePadding>
                 {recentSales.length > 0 ? (
                   recentSales.map((sale, index) => (
-                    <React.Fragment key={sale._id}>
-                      {index > 0 && <Divider component="li" sx={{ my: 0.5, opacity: 0.6 }} />}
+                    <React.Fragment key={sale._id || `sale-${index}`}>
+                      {index > 0 &&
+                        <Divider component="li" sx={{ my: 0.5, opacity: 0.6 }} />
+                      }
                       <ListItem
                         component={RouterLink}
                         to={`/sales/${sale._id}`}
                         sx={{
                           py: 1.5,
                           px: 1,
-                          textDecoration: 'none',
-                          color: 'inherit',
+                          textDecoration: "none",
+                          color: "inherit",
                           borderRadius: 2,
-                          '&:hover': {
+                          "&:hover": {
                             bgcolor: alpha(theme.palette.success.main, 0.04),
-                            transform: 'translateX(4px)'
+                            transform: "translateX(4px)"
                           },
-                          transition: 'transform 0.2s, background-color 0.2s'
+                          transition: "transform 0.2s, background-color 0.2s"
                         }}
                       >
                         <ListItemText
                           primary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                              <Typography fontWeight={500} noWrap>
-                                {sale.customerName || 'Walk-in Customer'}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                mb: 0.5
+                              }}
+                            >
+                              <Typography fontWeight={500} noWrap component="div">
+                                {sale.customerName || "Walk-in Customer"}
                               </Typography>
-                              <Typography fontWeight={600} color="primary.main">
+                              <Typography fontWeight={600} color="primary.main" component="div">
                                 {formatCurrency(sale.total)}
                               </Typography>
                             </Box>
                           }
                           secondary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <CalendarToday fontSize="small" color="action" sx={{ fontSize: '0.9rem' }} />
-                                <Typography variant="caption" color="text.secondary">
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center"
+                              }}
+                            >
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                <CalendarToday
+                                  fontSize="small"
+                                  color="action"
+                                  sx={{ fontSize: "0.9rem" }}
+                                />
+                                <Box
+                                  component="span"
+                                  sx={{
+                                    fontSize: "0.75rem",
+                                    color: "text.secondary"
+                                  }}
+                                >
                                   {formatDate(sale.createdAt || new Date())}
-                                </Typography>
+                                </Box>
                               </Box>
                               <StatusChip status={sale.status} size="small" />
                             </Box>
@@ -933,8 +1166,8 @@ export default function Dashboard() {
                     </React.Fragment>
                   ))
                 ) : (
-                  <Box sx={{ py: 4, textAlign: 'center' }}>
-                    <Typography color="text.secondary" sx={{ mb: 1 }}>
+                  <Box sx={{ py: 4, textAlign: "center" }}>
+                    <Typography color="text.secondary" sx={{ mb: 1 }} component="div">
                       No recent sales
                     </Typography>
                     <Button
@@ -952,7 +1185,7 @@ export default function Dashboard() {
               </List>
 
               {sales.length > 5 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
                   <Button
                     component={RouterLink}
                     to="/sales"
@@ -969,12 +1202,18 @@ export default function Dashboard() {
 
         {/* Recent Purchases */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%', borderRadius: 3 }}>
+          <Card sx={{ height: "100%", borderRadius: 3 }}>
             <CardHeader
-              avatar={<Avatar sx={{ bgcolor: alpha(theme.palette.info.main, 0.8) }}><LocalShippingOutlined /></Avatar>}
+              avatar={
+                <Avatar sx={{ bgcolor: alpha(theme.palette.info.main, 0.8) }}>
+                  <LocalShippingOutlined />
+                </Avatar>
+              }
               title="Recent Purchases"
-              titleTypographyProps={{ variant: 'h6', fontWeight: 'bold' }}
-              subheader={`Last ${Math.min(recentPurchases.length, 5)} of ${purchases.length} total purchases`}
+              titleTypographyProps={{ variant: "h6", fontWeight: "bold" }}
+              subheader={
+                `Last ${Math.min(recentPurchases.length, 5)} of ${purchases.length} total purchases`
+              }
               action={
                 <Button
                   component={RouterLink}
@@ -991,42 +1230,66 @@ export default function Dashboard() {
               <List disablePadding>
                 {recentPurchases.length > 0 ? (
                   recentPurchases.map((purchase, index) => (
-                    <React.Fragment key={purchase._id}>
-                      {index > 0 && <Divider component="li" sx={{ my: 0.5, opacity: 0.6 }} />}
+                    <React.Fragment key={purchase._id || `purchase-${index}`}>
+                      {index > 0 &&
+                        <Divider component="li" sx={{ my: 0.5, opacity: 0.6 }} />
+                      }
                       <ListItem
                         component={RouterLink}
                         to={`/purchases/${purchase._id}`}
                         sx={{
                           py: 1.5,
                           px: 1,
-                          textDecoration: 'none',
-                          color: 'inherit',
+                          textDecoration: "none",
+                          color: "inherit",
                           borderRadius: 2,
-                          '&:hover': {
+                          "&:hover": {
                             bgcolor: alpha(theme.palette.info.main, 0.04),
-                            transform: 'translateX(4px)'
+                            transform: "translateX(4px)"
                           },
-                          transition: 'transform 0.2s, background-color 0.2s'
+                          transition: "transform 0.2s, background-color 0.2s"
                         }}
                       >
                         <ListItemText
                           primary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                              <Typography fontWeight={500} noWrap>
-                                {purchase.supplier?.name || 'Unknown Supplier'}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                mb: 0.5
+                              }}
+                            >
+                              <Typography fontWeight={500} noWrap component="div">
+                                {purchase.supplier?.name || "Unknown Supplier"}
                               </Typography>
-                              <Typography fontWeight={600} color="info.main">
+                              <Typography fontWeight={600} color="info.main" component="div">
                                 {formatCurrency(purchase.total)}
                               </Typography>
                             </Box>
                           }
                           secondary={
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <CalendarToday fontSize="small" color="action" sx={{ fontSize: '0.9rem' }} />
-                                <Typography variant="caption" color="text.secondary">
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center"
+                              }}
+                            >
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                <CalendarToday
+                                  fontSize="small"
+                                  color="action"
+                                  sx={{ fontSize: "0.9rem" }}
+                                />
+                                <Box
+                                  component="span"
+                                  sx={{
+                                    fontSize: "0.75rem",
+                                    color: "text.secondary"
+                                  }}
+                                >
                                   {formatDate(purchase.purchaseDate || new Date())}
-                                </Typography>
+                                </Box>
                               </Box>
                               <StatusChip status={purchase.status} size="small" />
                             </Box>
@@ -1036,8 +1299,8 @@ export default function Dashboard() {
                     </React.Fragment>
                   ))
                 ) : (
-                  <Box sx={{ py: 4, textAlign: 'center' }}>
-                    <Typography color="text.secondary" sx={{ mb: 1 }}>
+                  <Box sx={{ py: 4, textAlign: "center" }}>
+                    <Typography color="text.secondary" sx={{ mb: 1 }} component="div">
                       No recent purchases
                     </Typography>
                     <Button
@@ -1055,7 +1318,7 @@ export default function Dashboard() {
               </List>
 
               {purchases.length > 5 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
                   <Button
                     component={RouterLink}
                     to="/purchases"

@@ -40,7 +40,9 @@ import {
   Receipt,
   Straighten, // Add new icon for length
   SquareFoot, // Add new icon for area
-  ViewInAr // Add new icon for volume
+  ViewInAr, // Add new icon for volume
+  AddLink, // Add new icon for relationships
+  Link // Add new icon for relationship links
 } from '@mui/icons-material';
 import { useItem, useDeleteItem, useDerivedItems, useRebuildItemInventory } from '@hooks/useItems';
 import { useItemPurchases } from '@hooks/usePurchases';
@@ -52,6 +54,9 @@ import { useSettings } from '@hooks/useSettings';
 import { isPopulatedItem, Item } from '@custTypes/models';
 import { JSX, useMemo } from 'react';
 import BreakdownItemsDialog from '@components/inventory/BreakdownItemsDialog';
+// Import new relationship components
+import AddRelationshipDialog from '@components/relationships/AddRelationshipDialog';
+import RelationshipsDisplay from '@components/relationships/RelationshipsDisplay';
 
 export default function InventoryDetail() {
   const { id } = useParams();
@@ -79,6 +84,10 @@ export default function InventoryDetail() {
   const [breakdownDialogOpen, setBreakdownDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Add relationship dialog state
+  const [relationshipDialogOpen, setRelationshipDialogOpen] = useState(false);
+  const [relationshipsRefreshTrigger, setRelationshipsRefreshTrigger] = useState(0);
+
   const data = item;
 
   // Handle successful item breakdown
@@ -92,6 +101,13 @@ export default function InventoryDetail() {
     })));
 
     setSuccessMessage(`Successfully created ${items.length} items from ${data?.name}`);
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
+
+  // Add handler for refreshing relationships
+  const handleRelationshipChange = () => {
+    setRelationshipsRefreshTrigger(prev => prev + 1);
+    setSuccessMessage("Relationships updated successfully");
     setTimeout(() => setSuccessMessage(null), 5000);
   };
 
@@ -343,7 +359,17 @@ export default function InventoryDetail() {
           </Grid2>
           <Grid2>
             <Stack direction="row" spacing={1}>
-              {/* Add rebuild button */}
+              {/* Add relationship button */}
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<AddLink />}
+                onClick={() => setRelationshipDialogOpen(true)}
+              >
+                Add Relationship
+              </Button>
+
+              {/* Existing buttons */}
               <Button
                 variant="outlined"
                 color="info"
@@ -555,6 +581,20 @@ export default function InventoryDetail() {
                   </Typography>
                 )}
               </Paper>
+            </Grid2>
+
+            {/* Add Relationships Display Here */}
+            <Grid2 size={{ xs: 12 }}>
+              {data && data._id && (
+                <RelationshipsDisplay
+                  entityId={data._id}
+                  entityType="Item"
+                  title="Relationships"
+                  allowConversion={true}
+                  onRelationshipChange={handleRelationshipChange}
+                  key={`relationships-${relationshipsRefreshTrigger}`}
+                />
+              )}
             </Grid2>
           </Grid2>
         </Grid2>
@@ -969,27 +1009,6 @@ export default function InventoryDetail() {
                 </Stack>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  No materials are linked to this product.
-                </Typography>
-              )}
-            </Paper>
-          )}
-
-          {(data?.itemType === 'material' || data?.itemType === 'both') && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Used In Products
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-
-              {data?.usedInProducts && data?.usedInProducts.length > 0 ? (
-                <Stack spacing={2}>
-                  {data?.usedInProducts.map((product, index) =>
-                    renderRelatedItem(product, index)
-                  )}
-                </Stack>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
                   This material is not used in any products yet.
                 </Typography>
               )}
@@ -1365,6 +1384,16 @@ export default function InventoryDetail() {
         sourceItem={data || null}
         onItemsCreated={handleItemsCreated}
       />
+
+      {/* Add Relationship Dialog */}
+      {data && (
+        <AddRelationshipDialog
+          open={relationshipDialogOpen}
+          onClose={() => setRelationshipDialogOpen(false)}
+          item={data}
+          onRelationshipAdded={handleRelationshipChange}
+        />
+      )}
     </Box>
   );
 }

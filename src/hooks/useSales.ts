@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { get, post, patch, del } from '@utils/apiClient';
-import { Sale, SalesReport, Item, SaleItem, SalesTrendItem } from '@custTypes/models';
+import { get, post, patch, del, RELATIONSHIP_TYPES, ENTITY_TYPES } from '@utils/apiClient';
+import { Sale, SalesReport, Item, SaleItem, SalesTrendItem, Relationship } from '@custTypes/models';
 import { useState, useEffect } from 'react';
 import apiClientInstance from '@utils/apiClient';
 
 // Query keys
 const SALES_KEY = 'sales';
 const SALES_REPORT_KEY = 'sales-report';
+const RELATIONSHIPS_KEY = 'relationships';
 
 // Helper function to create a sale item with the appropriate measurement values
 export const createSaleItem = (
@@ -155,6 +156,7 @@ export const useCreateSale = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
       queryClient.invalidateQueries({ queryKey: [SALES_REPORT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
       // Also invalidate items as inventory quantities change
       queryClient.invalidateQueries({ queryKey: ['items'] });
     }
@@ -174,6 +176,7 @@ export const useUpdateSale = (id: string | undefined) => {
       queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
       queryClient.invalidateQueries({ queryKey: [SALES_KEY, id] });
       queryClient.invalidateQueries({ queryKey: [SALES_REPORT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
       // Also invalidate items as inventory quantities may change
       queryClient.invalidateQueries({ queryKey: ['items'] });
     }
@@ -189,6 +192,7 @@ export const useDeleteSale = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
       queryClient.invalidateQueries({ queryKey: [SALES_REPORT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
       // Also invalidate items as inventory quantities change on delete
       queryClient.invalidateQueries({ queryKey: ['items'] });
     }
@@ -263,3 +267,42 @@ export function useSalesTrend(startDate?: string, endDate?: string) {
 
   return { data, isLoading, error };
 }
+
+// Hook to get sale items using the new relationship system
+export const useSaleItems = (saleId: string | undefined) => {
+  return useQuery({
+    queryKey: [RELATIONSHIPS_KEY, 'sale', saleId, 'items'],
+    queryFn: () => get<Relationship[]>(`/relationships/primary/${saleId}?primaryType=${ENTITY_TYPES.SALE}&relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`),
+    enabled: !!saleId,
+  });
+};
+
+// Hook to get item sales history using the new relationship system
+export const useItemSalesHistory = (itemId: string | undefined) => {
+  return useQuery({
+    queryKey: [RELATIONSHIPS_KEY, 'item', itemId, 'sales'],
+    queryFn: () => get<Relationship[]>(`/relationships/secondary/${itemId}?secondaryType=${ENTITY_TYPES.ITEM}&relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`),
+    enabled: !!itemId,
+  });
+};
+
+// Hook to convert sale relationships to the new model
+export const useConvertSaleRelationships = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (saleId?: string) => {
+      if (saleId) {
+        // Convert relationships for a specific sale
+        return await post(`/relationships/convert/sale/${saleId}`);
+      } else {
+        // Convert all sale relationships
+        return await post('/relationships/convert/sales');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
+    }
+  });
+};

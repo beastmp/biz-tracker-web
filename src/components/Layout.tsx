@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Outlet, Link as RouterLink, useLocation } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { Outlet, Link as RouterLink, useLocation } from "react-router-dom";
 import {
   Box,
   AppBar,
@@ -17,7 +17,7 @@ import {
   useTheme,
   useMediaQuery,
   Collapse
-} from '@mui/material';
+} from "@mui/material";
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
@@ -33,8 +33,8 @@ import {
   BusinessCenter as BusinessCenterIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon
-} from '@mui/icons-material';
-import { useAppContext } from '@hooks/useAppContext';
+} from "@mui/icons-material";
+import { useAppContext } from "@hooks/useAppContext";
 
 const drawerWidth = 260;
 
@@ -44,7 +44,7 @@ export default function Layout() {
   const location = useLocation();
   const theme = useTheme();
   const { toggleColorMode } = useAppContext();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   // Close drawer when route changes on mobile
   useEffect(() => {
@@ -60,7 +60,10 @@ export default function Layout() {
 
   // Check if inventory or assets page is open to auto-expand the submenu
   useEffect(() => {
-    if (location.pathname.startsWith('/inventory') || location.pathname.startsWith('/assets')) {
+    if (
+      location.pathname.startsWith("/inventory") ||
+      location.pathname.startsWith("/assets")
+    ) {
       setInventorySubmenuOpen(true);
     }
   }, [location.pathname]);
@@ -79,8 +82,14 @@ export default function Layout() {
 
   const drawer = (
     <div>
-      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-        <Typography variant="h6" noWrap component={RouterLink} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
+      <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+        <Typography
+          variant="h6"
+          noWrap
+          component={RouterLink}
+          to="/"
+          sx={{ textDecoration: "none", color: "inherit" }}
+        >
           BizTracker
         </Typography>
         {!isMobile && (
@@ -92,9 +101,9 @@ export default function Layout() {
       <Divider />
       <List>
         <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/" selected={isActive('/')}>
+          <ListItemButton component={RouterLink} to="/" selected={isActive("/")}>
             <ListItemIcon>
-              <DashboardIcon color={isActive('/') ? 'primary' : 'inherit'} />
+              <DashboardIcon color={isActive("/") ? "primary" : "inherit"} />
             </ListItemIcon>
             <ListItemText primary="Dashboard" />
           </ListItemButton>
@@ -104,7 +113,9 @@ export default function Layout() {
         <ListItem disablePadding>
           <ListItemButton onClick={toggleInventorySubmenu}>
             <ListItemIcon>
-              <InventoryIcon color={(isActive('/inventory') || isActive('/assets')) ? 'primary' : 'inherit'} />
+              <InventoryIcon
+                color={(isActive("/inventory") || isActive("/assets")) ? "primary" : "inherit"}
+              />
             </ListItemIcon>
             <ListItemText primary="Items & Assets" />
             {inventorySubmenuOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -116,10 +127,13 @@ export default function Layout() {
               sx={{ pl: 4 }}
               component={RouterLink}
               to="/inventory"
-              selected={isActive('/inventory')}
+              selected={isActive("/inventory")}
             >
               <ListItemIcon>
-                <InventoryIcon fontSize="small" color={isActive('/inventory') ? 'primary' : 'inherit'} />
+                <InventoryIcon
+                  fontSize="small"
+                  color={isActive("/inventory") ? "primary" : "inherit"}
+                />
               </ListItemIcon>
               <ListItemText primary="Inventory" />
             </ListItemButton>
@@ -128,10 +142,13 @@ export default function Layout() {
               sx={{ pl: 4 }}
               component={RouterLink}
               to="/assets"
-              selected={isActive('/assets')}
+              selected={isActive("/assets")}
             >
               <ListItemIcon>
-                <BusinessCenterIcon fontSize="small" color={isActive('/assets') ? 'primary' : 'inherit'} />
+                <BusinessCenterIcon
+                  fontSize="small"
+                  color={isActive("/assets") ? "primary" : "inherit"}
+                />
               </ListItemIcon>
               <ListItemText primary="Business Assets" />
             </ListItemButton>
@@ -140,34 +157,52 @@ export default function Layout() {
 
         {/* Purchases Menu Items */}
         <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/purchases" selected={isActive('/purchases')}>
+          <ListItemButton
+            component={RouterLink}
+            to="/purchases"
+            selected={isActive("/purchases")}
+          >
             <ListItemIcon>
-              <PurchasesIcon color={isActive('/purchases') ? 'primary' : 'inherit'} />
+              <PurchasesIcon color={isActive("/purchases") ? "primary" : "inherit"} />
             </ListItemIcon>
             <ListItemText primary="Purchases" />
           </ListItemButton>
         </ListItem>
         <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/purchases/reports" selected={isActive('/purchases/reports')}>
+          <ListItemButton
+            component={RouterLink}
+            to="/purchases/reports"
+            selected={isActive("/purchases/reports")}
+          >
             <ListItemIcon>
-              <PurchaseReportsIcon color={isActive('/purchases/reports') ? 'primary' : 'inherit'} />
+              <PurchaseReportsIcon
+                color={isActive("/purchases/reports") ? "primary" : "inherit"}
+              />
             </ListItemIcon>
             <ListItemText primary="Purchase Reports" />
           </ListItemButton>
         </ListItem>
         {/* Sales Menu Items */}
         <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/sales" selected={isActive('/sales')}>
+          <ListItemButton
+            component={RouterLink}
+            to="/sales"
+            selected={isActive("/sales")}
+          >
             <ListItemIcon>
-              <ShoppingCartIcon color={isActive('/sales') ? 'primary' : 'inherit'} />
+              <ShoppingCartIcon color={isActive("/sales") ? "primary" : "inherit"} />
             </ListItemIcon>
             <ListItemText primary="Sales" />
           </ListItemButton>
         </ListItem>
         <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/sales/reports" selected={isActive('/sales/reports')}>
+          <ListItemButton
+            component={RouterLink}
+            to="/sales/reports"
+            selected={isActive("/sales/reports")}
+          >
             <ListItemIcon>
-              <SalesReportsIcon color={isActive('/sales/reports') ? 'primary' : 'inherit'} />
+              <SalesReportsIcon color={isActive("/sales/reports") ? "primary" : "inherit"} />
             </ListItemIcon>
             <ListItemText primary="Sales Reports" />
           </ListItemButton>
@@ -178,7 +213,7 @@ export default function Layout() {
         <ListItem disablePadding>
           <ListItemButton component={RouterLink} to="/settings" onClick={toggleDrawer}>
             <ListItemIcon>
-              <SettingsIcon  color={isActive('/settings') ? 'primary' : 'inherit'} />
+              <SettingsIcon  color={isActive("/settings") ? "primary" : "inherit"} />
             </ListItemIcon>
             <ListItemText primary="Settings" />
           </ListItemButton>
@@ -188,13 +223,13 @@ export default function Layout() {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: "flex" }}>
       <AppBar
         position="fixed"
         sx={{
-          width: { md: drawerOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
+          width: { md: drawerOpen ? `calc(100% - ${drawerWidth}px)` : "100%" },
           ml: { md: drawerOpen ? `${drawerWidth}px` : 0 },
-          transition: theme.transitions.create(['width', 'margin'], {
+          transition: theme.transitions.create(["width", "margin"], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
@@ -214,7 +249,7 @@ export default function Layout() {
             BizTracker
           </Typography>
           <IconButton sx={{ ml: 1 }} onClick={toggleColorMode} color="inherit">
-            {theme.palette.mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+            {theme.palette.mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>
         </Toolbar>
       </AppBar>
@@ -227,9 +262,9 @@ export default function Layout() {
           sx={{
             width: 0,
             flexShrink: 0,
-            '& .MuiDrawer-paper': {
+            "& .MuiDrawer-paper": {
               width: drawerWidth,
-              boxSizing: 'border-box',
+              boxSizing: "border-box",
             },
           }}
         >
@@ -245,9 +280,14 @@ export default function Layout() {
           onClose={toggleDrawer}
           ModalProps={{
             keepMounted: true, // Better open performance on mobile
+            // Fix for aria-hidden accessibility warning
+            disableScrollLock: true,
+            disableRestoreFocus: true,
+            disableEnforceFocus: true,
+            disableAutoFocus: true,
           }}
           sx={{
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth },
           }}
         >
           {drawer}
@@ -260,9 +300,9 @@ export default function Layout() {
         sx={{
           flexGrow: 1,
           p: 1,
-          width: '100%',
+          width: "100%",
           ml: { md: drawerOpen ? `${drawerWidth}px` : 0 },
-          transition: theme.transitions.create(['margin', 'width'], {
+          transition: theme.transitions.create(["margin", "width"], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
@@ -272,7 +312,7 @@ export default function Layout() {
         {/* Container for the main content area. */}
         {/* "lg" = Sets the max width to 1200px and centers with some padding*/}
         {/* {false} = Sets the max width to the full width of the page without constraints*/}
-          <Container maxWidth="lg">
+        <Container maxWidth="lg">
           <Outlet />
         </Container>
       </Box>

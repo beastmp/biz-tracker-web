@@ -1,6 +1,23 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { config } from '@config/env';
-import { Item, TrackingType } from '@custTypes/models';
+import { Item, TrackingType, RelationshipType, EntityType } from '@custTypes/models';
+
+// Relationship type constants
+export const RELATIONSHIP_TYPES: Record<string, RelationshipType> = {
+  PRODUCT_MATERIAL: "product_material",
+  PURCHASE_ITEM: "purchase_item",
+  PURCHASE_ASSET: "purchase_asset",
+  SALE_ITEM: "sale_item",
+  DERIVED: "derived"
+};
+
+// Entity type constants
+export const ENTITY_TYPES: Record<string, EntityType> = {
+  ITEM: "Item",
+  PURCHASE: "Purchase",
+  SALE: "Sale",
+  ASSET: "Asset"
+};
 
 // Create a normalized base URL that handles various API URL formats
 const normalizeBaseUrl = (url: string) => {

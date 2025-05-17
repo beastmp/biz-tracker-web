@@ -58,6 +58,7 @@ import LoadingScreen from '@components/ui/LoadingScreen';
 // import { useAppContext } from '@hooks/useAppContext';
 import { useSettings } from '@hooks/useSettings';
 import { useRebuildRelationships, useRebuildInventory } from '@hooks/useItems';
+import ConvertRelationshipsButton from './relationships/ConvertRelationshipsButton';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -1208,6 +1209,7 @@ export default function Settings() {
                   >
                     {rebuildingRelationships ? 'Rebuilding...' : 'Rebuild relationships'}
                   </Button>
+                <ConvertRelationshipsButton />
                 <Button
                     variant="outlined"
                     color="primary"

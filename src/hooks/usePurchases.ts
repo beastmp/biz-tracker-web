@@ -1,164 +1,304 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
-import apiClientInstance from '@utils/apiClient';
-import { get, post, patch, del } from '@utils/apiClient';
-import { Purchase, PurchasesReport, Item, PurchaseItem, PurchaseTrendItem } from '@custTypes/models';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import apiClientInstance, {
+  RELATIONSHIP_TYPES,
+  ENTITY_TYPES,
+  get, post, patch, del
+} from "@utils/apiClient";
+import {
+  Purchase,
+  PurchasesReport,
+  Item,
+  PurchaseTrendItem,
+  Relationship,
+  RelationshipMeasurement,
+  PurchaseItemAttributes
+} from "@custTypes/models";
+import useRelationships from "./useRelationships";
 
 // Query keys
-const PURCHASES_KEY = 'purchases';
-const PURCHASES_REPORT_KEY = 'purchases-report';
+const PURCHASES_KEY = "purchases";
+const PURCHASES_REPORT_KEY = "purchases-report";
+const RELATIONSHIPS_KEY = "relationships";
 
-// Helper function to create a purchase item with the appropriate measurement values
-export const createPurchaseItem = (
-  item: Item,
-  quantity: number = 0,
-  weight: number = 0,
-  length: number = 0,
-  area: number = 0,
-  volume: number = 0,
-  costPerUnit: number = item.cost || 0
-): PurchaseItem => {
-  const measurementType = item.trackingType || 'quantity';
-
-  const purchaseItem: PurchaseItem = {
-    item: item._id || '',
-    quantity: 0,
-    weight: 0,
-    weightUnit: item.weightUnit,
-    length: 0,
-    lengthUnit: item.lengthUnit,
-    area: 0,
-    areaUnit: item.areaUnit,
-    volume: 0,
-    volumeUnit: item.volumeUnit,
-    costPerUnit: costPerUnit,
-    totalCost: 0,
-    purchasedBy: measurementType
+// Define relationship-based purchase interface - this replaces the old Purchase interface
+export interface RelationshipPurchase {
+  _id?: string;
+  supplier: {
+    name: string;
+    contactName?: string;
+    email?: string;
+    phone?: string;
   };
+  invoiceNumber?: string;
+  purchaseDate?: Date | string;
+  subtotal: number;
+  discountAmount?: number;
+  taxRate?: number;
+  taxAmount?: number;
+  shippingCost?: number;
+  total: number;
+  notes?: string;
+  paymentMethod: string;
+  status: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  // Field to hold relationships
+  relationshipItems?: Relationship[];
+}
 
-  // Set the appropriate measurement value based on tracking type
-  switch (measurementType) {
-    case 'quantity':
-      purchaseItem.quantity = quantity;
-      purchaseItem.totalCost = quantity * costPerUnit;
-      break;
-    case 'weight':
-      purchaseItem.weight = weight;
-      purchaseItem.totalCost = weight * costPerUnit;
-      break;
-    case 'length':
-      purchaseItem.length = length;
-      purchaseItem.totalCost = length * costPerUnit;
-      break;
-    case 'area':
-      purchaseItem.area = area;
-      purchaseItem.totalCost = area * costPerUnit;
-      break;
-    case 'volume':
-      purchaseItem.volume = volume;
-      purchaseItem.totalCost = volume * costPerUnit;
-      break;
-  }
-
-  return purchaseItem;
-};
-
-// Helper function to validate purchase items
-export const validatePurchaseItem = (purchaseItem: PurchaseItem): string | null => {
-  switch (purchaseItem.purchasedBy) {
-    case 'quantity':
-      if (purchaseItem.quantity <= 0) {
-        return 'Quantity must be greater than zero';
-      }
-      break;
-    case 'weight':
-      if (purchaseItem.weight <= 0) {
-        return 'Weight must be greater than zero';
-      }
-      break;
-    case 'length':
-      if (purchaseItem.length <= 0) {
-        return 'Length must be greater than zero';
-      }
-      break;
-    case 'area':
-      if (purchaseItem.area <= 0) {
-        return 'Area must be greater than zero';
-      }
-      break;
-    case 'volume':
-      if (purchaseItem.volume <= 0) {
-        return 'Volume must be greater than zero';
-      }
-      break;
-  }
-  return null;
-};
-
-// Helper function to calculate the total cost for a purchase item
-export const calculatePurchaseItemTotal = (purchaseItem: PurchaseItem): number => {
-  switch (purchaseItem.purchasedBy) {
-    case 'quantity':
-      return purchaseItem.quantity * purchaseItem.costPerUnit;
-    case 'weight':
-      return purchaseItem.weight * purchaseItem.costPerUnit;
-    case 'length':
-      return purchaseItem.length * purchaseItem.costPerUnit;
-    case 'area':
-      return purchaseItem.area * purchaseItem.costPerUnit;
-    case 'volume':
-      return purchaseItem.volume * purchaseItem.costPerUnit;
-    default:
-      return purchaseItem.quantity * purchaseItem.costPerUnit;
-  }
-};
-
-// Helper function to format the purchase item measurement display
-export const formatPurchaseItemMeasurement = (purchaseItem: PurchaseItem): string => {
-  switch (purchaseItem.purchasedBy) {
-    case 'quantity':
-      return `${purchaseItem.quantity} units`;
-    case 'weight':
-      return `${purchaseItem.weight} ${purchaseItem.weightUnit || 'lb'}`;
-    case 'length':
-      return `${purchaseItem.length} ${purchaseItem.lengthUnit || 'in'}`;
-    case 'area':
-      return `${purchaseItem.area} ${purchaseItem.areaUnit || 'sqft'}`;
-    case 'volume':
-      return `${purchaseItem.volume} ${purchaseItem.volumeUnit || 'l'}`;
-    default:
-      return `${purchaseItem.quantity} units`;
-  }
-};
-
-// Hook to fetch all purchases
+// Hook to fetch all purchases with their relationships
 export const usePurchases = () => {
   return useQuery({
     queryKey: [PURCHASES_KEY],
-    queryFn: () => get<Purchase[]>('/purchases')
+    queryFn: async () => {
+      try {
+        // Get purchases from API - these should include relationships
+        const response = await get<any[]>("/purchases");
+
+        // If no purchases are returned, return empty array
+        if (!response || response.length === 0) {
+          return [];
+        }
+
+        // Convert API response to RelationshipPurchase format
+        const purchasesWithRelationships: RelationshipPurchase[] = response.map(
+          purchase => {
+            const purchaseData = purchase._doc || purchase;
+            const purchaseId = purchaseData._id || "unknown";
+
+            // Extract relationships from the API response
+            const items = purchase.relationships?.items || [];
+
+            // Create a clean RelationshipPurchase object
+            return {
+              _id: purchaseId,
+              supplier: purchaseData.supplier || {},
+              invoiceNumber: purchaseData.invoiceNumber,
+              purchaseDate: purchaseData.purchaseDate,
+              subtotal: purchaseData.subtotal || 0,
+              discountAmount: purchaseData.discountAmount || 0,
+              taxRate: purchaseData.taxRate || 0,
+              taxAmount: purchaseData.taxAmount || 0,
+              shippingCost: purchaseData.shippingCost || 0,
+              total: purchaseData.total || 0,
+              notes: purchaseData.notes,
+              paymentMethod: purchaseData.paymentMethod || "cash",
+              status: purchaseData.status || "pending",
+              createdAt: purchaseData.createdAt,
+              updatedAt: purchaseData.updatedAt,
+              relationshipItems: items
+            };
+          }
+        );
+
+        return purchasesWithRelationships;
+      } catch (error) {
+        console.error("Error fetching purchases:", error);
+        throw error;
+      }
+    }
   });
 };
 
-// Hook to fetch a single purchase
+// Hook to fetch a single purchase with its relationships
 export const usePurchase = (id: string | undefined) => {
+  const { getRelationshipsByPrimary } = useRelationships();
+
   return useQuery({
     queryKey: [PURCHASES_KEY, id],
-    queryFn: () => get<Purchase>(`/purchases/${id}`),
+    queryFn: async () => {
+      if (!id) {
+        throw new Error("Purchase ID is required");
+      }
+
+      console.log("Fetching purchase with ID:", id);
+
+      try {
+        // Get the purchase document
+        const purchaseData = await get<RelationshipPurchase>(`/purchases/${id}`);
+        console.log("Received purchase data:", purchaseData);
+
+        // Get relationships for this purchase
+        const relationships = await getRelationshipsByPrimary(
+          id,
+          ENTITY_TYPES.PURCHASE,
+          RELATIONSHIP_TYPES.PURCHASE_ITEM
+        );
+        console.log("Received relationships:", relationships);
+
+        // Return the combined data
+        const combinedData = {
+          ...purchaseData,
+          relationshipItems: relationships || []
+        } as RelationshipPurchase;
+
+        console.log("Returning combined purchase data:", combinedData);
+        return combinedData;
+      } catch (error) {
+        console.error("Error fetching purchase:", error);
+        throw error;
+      }
+    },
     enabled: !!id, // Only run if id exists
   });
 };
 
-// Hook to create a new purchase
+// Helper function to create a relationship measurement from purchase data
+export const createPurchaseMeasurement = (
+  trackingType: string,
+  quantity: number = 0,
+  weight: number = 0,
+  weightUnit: string = "kg",
+  length: number = 0,
+  lengthUnit: string = "m",
+  area: number = 0,
+  areaUnit: string = "sqm",
+  volume: number = 0,
+  volumeUnit: string = "l"
+): RelationshipMeasurement => {
+  const measurement: RelationshipMeasurement = {};
+
+  // Always set quantity as it's used for display purposes
+  measurement.quantity = quantity;
+
+  // Set other measurements based on tracking type
+  switch (trackingType) {
+    case "weight":
+      measurement.weight = weight;
+      measurement.weightUnit = weightUnit;
+      break;
+    case "length":
+      measurement.length = length;
+      measurement.lengthUnit = lengthUnit;
+      break;
+    case "area":
+      measurement.area = area;
+      measurement.areaUnit = areaUnit;
+      break;
+    case "volume":
+      measurement.volume = volume;
+      measurement.volumeUnit = volumeUnit;
+      break;
+  }
+
+  return measurement;
+};
+
+// Helper function to create purchase item attributes
+export const createPurchaseItemAttributes = (
+  costPerUnit: number,
+  totalCost: number,
+  purchasedBy: string,
+  originalCost?: number,
+  discountAmount?: number,
+  discountPercentage?: number
+): PurchaseItemAttributes => {
+  return {
+    costPerUnit,
+    totalCost,
+    purchasedBy,
+    originalCost: originalCost || costPerUnit,
+    discountAmount: discountAmount || 0,
+    discountPercentage: discountPercentage || 0
+  };
+};
+
+// Helper function to calculate total cost from measurements and costPerUnit
+export const calculateTotalCost = (
+  measurements: RelationshipMeasurement,
+  purchasedBy: string,
+  costPerUnit: number
+): number => {
+  switch (purchasedBy) {
+    case "quantity":
+      return (measurements.quantity || 0) * costPerUnit;
+    case "weight":
+      return (measurements.weight || 0) * costPerUnit;
+    case "length":
+      return (measurements.length || 0) * costPerUnit;
+    case "area":
+      return (measurements.area || 0) * costPerUnit;
+    case "volume":
+      return (measurements.volume || 0) * costPerUnit;
+    default:
+      return (measurements.quantity || 0) * costPerUnit;
+  }
+};
+
+// Helper function to format the relationship measurement display
+export const formatPurchaseMeasurement = (
+  relationship: Relationship
+): string => {
+  const measurements = relationship.measurements || {};
+  const attributes = relationship.purchaseItemAttributes || {};
+  const purchasedBy = attributes.purchasedBy || "quantity";
+
+  switch (purchasedBy) {
+    case "quantity":
+      return `${measurements.quantity || 0} units`;
+    case "weight":
+      return `${measurements.weight || 0} ${measurements.weightUnit || "kg"}`;
+    case "length":
+      return `${measurements.length || 0} ${measurements.lengthUnit || "m"}`;
+    case "area":
+      return `${measurements.area || 0} ${measurements.areaUnit || "sqm"}`;
+    case "volume":
+      return `${measurements.volume || 0} ${measurements.volumeUnit || "l"}`;
+    default:
+      return `${measurements.quantity || 0} units`;
+  }
+};
+
+// Hook to create a new purchase with relationships
 export const useCreatePurchase = () => {
   const queryClient = useQueryClient();
+  const { createPurchaseItemRelationship } = useRelationships();
 
   return useMutation({
-    mutationFn: (purchase: Purchase) => post<Purchase>('/purchases', purchase),
+    mutationFn: async (purchase: RelationshipPurchase) => {
+      // First create the base purchase without relationships
+      const purchaseData = {
+        supplier: purchase.supplier,
+        invoiceNumber: purchase.invoiceNumber,
+        purchaseDate: purchase.purchaseDate,
+        subtotal: purchase.subtotal,
+        discountAmount: purchase.discountAmount,
+        taxRate: purchase.taxRate,
+        taxAmount: purchase.taxAmount,
+        shippingCost: purchase.shippingCost,
+        total: purchase.total,
+        notes: purchase.notes,
+        paymentMethod: purchase.paymentMethod,
+        status: purchase.status
+      };
+
+      // Create the purchase first
+      const newPurchase = await post<RelationshipPurchase>("/purchases", purchaseData);
+
+      // Then create relationship for each item if we have any relationships
+      if (purchase.relationshipItems && purchase.relationshipItems.length > 0) {
+        // We need to transform from UI relationships to backend format
+        const createRelationshipPromises = purchase.relationshipItems.map(rel => {
+          return createPurchaseItemRelationship(
+            newPurchase._id || "",
+            rel.secondaryId,
+            rel.measurements || {},
+            rel.purchaseItemAttributes || {}
+          );
+        });
+
+        await Promise.all(createRelationshipPromises);
+      }
+
+      return newPurchase;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY] });
       queryClient.invalidateQueries({ queryKey: [PURCHASES_REPORT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
       // Also invalidate items as inventory quantities change
-      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
     }
   });
 };
@@ -166,18 +306,92 @@ export const useCreatePurchase = () => {
 // Hook to update a purchase
 export const useUpdatePurchase = (id: string | undefined) => {
   const queryClient = useQueryClient();
+  const {
+    createPurchaseItemRelationship,
+    updateRelationship,
+    deleteRelationship,
+    getPurchaseItems
+  } = useRelationships();
 
   return useMutation({
-    mutationFn: (purchase: Partial<Purchase>) => {
+    mutationFn: async (purchase: RelationshipPurchase) => {
       if (!id) throw new Error("Purchase ID is required for updates");
-      return patch<Purchase>(`/purchases/${id}`, purchase);
+
+      // First update the base purchase
+      const purchaseData = {
+        supplier: purchase.supplier,
+        invoiceNumber: purchase.invoiceNumber,
+        purchaseDate: purchase.purchaseDate,
+        subtotal: purchase.subtotal,
+        discountAmount: purchase.discountAmount,
+        taxRate: purchase.taxRate,
+        taxAmount: purchase.taxAmount,
+        shippingCost: purchase.shippingCost,
+        total: purchase.total,
+        notes: purchase.notes,
+        paymentMethod: purchase.paymentMethod,
+        status: purchase.status
+      };
+
+      // Update the purchase
+      const updatedPurchase = await patch<RelationshipPurchase>(`/purchases/${id}`, purchaseData);
+
+      // Handle relationships if provided
+      if (purchase.relationshipItems) {
+        // Get existing relationships
+        const existingRelationships = await getPurchaseItems(id);
+
+        // Create a map of existing relationships by secondaryId for quick lookup
+        const existingRelMap = new Map(
+          existingRelationships.map(rel => [rel.secondaryId, rel])
+        );
+
+        // Create a map of new relationships by secondaryId
+        const newRelMap = new Map(
+          purchase.relationshipItems.map(rel => [rel.secondaryId, rel])
+        );
+
+        // Process each new relationship
+        for (const rel of purchase.relationshipItems) {
+          const existingRel = existingRelMap.get(rel.secondaryId);
+
+          if (existingRel) {
+            // Update existing relationship
+            await updateRelationship(existingRel._id || "", {
+              measurements: rel.measurements,
+              purchaseItemAttributes: rel.purchaseItemAttributes
+            });
+
+            // Remove from map to track what's been processed
+            existingRelMap.delete(rel.secondaryId);
+          } else {
+            // Create new relationship
+            await createPurchaseItemRelationship(
+              id,
+              rel.secondaryId,
+              rel.measurements || {},
+              rel.purchaseItemAttributes || {}
+            );
+          }
+        }
+
+        // Delete any relationships that weren't in the new set
+        for (const [_, rel] of existingRelMap) {
+          if (rel._id) {
+            await deleteRelationship(rel._id);
+          }
+        }
+      }
+
+      return updatedPurchase;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY] });
       queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY, id] });
       queryClient.invalidateQueries({ queryKey: [PURCHASES_REPORT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
       // Also invalidate items as inventory quantities may change
-      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
     }
   });
 };
@@ -191,8 +405,9 @@ export const useDeletePurchase = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY] });
       queryClient.invalidateQueries({ queryKey: [PURCHASES_REPORT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
       // Also invalidate items as inventory quantities change on delete
-      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
     }
   });
 };
@@ -203,10 +418,12 @@ export const usePurchasesReport = (startDate?: string, endDate?: string) => {
     queryKey: [PURCHASES_REPORT_KEY, startDate, endDate],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
 
-      return get<PurchasesReport>(`/purchases/reports/by-date?${params.toString()}`);
+      return get<PurchasesReport>(
+        `/purchases/reports/by-date?${params.toString()}`
+      );
     },
     enabled: !!(startDate && endDate)
   });
@@ -214,10 +431,41 @@ export const usePurchasesReport = (startDate?: string, endDate?: string) => {
 
 // Hook to get purchases containing a specific item
 export const useItemPurchases = (itemId: string | undefined) => {
+  const { getItemPurchases } = useRelationships();
+
   return useQuery({
-    queryKey: [PURCHASES_KEY, 'item', itemId],
-    queryFn: () => get<Purchase[]>(`/purchases/item/${itemId}`),
-    enabled: !!itemId // Only run if itemId exists
+    queryKey: [RELATIONSHIPS_KEY, "item", itemId, "purchases"],
+    queryFn: async () => {
+      if (!itemId) {
+        throw new Error("Item ID is required");
+      }
+
+      // Get all purchase relationships for this item
+      const relationships = await getItemPurchases(itemId);
+
+      // Get unique purchase IDs
+      const purchaseIds = [...new Set(relationships.map(rel => rel.primaryId))];
+
+      // Fetch each purchase
+      const purchasesPromises = purchaseIds.map(id =>
+        get<RelationshipPurchase>(`/purchases/${id}`)
+      );
+
+      const purchases = await Promise.all(purchasesPromises);
+
+      // Add relationships to each purchase
+      return purchases.map(purchase => {
+        const purchaseRelationships = relationships.filter(
+          rel => rel.primaryId === purchase._id
+        );
+
+        return {
+          ...purchase,
+          relationshipItems: purchaseRelationships
+        };
+      });
+    },
+    enabled: !!itemId
   });
 };
 
@@ -244,19 +492,25 @@ export function usePurchasesTrend(startDate?: string, endDate?: string) {
         );
 
         // Process data to include measurement type information
-        const processedData = (response.data.data || []).map((item: PurchaseTrendItem) => ({
-          ...item,
-          // Include breakdowns by measurement type if available
-          quantityTotal: item.measurementBreakdown?.quantity?.total || 0,
-          weightTotal: item.measurementBreakdown?.weight?.total || 0,
-          lengthTotal: item.measurementBreakdown?.length?.total || 0,
-          areaTotal: item.measurementBreakdown?.area?.total || 0,
-          volumeTotal: item.measurementBreakdown?.volume?.total || 0
-        }));
+        const processedData = (response.data.data || []).map(
+          (item: PurchaseTrendItem) => ({
+            ...item,
+            // Include breakdowns by measurement type if available
+            quantityTotal: item.measurementBreakdown?.quantity?.total || 0,
+            weightTotal: item.measurementBreakdown?.weight?.total || 0,
+            lengthTotal: item.measurementBreakdown?.length?.total || 0,
+            areaTotal: item.measurementBreakdown?.area?.total || 0,
+            volumeTotal: item.measurementBreakdown?.volume?.total || 0
+          })
+        );
 
         setData(processedData);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch purchase trends data'));
+        setError(
+          err instanceof Error
+            ? err
+            : new Error("Failed to fetch purchase trends data")
+        );
       } finally {
         setIsLoading(false);
       }
@@ -267,3 +521,51 @@ export function usePurchasesTrend(startDate?: string, endDate?: string) {
 
   return { data, isLoading, error };
 }
+
+// Hook to get purchase items using the relationship system
+export const usePurchaseItems = (purchaseId: string | undefined) => {
+  const { getPurchaseItems } = useRelationships();
+
+  return useQuery({
+    queryKey: [RELATIONSHIPS_KEY, "purchase", purchaseId, "items"],
+    queryFn: () => {
+      if (!purchaseId) {
+        throw new Error("Purchase ID is required");
+      }
+      return getPurchaseItems(purchaseId);
+    },
+    enabled: !!purchaseId,
+  });
+};
+
+// Hook to get purchase assets using the relationship system
+export const usePurchaseAssets = (purchaseId: string | undefined) => {
+  return useQuery({
+    queryKey: [RELATIONSHIPS_KEY, "purchase", purchaseId, "assets"],
+    queryFn: () => {
+      if (!purchaseId) {
+        throw new Error("Purchase ID is required");
+      }
+      return get<Relationship[]>(
+        `/relationships/primary/${purchaseId}?primaryType=${ENTITY_TYPES.PURCHASE}&relationshipType=${RELATIONSHIP_TYPES.PURCHASE_ASSET}`
+      );
+    },
+    enabled: !!purchaseId,
+  });
+};
+
+// Hook to get item purchase history using the relationship system
+export const useItemPurchaseHistory = (itemId: string | undefined) => {
+  const { getItemPurchases } = useRelationships();
+
+  return useQuery({
+    queryKey: [RELATIONSHIPS_KEY, "item", itemId, "purchases"],
+    queryFn: () => {
+      if (!itemId) {
+        throw new Error("Item ID is required");
+      }
+      return getItemPurchases(itemId);
+    },
+    enabled: !!itemId,
+  });
+};
