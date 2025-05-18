@@ -77,7 +77,7 @@ export default function PurchaseDetail() {
             const relationshipData = extractMongoData<Relationship>(rel);
 
             return {
-              _id: relationshipData._id,
+              id: relationshipData.id,
               primaryId: relationshipData.primaryId,
               primaryType: relationshipData.primaryType,
               secondaryId: relationshipData.secondaryId,
@@ -104,7 +104,7 @@ export default function PurchaseDetail() {
 
   // Create a lookup object for items by ID
   const itemLookup = Object.fromEntries(
-    (items || []).map(item => [item._id, item])
+    (items || []).map(item => [item.id, item])
   );
 
   const handleDelete = async () => {
@@ -373,7 +373,7 @@ export default function PurchaseDetail() {
                     const trackingType = getTrackingType(relationship);
 
                     return (
-                      <TableRow key={relationship._id || index}>
+                      <TableRow key={relationship.id || index}>
                         <TableCell>
                           <Box sx={{ display: "flex", alignItems: "center" }}>
                             {getMeasurementIcon(trackingType)}
@@ -494,7 +494,7 @@ export default function PurchaseDetail() {
                   Purchase ID
                 </Typography>
                 <Typography variant="body2">
-                  {purchase._id?.substring(0, 10) || "N/A"}
+                  {purchase.id?.substring(0, 10) || "N/A"}
                 </Typography>
               </Box>
               <Box sx={{

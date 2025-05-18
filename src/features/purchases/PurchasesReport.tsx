@@ -1335,7 +1335,7 @@ export default function PurchasesReport() {
                               const itemName = itemDetails?.name || 'Unknown Item';
                               const category = itemDetails?.category || 'Uncategorized';
                               return (
-                                <TableRow key={`${purchase._id}-${idx}`}>
+                                <TableRow key={`${purchase.id}-${idx}`}>
                                   <TableCell>{itemName}</TableCell>
                                   <TableCell>{category}</TableCell>
                                   <TableCell>
@@ -1384,9 +1384,9 @@ export default function PurchasesReport() {
                 <TableBody>
                   {filteredPurchases.map((purchase) => (
                     <TableRow
-                      key={purchase._id}
+                      key={purchase.id}
                       hover
-                      onClick={() => window.location.href = `/purchases/${purchase._id}`}
+                      onClick={() => window.location.href = `/purchases/${purchase.id}`}
                       style={{ cursor: 'pointer' }}
                     >
                       <TableCell>{purchase.purchaseDate && formatDate(purchase.purchaseDate)}</TableCell>

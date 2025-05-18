@@ -296,7 +296,7 @@ export default function PurchasesList() {
     csvContent += `ID${delimiter}Date${delimiter}Supplier${delimiter}Invoice Number${delimiter}Items${delimiter}Total${delimiter}Status${delimiter}Payment Method\n`;
 
     filteredPurchases.forEach((purchase) => {
-      csvContent += `${purchase._id || ""}${delimiter}`;
+      csvContent += `${purchase.id || ""}${delimiter}`;
       csvContent += `${
         purchase.purchaseDate ? formatDate(purchase.purchaseDate) : ""
       }${delimiter}`;
@@ -639,7 +639,7 @@ export default function PurchasesList() {
                   const itemsDisplay = getPurchaseItemsDisplayText(purchase);
 
                   return (
-                    <TableRow key={purchase._id} hover>
+                    <TableRow key={purchase.id} hover>
                       <TableCell>
                         {purchase.purchaseDate
                           ? formatDate(purchase.purchaseDate)
@@ -647,7 +647,7 @@ export default function PurchasesList() {
                       </TableCell>
                       <TableCell>
                         <RouterLink
-                          to={`/purchases/${purchase._id}`}
+                          to={`/purchases/${purchase.id}`}
                           style={{
                             textDecoration: "none",
                             color: "#0a7ea4"
@@ -670,7 +670,7 @@ export default function PurchasesList() {
                       <TableCell align="center">
                         <IconButton
                           component={RouterLink}
-                          to={`/purchases/${purchase._id}`}
+                          to={`/purchases/${purchase.id}`}
                           color="info"
                           size="small"
                           title="View details"
@@ -679,7 +679,7 @@ export default function PurchasesList() {
                         </IconButton>
                         <IconButton
                           component={RouterLink}
-                          to={`/purchases/${purchase._id}/edit`}
+                          to={`/purchases/${purchase.id}/edit`}
                           color="primary"
                           size="small"
                           title="Edit purchase"
@@ -689,7 +689,7 @@ export default function PurchasesList() {
                         <IconButton
                           color="error"
                           size="small"
-                          onClick={() => purchase._id && handleDelete(purchase._id)}
+                          onClick={() => purchase.id && handleDelete(purchase.id)}
                           title="Delete purchase"
                         >
                           <Delete fontSize="small" />
@@ -721,7 +721,7 @@ export default function PurchasesList() {
               return (
                 <Grid
                   xs={12} sm={6} md={4} lg={3}
-                  key={purchase._id || `purchase-${index}`}
+                  key={purchase.id || `purchase-${index}`}
                 >
                   <Card
                     sx={{
@@ -784,7 +784,7 @@ export default function PurchasesList() {
                     <CardActions>
                       <Button
                         component={RouterLink}
-                        to={`/purchases/${purchase._id}`}
+                        to={`/purchases/${purchase.id}`}
                         size="small"
                         startIcon={<Visibility />}
                       >
@@ -792,7 +792,7 @@ export default function PurchasesList() {
                       </Button>
                       <Button
                         component={RouterLink}
-                        to={`/purchases/${purchase._id}/edit`}
+                        to={`/purchases/${purchase.id}/edit`}
                         size="small"
                         startIcon={<Edit />}
                       >
@@ -803,7 +803,7 @@ export default function PurchasesList() {
                         color="error"
                         startIcon={<Delete />}
                         onClick={() =>
-                          purchase._id && handleDelete(purchase._id)
+                          purchase.id && handleDelete(purchase.id)
                         }
                         sx={{ marginLeft: "auto" }}
                       >

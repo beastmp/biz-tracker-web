@@ -118,7 +118,7 @@ const debugObject = (obj: any, label = "Object"): void => {
 
 // Define RelationshipItem interface to track items in the form before saving
 interface RelationshipItem {
-  _id?: string;
+  id?: string;
   itemId: string;
   itemName: string;
   purchaseType?: PurchaseType;
@@ -422,9 +422,9 @@ export default function PurchaseForm() {
   };
 
   const handleItemSelectionToggle = (item: Item) => {
-    const isSelected = selectedItems.some(selectedItem => selectedItem._id === item._id);
+    const isSelected = selectedItems.some(selectedItem => selectedItem.id === item.id);
     if (isSelected) {
-      setSelectedItems(selectedItems.filter(selectedItem => selectedItem._id !== item._id));
+      setSelectedItems(selectedItems.filter(selectedItem => selectedItem.id !== item.id));
     } else {
       setSelectedItems([...selectedItems, item]);
     }
@@ -432,9 +432,9 @@ export default function PurchaseForm() {
 
   // Handle asset selection toggle
   const handleAssetSelectionToggle = (asset: BusinessAsset) => {
-    const isSelected = selectedAssets.some(selectedAsset => selectedAsset._id === asset._id);
+    const isSelected = selectedAssets.some(selectedAsset => selectedAsset.id === asset.id);
     if (isSelected) {
-      setSelectedAssets(selectedAssets.filter(selectedAsset => selectedAsset._id !== asset._id));
+      setSelectedAssets(selectedAssets.filter(selectedAsset => selectedAsset.id !== asset.id));
     } else {
       setSelectedAssets([...selectedAssets, asset]);
     }
@@ -479,10 +479,10 @@ export default function PurchaseForm() {
 
       // Create relationship
       return {
-        _id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Temporary ID for UI manipulation
+        id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Temporary ID for UI manipulation
         primaryId: "",  // Will be set when purchase is created
         primaryType: ENTITY_TYPES.PURCHASE,
-        secondaryId: item._id || "",
+        secondaryId: item.id || "",
         secondaryType: ENTITY_TYPES.ITEM,
         relationshipType: RELATIONSHIP_TYPES.PURCHASE_ITEM,
         measurements,
@@ -520,10 +520,10 @@ export default function PurchaseForm() {
 
       // Create relationship
       return {
-        _id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Temporary ID for UI
+        id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Temporary ID for UI
         primaryId: "",  // Will be set when purchase is created
         primaryType: ENTITY_TYPES.PURCHASE,
-        secondaryId: asset._id || "",
+        secondaryId: asset.id || "",
         secondaryType: ENTITY_TYPES.ASSET,
         relationshipType: RELATIONSHIP_TYPES.PURCHASE_ASSET,
         measurements,
@@ -548,11 +548,11 @@ export default function PurchaseForm() {
   };
 
   const isItemSelected = (item: Item): boolean => {
-    return selectedItems.some(selectedItem => selectedItem._id === item._id);
+    return selectedItems.some(selectedItem => selectedItem.id === item.id);
   };
 
   const isAssetSelected = (asset: BusinessAsset): boolean => {
-    return selectedAssets.some(selectedAsset => selectedAsset._id === asset._id);
+    return selectedAssets.some(selectedAsset => selectedAsset.id === asset.id);
   };
 
   // Handle removing a relationship item
@@ -772,7 +772,7 @@ export default function PurchaseForm() {
   }
 
   // Create a lookup object for items for efficient access
-  const itemLookup = Object.fromEntries((items || []).map(item => [item._id, item]));
+  const itemLookup = Object.fromEntries((items || []).map(item => [item.id, item]));
 
   // Handle relationship item quantity/measurement change
   const handleRelationshipItemMeasurementChange = (index: number, value: number) => {
@@ -1118,8 +1118,8 @@ export default function PurchaseForm() {
 
                         return (
                           <Draggable
-                            key={relationship._id || `relationship-${index}`}
-                            draggableId={relationship._id || `relationship-${index}`}
+                            key={relationship.id || `relationship-${index}`}
+                            draggableId={relationship.id || `relationship-${index}`}
                             index={index}
                           >
                             {(provided, snapshot) => (
@@ -1494,7 +1494,7 @@ export default function PurchaseForm() {
           <List>
             {items.map((item) => (
               <ListItemButton
-                key={item._id}
+                key={item.id}
                 onClick={() => handleItemSelectionToggle(item)}
                 divider
                 selected={isItemSelected(item)}
@@ -1830,7 +1830,7 @@ export default function PurchaseForm() {
             <List>
               {assets.map((asset) => (
                 <ListItemButton
-                  key={asset._id}
+                  key={asset.id}
                   onClick={() => handleAssetSelectionToggle(asset)}
                   divider
                   selected={isAssetSelected(asset)}
