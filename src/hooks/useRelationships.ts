@@ -236,22 +236,13 @@ const useRelationships = (): UseRelationshipsResult => {
           `primaryType=${primaryType}, relationshipType=${relationshipType}`
         );
 
-        // Make sure we're using the correct case for the type parameters
-        // Backend expects exact case matching for these values
-        // Create query params object to properly format the URL
-        const params: Record<string, string> = {
-          primaryType: primaryType
-        };
-
+        // Build the URL based on the updated endpoint structure
+        let url = `/relationships/primary/${primaryId}/${primaryType}`;
+        
+        // Add relationship type as a query parameter if provided
         if (relationshipType) {
-          params.relationshipType = relationshipType;
+          url += `?relationshipType=${relationshipType}`;
         }
-
-        // Convert params to query string
-        const queryString = new URLSearchParams(params).toString();
-
-        // Use primary/id endpoint with query string
-        const url = `/relationships/primary/${primaryId}?${queryString}`;
 
         console.log(`Making API request to: ${url}`);
 
@@ -310,20 +301,13 @@ const useRelationships = (): UseRelationshipsResult => {
           `secondaryType=${secondaryType}, relationshipType=${relationshipType}`
         );
 
-        // Create query params object to properly format the URL
-        const params: Record<string, string> = {
-          secondaryType
-        };
-
+        // Build the URL based on the updated endpoint structure
+        let url = `/relationships/secondary/${secondaryId}/${secondaryType}`;
+        
+        // Add relationship type as a query parameter if provided
         if (relationshipType) {
-          params.relationshipType = relationshipType;
+          url += `?relationshipType=${relationshipType}`;
         }
-
-        // Convert params to query string
-        const queryString = new URLSearchParams(params).toString();
-
-        // Use secondary/id endpoint with query string
-        const url = `/relationships/secondary/${secondaryId}?${queryString}`;
 
         console.log(`Making API request to: ${url}`);
 
@@ -442,16 +426,17 @@ const useRelationships = (): UseRelationshipsResult => {
       materialId: string,
       measurements: RelationshipMeasurement
     ): Promise<Relationship> => {
-      return createRelationship({
-        primaryId: productId,
-        primaryType: ENTITY_TYPES.ITEM,
-        secondaryId: materialId,
-        secondaryType: ENTITY_TYPES.ITEM,
-        relationshipType: RELATIONSHIP_TYPES.PRODUCT_MATERIAL,
-        measurements
-      });
+      try {
+        // Use the new specialized endpoint
+        return await post<Relationship>(
+          `/relationships/product-material/${productId}/${materialId}`,
+          { measurements }
+        );
+      } catch (error) {
+        return handleApiError(error as ApiError);
+      }
     },
-    [createRelationship]
+    [handleApiError]
   );
 
   const createDerivedItemRelationship = useCallback(
@@ -460,6 +445,7 @@ const useRelationships = (): UseRelationshipsResult => {
       sourceItemId: string,
       measurements: RelationshipMeasurement
     ): Promise<Relationship> => {
+      // For this specific relationship, we'll fall back to the generic endpoint
       return createRelationship({
         primaryId: derivedItemId,
         primaryType: ENTITY_TYPES.ITEM,
@@ -479,17 +465,20 @@ const useRelationships = (): UseRelationshipsResult => {
       measurements: RelationshipMeasurement,
       attributes: Partial<PurchaseItemAttributes>
     ): Promise<Relationship> => {
-      return createRelationship({
-        primaryId: purchaseId,
-        primaryType: ENTITY_TYPES.PURCHASE,
-        secondaryId: itemId,
-        secondaryType: ENTITY_TYPES.ITEM,
-        relationshipType: RELATIONSHIP_TYPES.PURCHASE_ITEM,
-        measurements,
-        purchaseItemAttributes: attributes
-      });
+      try {
+        // Use the new specialized endpoint
+        return await post<Relationship>(
+          `/relationships/purchase-item/${purchaseId}/${itemId}`,
+          { 
+            measurements,
+            purchaseItemAttributes: attributes 
+          }
+        );
+      } catch (error) {
+        return handleApiError(error as ApiError);
+      }
     },
-    [createRelationship]
+    [handleApiError]
   );
 
   const createSaleItemRelationship = useCallback(
@@ -499,17 +488,20 @@ const useRelationships = (): UseRelationshipsResult => {
       measurements: RelationshipMeasurement,
       attributes: Partial<SaleItemAttributes>
     ): Promise<Relationship> => {
-      return createRelationship({
-        primaryId: saleId,
-        primaryType: ENTITY_TYPES.SALE,
-        secondaryId: itemId,
-        secondaryType: ENTITY_TYPES.ITEM,
-        relationshipType: RELATIONSHIP_TYPES.SALE_ITEM,
-        measurements,
-        saleItemAttributes: attributes
-      });
+      try {
+        // Use the new specialized endpoint
+        return await post<Relationship>(
+          `/relationships/sale-item/${saleId}/${itemId}`,
+          { 
+            measurements,
+            saleItemAttributes: attributes 
+          }
+        );
+      } catch (error) {
+        return handleApiError(error as ApiError);
+      }
     },
-    [createRelationship]
+    [handleApiError]
   );
 
   // Helper functions for retrieving specific relationship types

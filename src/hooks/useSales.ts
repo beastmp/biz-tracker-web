@@ -1,13 +1,13 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { get, post, patch, del, RELATIONSHIP_TYPES, ENTITY_TYPES } from '@utils/apiClient';
-import { Sale, SalesReport, Item, SaleItem, SalesTrendItem, Relationship } from '@custTypes/models';
-import { useState, useEffect } from 'react';
-import apiClientInstance from '@utils/apiClient';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { get, post, patch, del, RELATIONSHIP_TYPES, ENTITY_TYPES } from "@utils/apiClient";
+import { Sale, SalesReport, Item, SaleItem, SalesTrendItem, Relationship } from "@custTypes/models";
+import { useState, useEffect } from "react";
+import apiClientInstance from "@utils/apiClient";
 
 // Query keys
-const SALES_KEY = 'sales';
-const SALES_REPORT_KEY = 'sales-report';
-const RELATIONSHIPS_KEY = 'relationships';
+const SALES_KEY = "sales";
+const SALES_REPORT_KEY = "sales-report";
+const RELATIONSHIPS_KEY = "relationships";
 
 // Helper function to create a sale item with the appropriate measurement values
 export const createSaleItem = (
@@ -19,11 +19,11 @@ export const createSaleItem = (
   volume: number = 0,
   customPrice?: number
 ): SaleItem => {
-  const measurementType = item.sellByMeasurement || item.trackingType || 'quantity';
+  const measurementType = item.sellByMeasurement || item.trackingType || "quantity";
   const price = customPrice !== undefined ? customPrice : item.price || 0;
 
   const saleItem: SaleItem = {
-    item: item._id || '',
+    item: item._id || "",
     name: item.name, // Add name field which is needed in several components
     quantity: 0,
     weight: 0,
@@ -40,19 +40,19 @@ export const createSaleItem = (
 
   // Set the appropriate measurement value based on tracking type
   switch (measurementType) {
-    case 'quantity':
+    case "quantity":
       saleItem.quantity = quantity;
       break;
-    case 'weight':
+    case "weight":
       saleItem.weight = weight;
       break;
-    case 'length':
+    case "length":
       saleItem.length = length;
       break;
-    case 'area':
+    case "area":
       saleItem.area = area;
       break;
-    case 'volume':
+    case "volume":
       saleItem.volume = volume;
       break;
   }
@@ -63,41 +63,41 @@ export const createSaleItem = (
 // Helper function to validate sale item quantities against inventory
 export const validateSaleItem = (item: Item, saleItem: SaleItem): string | null => {
   switch (saleItem.soldBy) {
-    case 'quantity':
+    case "quantity":
       if (saleItem.quantity <= 0) {
-        return 'Quantity must be greater than zero';
+        return "Quantity must be greater than zero";
       }
       if (saleItem.quantity > (item.quantity || 0)) {
         return `Only ${item.quantity} units available in stock`;
       }
       break;
-    case 'weight':
+    case "weight":
       if (saleItem.weight <= 0) {
-        return 'Weight must be greater than zero';
+        return "Weight must be greater than zero";
       }
       if (saleItem.weight > (item.weight || 0)) {
         return `Only ${item.weight} ${item.weightUnit} available in stock`;
       }
       break;
-    case 'length':
+    case "length":
       if (saleItem.length <= 0) {
-        return 'Length must be greater than zero';
+        return "Length must be greater than zero";
       }
       if (saleItem.length > (item.length || 0)) {
         return `Only ${item.length} ${item.lengthUnit} available in stock`;
       }
       break;
-    case 'area':
+    case "area":
       if (saleItem.area <= 0) {
-        return 'Area must be greater than zero';
+        return "Area must be greater than zero";
       }
       if (saleItem.area > (item.area || 0)) {
         return `Only ${item.area} ${item.areaUnit} available in stock`;
       }
       break;
-    case 'volume':
+    case "volume":
       if (saleItem.volume <= 0) {
-        return 'Volume must be greater than zero';
+        return "Volume must be greater than zero";
       }
       if (saleItem.volume > (item.volume || 0)) {
         return `Only ${item.volume} ${item.volumeUnit} available in stock`;
@@ -110,15 +110,15 @@ export const validateSaleItem = (item: Item, saleItem: SaleItem): string | null 
 // Helper function to calculate the total price for a sale item
 export const calculateSaleItemTotal = (saleItem: SaleItem): number => {
   switch (saleItem.soldBy) {
-    case 'quantity':
+    case "quantity":
       return saleItem.quantity * saleItem.priceAtSale;
-    case 'weight':
+    case "weight":
       return saleItem.weight * saleItem.priceAtSale;
-    case 'length':
+    case "length":
       return saleItem.length * saleItem.priceAtSale;
-    case 'area':
+    case "area":
       return saleItem.area * saleItem.priceAtSale;
-    case 'volume':
+    case "volume":
       return saleItem.volume * saleItem.priceAtSale;
     default:
       return saleItem.quantity * saleItem.priceAtSale;
@@ -129,7 +129,7 @@ export const calculateSaleItemTotal = (saleItem: SaleItem): number => {
 export const useSales = () => {
   return useQuery({
     queryKey: [SALES_KEY],
-    queryFn: () => get<Sale[]>('/sales')
+    queryFn: () => get<Sale[]>("/sales")
   });
 };
 
@@ -149,8 +149,8 @@ export const useCreateSale = () => {
   return useMutation({
     mutationFn: (sale: Sale) => {
       // Fix any potential URL duplication issues
-      const endpoint = '/sales';
-      console.log('Creating sale with data:', sale);
+      const endpoint = "/sales";
+      console.log("Creating sale with data:", sale);
       return post<Sale>(endpoint, sale);
     },
     onSuccess: () => {
@@ -158,7 +158,7 @@ export const useCreateSale = () => {
       queryClient.invalidateQueries({ queryKey: [SALES_REPORT_KEY] });
       queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
       // Also invalidate items as inventory quantities change
-      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
     }
   });
 };
@@ -178,7 +178,7 @@ export const useUpdateSale = (id: string | undefined) => {
       queryClient.invalidateQueries({ queryKey: [SALES_REPORT_KEY] });
       queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
       // Also invalidate items as inventory quantities may change
-      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
     }
   });
 };
@@ -194,7 +194,7 @@ export const useDeleteSale = () => {
       queryClient.invalidateQueries({ queryKey: [SALES_REPORT_KEY] });
       queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
       // Also invalidate items as inventory quantities change on delete
-      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
     }
   });
 };
@@ -205,10 +205,10 @@ export const useSalesReport = (startDate?: string, endDate?: string) => {
     queryKey: [SALES_REPORT_KEY, startDate, endDate],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
 
-      return get<SalesReport>(`/sales/reports/by-date?${params.toString()}`);
+      return get<SalesReport>(`/sales/stats?${params.toString()}`);
     },
     enabled: !!(startDate && endDate)
   });
@@ -217,8 +217,8 @@ export const useSalesReport = (startDate?: string, endDate?: string) => {
 // Hook to get sales containing a specific item
 export const useItemSales = (itemId: string | undefined) => {
   return useQuery({
-    queryKey: [SALES_KEY, 'item', itemId],
-    queryFn: () => get<Sale[]>(`/sales/item/${itemId}`),
+    queryKey: [SALES_KEY, "item", itemId],
+    queryFn: () => get<Sale[]>(`/relationships/secondary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`),
     enabled: !!itemId // Only run if itemId exists
   });
 };
@@ -241,7 +241,9 @@ export function useSalesTrend(startDate?: string, endDate?: string) {
           data: SalesTrendItem[];
         }
 
-        const response = await apiClientInstance.get<SalesTrendResponse>(`/sales/trends?startDate=${startDate}&endDate=${endDate}`);
+        const response = await apiClientInstance.get<SalesTrendResponse>(
+          `/sales/stats?startDate=${startDate}&endDate=${endDate}&includeBreakdown=true`
+        );
 
         // Process data to include measurement type information
         const processedData = (response.data.data || []).map((item: SalesTrendItem) => ({
@@ -256,7 +258,7 @@ export function useSalesTrend(startDate?: string, endDate?: string) {
 
         setData(processedData);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch trends data'));
+        setError(err instanceof Error ? err : new Error("Failed to fetch trends data"));
       } finally {
         setIsLoading(false);
       }
@@ -271,8 +273,8 @@ export function useSalesTrend(startDate?: string, endDate?: string) {
 // Hook to get sale items using the new relationship system
 export const useSaleItems = (saleId: string | undefined) => {
   return useQuery({
-    queryKey: [RELATIONSHIPS_KEY, 'sale', saleId, 'items'],
-    queryFn: () => get<Relationship[]>(`/relationships/primary/${saleId}?primaryType=${ENTITY_TYPES.SALE}&relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`),
+    queryKey: [RELATIONSHIPS_KEY, "sale", saleId, "items"],
+    queryFn: () => get<Relationship[]>(`/relationships/primary/${saleId}/Sale?relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`),
     enabled: !!saleId,
   });
 };
@@ -280,29 +282,79 @@ export const useSaleItems = (saleId: string | undefined) => {
 // Hook to get item sales history using the new relationship system
 export const useItemSalesHistory = (itemId: string | undefined) => {
   return useQuery({
-    queryKey: [RELATIONSHIPS_KEY, 'item', itemId, 'sales'],
-    queryFn: () => get<Relationship[]>(`/relationships/secondary/${itemId}?secondaryType=${ENTITY_TYPES.ITEM}&relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`),
+    queryKey: [RELATIONSHIPS_KEY, "item", itemId, "sales"],
+    queryFn: () => get<Relationship[]>(`/relationships/secondary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`),
     enabled: !!itemId,
   });
 };
 
-// Hook to convert sale relationships to the new model
-export const useConvertSaleRelationships = () => {
+// Hook for workflow operations on sales
+export const useConfirmSale = (saleId: string | undefined) => {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
-    mutationFn: async (saleId?: string) => {
-      if (saleId) {
-        // Convert relationships for a specific sale
-        return await post(`/relationships/convert/sale/${saleId}`);
-      } else {
-        // Convert all sale relationships
-        return await post('/relationships/convert/sales');
-      }
+    mutationFn: (data: { paymentAmount?: number }) => {
+      if (!saleId) throw new Error("Sale ID is required");
+      return patch<Sale>(`/sales/${saleId}/confirm`, data);
     },
     onSuccess: () => {
+      if (saleId) {
+        queryClient.invalidateQueries({ queryKey: [SALES_KEY, saleId] });
+      }
       queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
-      queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
+    }
+  });
+};
+
+export const useShipSale = (saleId: string | undefined) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: { trackingNumber?: string; shippingProvider?: string }) => {
+      if (!saleId) throw new Error("Sale ID is required");
+      return patch<Sale>(`/sales/${saleId}/ship`, data);
+    },
+    onSuccess: () => {
+      if (saleId) {
+        queryClient.invalidateQueries({ queryKey: [SALES_KEY, saleId] });
+      }
+      queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
+    }
+  });
+};
+
+export const useCompleteSale = (saleId: string | undefined) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: () => {
+      if (!saleId) throw new Error("Sale ID is required");
+      return patch<Sale>(`/sales/${saleId}/complete`, {});
+    },
+    onSuccess: () => {
+      if (saleId) {
+        queryClient.invalidateQueries({ queryKey: [SALES_KEY, saleId] });
+      }
+      queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
+    }
+  });
+};
+
+export const useCancelSale = (saleId: string | undefined) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: { reason?: string }) => {
+      if (!saleId) throw new Error("Sale ID is required");
+      return patch<Sale>(`/sales/${saleId}/cancel`, data);
+    },
+    onSuccess: () => {
+      if (saleId) {
+        queryClient.invalidateQueries({ queryKey: [SALES_KEY, saleId] });
+      }
+      queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
+      // Also invalidate items as inventory quantities will change when a sale is canceled
+      queryClient.invalidateQueries({ queryKey: ["items"] });
     }
   });
 };

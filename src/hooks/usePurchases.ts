@@ -422,7 +422,7 @@ export const usePurchasesReport = (startDate?: string, endDate?: string) => {
       if (endDate) params.append("endDate", endDate);
 
       return get<PurchasesReport>(
-        `/purchases/reports/by-date?${params.toString()}`
+        `/purchases/stats?${params.toString()}`
       );
     },
     enabled: !!(startDate && endDate)
@@ -488,7 +488,7 @@ export function usePurchasesTrend(startDate?: string, endDate?: string) {
         }
 
         const response = await apiClientInstance.get<PurchaseTrendResponse>(
-          `/purchases/trends?startDate=${startDate}&endDate=${endDate}`
+          `/purchases/stats?startDate=${startDate}&endDate=${endDate}&includeBreakdown=true`
         );
 
         // Process data to include measurement type information
@@ -522,50 +522,75 @@ export function usePurchasesTrend(startDate?: string, endDate?: string) {
   return { data, isLoading, error };
 }
 
-// Hook to get purchase items using the relationship system
-export const usePurchaseItems = (purchaseId: string | undefined) => {
-  const { getPurchaseItems } = useRelationships();
-
-  return useQuery({
-    queryKey: [RELATIONSHIPS_KEY, "purchase", purchaseId, "items"],
-    queryFn: () => {
-      if (!purchaseId) {
-        throw new Error("Purchase ID is required");
-      }
-      return getPurchaseItems(purchaseId);
+// Hook for workflow operations on purchases
+export const useConfirmPurchase = (purchaseId: string | undefined) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: { paymentAmount?: number }) => {
+      if (!purchaseId) throw new Error("Purchase ID is required");
+      return patch<Purchase>(`/purchases/${purchaseId}/confirm`, data);
     },
-    enabled: !!purchaseId,
+    onSuccess: () => {
+      if (purchaseId) {
+        queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY, purchaseId] });
+      }
+      queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY] });
+    }
   });
 };
 
-// Hook to get purchase assets using the relationship system
-export const usePurchaseAssets = (purchaseId: string | undefined) => {
-  return useQuery({
-    queryKey: [RELATIONSHIPS_KEY, "purchase", purchaseId, "assets"],
-    queryFn: () => {
-      if (!purchaseId) {
-        throw new Error("Purchase ID is required");
-      }
-      return get<Relationship[]>(
-        `/relationships/primary/${purchaseId}?primaryType=${ENTITY_TYPES.PURCHASE}&relationshipType=${RELATIONSHIP_TYPES.PURCHASE_ASSET}`
-      );
+export const useReceivePurchase = (purchaseId: string | undefined) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: { trackingNumber?: string; shippingProvider?: string }) => {
+      if (!purchaseId) throw new Error("Purchase ID is required");
+      return patch<Purchase>(`/purchases/${purchaseId}/receive`, data);
     },
-    enabled: !!purchaseId,
+    onSuccess: () => {
+      if (purchaseId) {
+        queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY, purchaseId] });
+      }
+      queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY] });
+      // Also invalidate items as inventory quantities will change
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+    }
   });
 };
 
-// Hook to get item purchase history using the relationship system
-export const useItemPurchaseHistory = (itemId: string | undefined) => {
-  const { getItemPurchases } = useRelationships();
-
-  return useQuery({
-    queryKey: [RELATIONSHIPS_KEY, "item", itemId, "purchases"],
-    queryFn: () => {
-      if (!itemId) {
-        throw new Error("Item ID is required");
-      }
-      return getItemPurchases(itemId);
+export const useCompletePurchase = (purchaseId: string | undefined) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: () => {
+      if (!purchaseId) throw new Error("Purchase ID is required");
+      return patch<Purchase>(`/purchases/${purchaseId}/complete`, {});
     },
-    enabled: !!itemId,
+    onSuccess: () => {
+      if (purchaseId) {
+        queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY, purchaseId] });
+      }
+      queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY] });
+    }
+  });
+};
+
+export const useCancelPurchase = (purchaseId: string | undefined) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: { reason?: string }) => {
+      if (!purchaseId) throw new Error("Purchase ID is required");
+      return patch<Purchase>(`/purchases/${purchaseId}/cancel`, data);
+    },
+    onSuccess: () => {
+      if (purchaseId) {
+        queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY, purchaseId] });
+      }
+      queryClient.invalidateQueries({ queryKey: [PURCHASES_KEY] });
+      // Also invalidate items as inventory quantities will change when a purchase is canceled
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+    }
   });
 };

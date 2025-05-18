@@ -1,41 +1,41 @@
 // Define weight units type
-export type WeightUnit = 'oz' | 'lb' | 'g' | 'kg';
+export type WeightUnit = "oz" | "lb" | "g" | "kg";
 
 // Define length units type
-export type LengthUnit = 'mm' | 'cm' | 'm' | 'in' | 'ft' | 'yd';
+export type LengthUnit = "mm" | "cm" | "m" | "in" | "ft" | "yd";
 
 // Define area units type
-export type AreaUnit = 'sqft' | 'sqm' | 'sqyd' | 'acre' | 'ha';
+export type AreaUnit = "sqft" | "sqm" | "sqyd" | "acre" | "ha";
 
 // Define volume units type
-export type VolumeUnit = 'ml' | 'l' | 'gal' | 'floz' | 'cu_ft' | 'cu_m';
+export type VolumeUnit = "ml" | "l" | "gal" | "floz" | "cu_ft" | "cu_m";
 
 // Define tracking types
-export type TrackingType = 'quantity' | 'weight' | 'length' | 'area' | 'volume';
+export type TrackingType = "quantity" | "weight" | "length" | "area" | "volume";
 
 // Define item types
-export type ItemType = 'material' | 'product' | 'both';
+export type ItemType = "material" | "product" | "both";
 
 // Define price types
-export type PriceType = 'each' | 'per_weight_unit' | 'per_length_unit' | 'per_area_unit' | 'per_volume_unit';
+export type PriceType = "each" | "per_weight_unit" | "per_length_unit" | "per_area_unit" | "per_volume_unit";
 
 // Define payment methods
-export type PaymentMethod = 'cash' | 'credit' | 'debit' | 'check' | 'bank_transfer' | 'other';
+export type PaymentMethod = "cash" | "credit" | "debit" | "check" | "bank_transfer" | "other";
 
 // Define sale status
-export type SaleStatus = 'pending' | 'completed' | 'refunded' | 'partially_refunded';
+export type SaleStatus = "pending" | "completed" | "refunded" | "partially_refunded";
 
 // Define purchase status
-export type PurchaseStatus = 'pending' | 'received' | 'partially_received' | 'cancelled';
+export type PurchaseStatus = "pending" | "received" | "partially_received" | "cancelled";
 
 // Define asset status
-export type AssetStatus = 'active' | 'maintenance' | 'retired' | 'lost';
+export type AssetStatus = "active" | "maintenance" | "retired" | "lost";
 
 // Define relationship types
-export type RelationshipType = 'purchase_item' | 'purchase_asset' | 'sale_item' | 'derived' | 'product_material';
+export type RelationshipType = "purchase_item" | "purchase_asset" | "sale_item" | "derived" | "product_material";
 
 // Define entity types for relationships
-export type EntityType = 'Item' | 'Purchase' | 'Sale' | 'Asset';
+export type EntityType = "Item" | "Purchase" | "Sale" | "Asset";
 
 // Define purchase types - this is the new enum we're adding
 export type PurchaseType =
@@ -115,10 +115,17 @@ export interface SaleItemAttributes {
   soldBy?: TrackingType;
 }
 
-// Main relationship interface
-export interface Relationship {
-  _id?: string;
+/**
+ * Base entity interface - all entities will extend this
+ */
+export interface BaseEntity {
+  id?: string;           // Standardized ID field (replacing MongoDB's _id)
+  createdAt?: Date;      // When the entity was created
+  updatedAt?: Date;      // When the entity was last updated
+}
 
+// Main relationship interface
+export interface Relationship extends BaseEntity {
   // Primary entity (The "from" in the relationship)
   primaryId: string;
   primaryType: EntityType;
@@ -139,8 +146,6 @@ export interface Relationship {
   saleItemAttributes?: SaleItemAttributes;
 
   // Common fields
-  createdAt?: Date;
-  updatedAt?: Date;
   notes?: string;
 
   // Legacy flag
@@ -154,8 +159,7 @@ export interface Relationship {
 /**
  * Interface representing an inventory item which can be either a material, product, or both
  */
-export interface Item {
-  _id?: string;          // MongoDB document ID
+export interface Item extends BaseEntity {
   name: string;          // Item name
   sku: string;           // Stock keeping unit (unique identifier)
   category: string;      // Category for grouping/filtering
@@ -195,7 +199,6 @@ export interface Item {
  * Used only for displaying relationships in the UI - not stored in the database
  */
 export interface ItemComponent {
-  _id?: string;
   item: string | Item;     // Reference to the material item
   quantity: number;        // Quantity of the material used
   weight?: number;         // Weight of material used
@@ -217,9 +220,9 @@ export interface ItemComponent {
 export function isPopulatedItem(item: string | Item | null | undefined): item is Item {
   return item !== null &&
          item !== undefined &&
-         typeof item === 'object' &&
-         'name' in item &&
-         typeof item.name === 'string' &&
+         typeof item === "object" &&
+         "name" in item &&
+         typeof item.name === "string" &&
          item.name.length > 0;
 }
 
@@ -249,8 +252,7 @@ export interface Supplier {
 }
 
 // Define sale interface
-export interface Sale {
-  _id?: string;
+export interface Sale extends BaseEntity {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
@@ -263,8 +265,6 @@ export interface Sale {
   paymentMethod: PaymentMethod;
   notes?: string;
   status: SaleStatus;
-  createdAt?: Date;
-  updatedAt?: Date;
 }
 
 export interface PurchaseItem {
@@ -305,8 +305,7 @@ export interface PurchaseItem {
   };
 }
 
-export interface Purchase {
-  _id?: string;
+export interface Purchase extends BaseEntity {
   supplier: Supplier;
   items: PurchaseItem[];
   invoiceNumber?: string;
@@ -320,8 +319,6 @@ export interface Purchase {
   notes?: string;
   paymentMethod: PaymentMethod;
   status: PurchaseStatus;
-  createdAt?: Date;
-  updatedAt?: Date;
 }
 
 // Report interfaces
@@ -385,8 +382,7 @@ export interface PurchaseTrendItem {
 }
 
 // Define business asset interface
-export interface BusinessAsset {
-  _id?: string;
+export interface BusinessAsset extends BaseEntity {
   name: string;
   assetTag?: string;
   category: string;
@@ -402,7 +398,7 @@ export interface BusinessAsset {
   notes?: string;
   status: AssetStatus;
   maintenanceSchedule?: {
-    frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+    frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
     lastMaintenance?: Date;
     nextMaintenance?: Date;
   };
@@ -414,7 +410,5 @@ export interface BusinessAsset {
   }[];
   imageUrl?: string;
   tags?: string[];
-  createdAt?: Date;
-  updatedAt?: Date;
   isInventoryItem: false; // Flag to distinguish from inventory items
 }

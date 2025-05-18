@@ -1,15 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { get, post, patch, del, postFormData, RELATIONSHIP_TYPES, ENTITY_TYPES } from '@utils/apiClient';
-import { Item, Relationship } from '@custTypes/models';
-import { config } from '@config/env';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { get, post, patch, del, postFormData, RELATIONSHIP_TYPES, ENTITY_TYPES } from "@utils/apiClient";
+import { Item, Relationship } from "@custTypes/models";
+import { config } from "@config/env";
 
 // Query keys
-const ITEMS_KEY = 'items';
-const ITEM_KEY = 'item';
-const CATEGORIES_KEY = 'categories';
-const TAGS_KEY = 'tags';
-const SKU_KEY = 'nextSku';
-const RELATIONSHIPS_KEY = 'relationships';
+const ITEMS_KEY = "items";
+const ITEM_KEY = "item";
+const CATEGORIES_KEY = "categories";
+const TAGS_KEY = "tags";
+const SKU_KEY = "nextSku";
+const RELATIONSHIPS_KEY = "relationships";
 
 // Hook to fetch all items
 export const useItems = () => {
@@ -253,13 +253,12 @@ export const useTags = () => {
 
 /**
  * Hook to rebuild item relationships using the new relationship system
- * Uses the item-specific endpoint that directly maps to the backend
  */
 export const useRebuildRelationships = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => post("/items/rebuild-relationships"),
+    mutationFn: () => post("/relationships/rebuild-relationships"),
     onSuccess: () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
@@ -278,11 +277,11 @@ export const useConvertItemRelationships = () => {
   return useMutation({
     mutationFn: async (itemId?: string) => {
       if (itemId) {
-        // Convert relationships for a specific item - use the item-specific endpoint
-        return await post(`/items/${itemId}/convert-relationships`);
+        // Convert relationships for a specific item
+        return await post(`/relationships/convert/item/${itemId}`);
       } else {
-        // Convert all items' relationships - use the items-specific endpoint
-        return await post("/items/convert-relationships");
+        // Convert all items' relationships
+        return await post("/relationships/convert-all");
       }
     },
     onSuccess: () => {
@@ -295,8 +294,8 @@ export const useConvertItemRelationships = () => {
 // Hook to get item relationships
 export const useItemRelationships = (itemId: string | undefined) => {
   return useQuery({
-    queryKey: [RELATIONSHIPS_KEY, 'item', itemId],
-    queryFn: () => get<Relationship[]>(`/relationships/item/${itemId}`),
+    queryKey: [RELATIONSHIPS_KEY, "item", itemId],
+    queryFn: () => get<Relationship[]>(`/relationships/primary/${itemId}/Item`),
     enabled: !!itemId,
   });
 };
@@ -304,8 +303,10 @@ export const useItemRelationships = (itemId: string | undefined) => {
 // Hook to get product components (materials)
 export const useProductComponents = (productId: string | undefined) => {
   return useQuery({
-    queryKey: [RELATIONSHIPS_KEY, 'product', productId, 'components'],
-    queryFn: () => get<Relationship[]>(`/relationships/primary/${productId}?primaryType=${ENTITY_TYPES.ITEM}&relationshipType=${RELATIONSHIP_TYPES.PRODUCT_MATERIAL}`),
+    queryKey: [RELATIONSHIPS_KEY, "product", productId, "components"],
+    queryFn: () => get<Relationship[]>(
+      `/relationships/primary/${productId}/Item?relationshipType=${RELATIONSHIP_TYPES.PRODUCT_MATERIAL}`
+    ),
     enabled: !!productId,
   });
 };
@@ -313,8 +314,10 @@ export const useProductComponents = (productId: string | undefined) => {
 // Hook to get products using a material
 export const useProductsUsingMaterial = (materialId: string | undefined) => {
   return useQuery({
-    queryKey: [RELATIONSHIPS_KEY, 'material', materialId, 'products'],
-    queryFn: () => get<Relationship[]>(`/relationships/secondary/${materialId}?secondaryType=${ENTITY_TYPES.ITEM}&relationshipType=${RELATIONSHIP_TYPES.PRODUCT_MATERIAL}`),
+    queryKey: [RELATIONSHIPS_KEY, "material", materialId, "products"],
+    queryFn: () => get<Relationship[]>(
+      `/relationships/secondary/${materialId}/Item?relationshipType=${RELATIONSHIP_TYPES.PRODUCT_MATERIAL}`
+    ),
     enabled: !!materialId,
   });
 };
@@ -385,8 +388,10 @@ export const useCreateBreakdownItems = () => {
 // Hook to get derived items using the new relationship system
 export const useDerivedItems = (itemId: string | undefined) => {
   return useQuery({
-    queryKey: [RELATIONSHIPS_KEY, 'source', itemId, 'derived'],
-    queryFn: () => get<Relationship[]>(`/relationships/secondary/${itemId}?secondaryType=${ENTITY_TYPES.ITEM}&relationshipType=${RELATIONSHIP_TYPES.DERIVED}`),
+    queryKey: [RELATIONSHIPS_KEY, "source", itemId, "derived"],
+    queryFn: () => get<Relationship[]>(
+      `/relationships/secondary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.DERIVED}`
+    ),
     enabled: !!itemId,
   });
 };
@@ -394,8 +399,10 @@ export const useDerivedItems = (itemId: string | undefined) => {
 // Hook to get parent item using the new relationship system
 export const useParentItem = (itemId: string | undefined) => {
   return useQuery({
-    queryKey: [RELATIONSHIPS_KEY, 'derived', itemId, 'source'],
-    queryFn: () => get<Relationship[]>(`/relationships/primary/${itemId}?primaryType=${ENTITY_TYPES.ITEM}&relationshipType=${RELATIONSHIP_TYPES.DERIVED}`),
+    queryKey: [RELATIONSHIPS_KEY, "derived", itemId, "source"],
+    queryFn: () => get<Relationship[]>(
+      `/relationships/primary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.DERIVED}`
+    ),
     enabled: !!itemId,
   });
 };
