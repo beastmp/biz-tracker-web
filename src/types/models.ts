@@ -119,7 +119,7 @@ export interface SaleItemAttributes {
  * Base entity interface - all entities will extend this
  */
 export interface BaseEntity {
-  id?: string;           // Standardized ID field (replacing MongoDB's _id)
+  id?: string;           // Standardized ID field
   createdAt?: Date;      // When the entity was created
   updatedAt?: Date;      // When the entity was last updated
 }
