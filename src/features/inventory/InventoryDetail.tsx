@@ -94,7 +94,7 @@ export default function InventoryDetail() {
   const handleItemsCreated = (items: Item[]) => {
     // Log each created item for debugging
     console.log(`Created ${items.length} derived items:`, items.map(item => ({
-      id: item._id,
+      id: item.id,
       name: item.name,
       hasDerivedFrom: !!item.derivedFrom,
       derivedFromItem: item.derivedFrom?.item
@@ -223,7 +223,7 @@ export default function InventoryDetail() {
     extraContent?: JSX.Element
   ) => {
     const isPopulated = isPopulatedItem(item);
-    const itemId = isPopulated ? item._id : (typeof item === 'string' ? item : '');
+    const itemId = isPopulated ? item.id : (typeof item === 'string' ? item : '');
     const itemName = isPopulated ? item.name : 'Unknown Item';
     const itemImage = isPopulated && item.imageUrl ? item.imageUrl : '/placeholder.png';
 
@@ -266,7 +266,7 @@ export default function InventoryDetail() {
   useEffect(() => {
     if (item) {
       console.log("Loaded item details:", {
-        id: item._id,
+        id: item.id,
         name: item.name,
         sku: item.sku,
         hasDerivedFrom: !!item.derivedFrom,
@@ -585,9 +585,9 @@ export default function InventoryDetail() {
 
             {/* Add Relationships Display Here */}
             <Grid size={{ xs: 12 }}>
-              {data && data._id && (
+              {data && data.id && (
                 <RelationshipsDisplay
-                  entityId={data._id}
+                  entityId={data.id}
                   entityType="Item"
                   title="Relationships"
                   allowConversion={true}
@@ -1026,7 +1026,7 @@ export default function InventoryDetail() {
               <Stack spacing={2}>
                 {derivedItems.map((derivedItem) => (
                   <Box
-                    key={derivedItem._id}
+                    key={derivedItem.id}
                     sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
                   >
                     {renderRelatedItem(
@@ -1090,7 +1090,7 @@ export default function InventoryDetail() {
                     <Box>
                       <Button
                         component={RouterLink}
-                        to={`/inventory/${data.derivedFrom.item._id}`}
+                        to={`/inventory/${data.derivedFrom.item.id}`}
                         variant="text"
                         sx={{ fontWeight: 'bold', p: 0, textAlign: 'left' }}
                       >
@@ -1136,7 +1136,7 @@ export default function InventoryDetail() {
 
               <Button
                 component={RouterLink}
-                to={`/inventory/${data.derivedFrom.item._id}`}
+                to={`/inventory/${data.derivedFrom.item.id}`}
                 startIcon={<ArrowBack />}
                 color="secondary"
                 variant="outlined"
@@ -1170,9 +1170,9 @@ export default function InventoryDetail() {
                 <List disablePadding>
                   {relatedPurchases.slice(0, 5).map((purchase) => (
                     <ListItem
-                      key={purchase._id}
+                      key={purchase.id}
                       component={RouterLink}
-                      to={`/purchases/${purchase._id}`}
+                      to={`/purchases/${purchase.id}`}
                       sx={{
                         px: 0,
                         borderBottom: '1px solid',
@@ -1187,7 +1187,7 @@ export default function InventoryDetail() {
                       <ListItemText
                         primary={
                           <Typography variant="body1">
-                            {purchase.invoiceNumber || `Purchase #${purchase._id?.toString().slice(-6)}`}
+                            {purchase.invoiceNumber || `Purchase #${purchase.id?.toString().slice(-6)}`}
                           </Typography>
                         }
                         secondary={
@@ -1249,9 +1249,9 @@ export default function InventoryDetail() {
                 <List disablePadding>
                   {relatedSales.slice(0, 5).map((sale) => (
                     <ListItem
-                      key={sale._id}
+                      key={sale.id}
                       component={RouterLink}
-                      to={`/sales/${sale._id}`}
+                      to={`/sales/${sale.id}`}
                       sx={{
                         px: 0,
                         borderBottom: '1px solid',
@@ -1266,7 +1266,7 @@ export default function InventoryDetail() {
                       <ListItemText
                         primary={
                           <Typography variant="body1">
-                            {sale.customerName || `Sale #${sale._id?.toString().slice(-6)}`}
+                            {sale.customerName || `Sale #${sale.id?.toString().slice(-6)}`}
                           </Typography>
                         }
                         secondary={
@@ -1332,7 +1332,7 @@ export default function InventoryDetail() {
                         relatedPurchases.reduce((sum, purchase) => {
                           // Find the specific item in this purchase
                           const purchaseItem = purchase.items.find(i =>
-                            (typeof i.item === 'object' && i.item?._id === id) ||
+                            (typeof i.item === 'object' && i.item?.id === id) ||
                             (typeof i.item === 'string' && i.item === id)
                           );
                           return sum + (purchaseItem?.totalCost || 0);
@@ -1362,7 +1362,7 @@ export default function InventoryDetail() {
                         relatedSales.reduce((sum, sale) => {
                           // Find the specific item in this sale
                           const saleItem = sale.items.find(i =>
-                            (typeof i.item === 'object' && i.item?._id === id) ||
+                            (typeof i.item === 'object' && i.item?.id === id) ||
                             (typeof i.item === 'string' && i.item === id)
                           );
                           return sum + (saleItem ? saleItem.quantity * saleItem.priceAtSale : 0);

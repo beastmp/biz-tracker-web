@@ -179,8 +179,8 @@ export default function InventoryForm() {
         const loadComponents = async () => {
           const cache: Record<string, Item> = {};
           for (const comp of existingItem.components || []) {
-            if (typeof comp.item === 'object' && comp.item._id) {
-              cache[comp.item._id] = comp.item;
+            if (typeof comp.item === 'object' && comp.item.id) {
+              cache[comp.item.id] = comp.item;
             } else if (typeof comp.item === 'string') {
               try {
                 const material = await get<Item>(`/items/${comp.item}`);
@@ -272,11 +272,11 @@ export default function InventoryForm() {
             // Then upload image using the new item's ID
             imageUrl = await uploadImage.mutateAsync({
               file: imageFile,
-              id: initialItem._id
+              id: initialItem.id
             });
 
             // Update the mutable references instead of constants
-            mutableItemId.current = initialItem._id;
+            mutableItemId.current = initialItem.id;
             mutableEditMode.current = true;
           }
 
@@ -336,13 +336,13 @@ export default function InventoryForm() {
 
   // Add a material component to the product
   const handleAddComponent = () => {
-    if (!selectedMaterial || !selectedMaterial._id) return;
+    if (!selectedMaterial || !selectedMaterial.id) return;
 
     const quantity = parseInt(materialQuantity) || 1;
     const weight = materialWeight ? parseFloat(materialWeight) : undefined;
 
     const newComponent = {
-      item: selectedMaterial._id,
+      item: selectedMaterial.id,
       quantity,
       ...(weight ? { weight, weightUnit: selectedMaterial.weightUnit } : {})
     };
@@ -355,7 +355,7 @@ export default function InventoryForm() {
     // Update the component cache for easier display
     setComponentsCache(prev => ({
       ...prev,
-      [selectedMaterial._id as string]: selectedMaterial
+      [selectedMaterial.id as string]: selectedMaterial
     }));
 
     // Reset and close dialog
@@ -1292,7 +1292,7 @@ export default function InventoryForm() {
                   )
                   .map(material => (
                     <ListItem
-                      key={material._id}
+                      key={material.id}
                       onClick={() => {
                         setSelectedMaterial(material);
                         setMaterialQuantity('1');

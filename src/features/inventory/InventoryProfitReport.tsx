@@ -256,7 +256,7 @@ export default function InventoryProfitReport() {
                 const markup = item.cost ? (item.price / item.cost - 1) * 100 : 0;
 
                 return (
-                  <TableRow key={item._id} hover>
+                  <TableRow key={item.id} hover>
                     <TableCell>{item.name}</TableCell>
                     <TableCell>{item.category || 'Uncategorized'}</TableCell>
                     <TableCell>

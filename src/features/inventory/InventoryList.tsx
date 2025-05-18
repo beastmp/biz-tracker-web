@@ -249,13 +249,13 @@ export default function InventoryList() {
       return;
     }
 
-    const item = items.find(i => i._id === itemId);
+    const item = items.find(i => i.id === itemId);
     if (!item) return;
 
     try {
       // Create update data with only the specific fields we want to update
       const updateData: Partial<Item> = {
-        _id: itemId,
+        id: itemId,
         lastUpdated: new Date(),
       };
 
@@ -299,7 +299,7 @@ export default function InventoryList() {
 
   // Add function to begin editing an item
   const startEditing = (item: Item) => {
-    setEditingItem(item._id || null);
+    setEditingItem(item.id || null);
 
     switch (item.trackingType) {
       case 'quantity':
@@ -808,7 +808,7 @@ export default function InventoryList() {
                       {viewMode === 'grid' && (
                         <Grid container spacing={3}>
                           {subgroupItems.map((item) => (
-                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item._id}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item.id}>
                               {/* Existing card component */}
                               <Card sx={{
                                 height: '100%',
@@ -842,7 +842,7 @@ export default function InventoryList() {
 
                                   {/* Stock Status Badge */}
                                   <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
-                                    {item._id === editingItem ? (
+                                    {item.id === editingItem ? (
                                       // Editing mode
                                       <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                                         <TextField
@@ -890,7 +890,7 @@ export default function InventoryList() {
                                         <IconButton
                                           color="primary"
                                           size="small"
-                                          onClick={() => handleUpdateInventory(item._id || '')}
+                                          onClick={() => handleUpdateInventory(item.id || '')}
                                           sx={{ ml: 1 }}
                                         >
                                           <SaveIcon fontSize="small" />
@@ -1013,7 +1013,7 @@ export default function InventoryList() {
                                 <CardActions>
                                   <Button
                                     component={RouterLink}
-                                    to={`/inventory/${item._id}`}
+                                    to={`/inventory/${item.id}`}
                                     size="small"
                                     startIcon={<ViewIcon />}
                                   >
@@ -1021,7 +1021,7 @@ export default function InventoryList() {
                                   </Button>
                                   <Button
                                     component={RouterLink}
-                                    to={`/inventory/${item._id}/edit`}
+                                    to={`/inventory/${item.id}/edit`}
                                     size="small"
                                     startIcon={<EditIcon />}
                                   >
@@ -1031,7 +1031,7 @@ export default function InventoryList() {
                                     size="small"
                                     color="error"
                                     startIcon={<DeleteIcon />}
-                                    onClick={() => item._id && handleDelete(item._id)}
+                                    onClick={() => item.id && handleDelete(item.id)}
                                     sx={{ marginLeft: 'auto' }}
                                   >
                                     Delete
@@ -1047,7 +1047,7 @@ export default function InventoryList() {
                       {viewMode === 'list' && (
                         <Paper sx={{ mb: 3 }}>
                           {subgroupItems.map((item, index) => (
-                            <Box key={item._id}>
+                            <Box key={item.id}>
                               {index > 0 && <Divider />}
                               <Box sx={{
                                 p: 2,
@@ -1109,7 +1109,7 @@ export default function InventoryList() {
 
                                   {/* Stock */}
                                   <Grid size={{ xs: 6, sm: 2 }}>
-                                    {item._id === editingItem ? (
+                                    {item.id === editingItem ? (
                                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                         <TextField
                                           size="small"
@@ -1156,7 +1156,7 @@ export default function InventoryList() {
                                         <IconButton
                                           color="primary"
                                           size="small"
-                                          onClick={() => handleUpdateInventory(item._id || '')}
+                                          onClick={() => handleUpdateInventory(item.id || '')}
                                         >
                                           <SaveIcon fontSize="small" />
                                         </IconButton>
@@ -1205,7 +1205,7 @@ export default function InventoryList() {
                                       <Tooltip title="View Details">
                                         <IconButton
                                           component={RouterLink}
-                                          to={`/inventory/${item._id}`}
+                                          to={`/inventory/${item.id}`}
                                           size="small"
                                           color="info"
                                         >
@@ -1215,7 +1215,7 @@ export default function InventoryList() {
                                       <Tooltip title="Edit Item">
                                         <IconButton
                                           component={RouterLink}
-                                          to={`/inventory/${item._id}/edit`}
+                                          to={`/inventory/${item.id}/edit`}
                                           size="small"
                                           color="primary"
                                         >
@@ -1226,7 +1226,7 @@ export default function InventoryList() {
                                         <IconButton
                                           size="small"
                                           color="error"
-                                          onClick={() => item._id && handleDelete(item._id)}
+                                          onClick={() => item.id && handleDelete(item.id)}
                                         >
                                           <DeleteIcon />
                                         </IconButton>
@@ -1254,7 +1254,7 @@ export default function InventoryList() {
                           filteredItems
                         ).map((item) => (
                           // Existing item card code
-                          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item._id}>
+                          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item.id}>
                             <Card sx={{
                               height: '100%',
                               display: 'flex',
@@ -1287,7 +1287,7 @@ export default function InventoryList() {
 
                                 {/* Stock Status Badge */}
                                 <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
-                                  {item._id === editingItem ? (
+                                  {item.id === editingItem ? (
                                     // Editing mode
                                     <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                                       <TextField
@@ -1335,7 +1335,7 @@ export default function InventoryList() {
                                       <IconButton
                                         color="primary"
                                         size="small"
-                                        onClick={() => handleUpdateInventory(item._id || '')}
+                                        onClick={() => handleUpdateInventory(item.id || '')}
                                         sx={{ ml: 1 }}
                                       >
                                         <SaveIcon fontSize="small" />
@@ -1458,7 +1458,7 @@ export default function InventoryList() {
                               <CardActions>
                                 <Button
                                   component={RouterLink}
-                                  to={`/inventory/${item._id}`}
+                                  to={`/inventory/${item.id}`}
                                   size="small"
                                   startIcon={<ViewIcon />}
                                 >
@@ -1466,7 +1466,7 @@ export default function InventoryList() {
                                 </Button>
                                 <Button
                                   component={RouterLink}
-                                  to={`/inventory/${item._id}/edit`}
+                                  to={`/inventory/${item.id}/edit`}
                                   size="small"
                                   startIcon={<EditIcon />}
                                 >
@@ -1476,7 +1476,7 @@ export default function InventoryList() {
                                   size="small"
                                   color="error"
                                   startIcon={<DeleteIcon />}
-                                  onClick={() => item._id && handleDelete(item._id)}
+                                  onClick={() => item.id && handleDelete(item.id)}
                                   sx={{ marginLeft: 'auto' }}
                                 >
                                   Delete
@@ -1496,7 +1496,7 @@ export default function InventoryList() {
                         groupedItems[selectedGroup] || [] :
                         filteredItems
                       ).map((item, index) => (
-                        <Box key={item._id}>
+                        <Box key={item.id}>
                           {index > 0 && <Divider />}
                           <Box sx={{
                             p: 2,
@@ -1558,7 +1558,7 @@ export default function InventoryList() {
 
                               {/* Stock */}
                               <Grid size={{ xs: 6, sm: 2 }}>
-                                {item._id === editingItem ? (
+                                {item.id === editingItem ? (
                                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <TextField
                                       size="small"
@@ -1605,7 +1605,7 @@ export default function InventoryList() {
                                     <IconButton
                                       color="primary"
                                       size="small"
-                                      onClick={() => handleUpdateInventory(item._id || '')}
+                                      onClick={() => handleUpdateInventory(item.id || '')}
                                     >
                                       <SaveIcon fontSize="small" />
                                     </IconButton>
@@ -1654,7 +1654,7 @@ export default function InventoryList() {
                                   <Tooltip title="View Details">
                                     <IconButton
                                       component={RouterLink}
-                                      to={`/inventory/${item._id}`}
+                                      to={`/inventory/${item.id}`}
                                       size="small"
                                       color="info"
                                     >
@@ -1664,7 +1664,7 @@ export default function InventoryList() {
                                   <Tooltip title="Edit Item">
                                     <IconButton
                                       component={RouterLink}
-                                      to={`/inventory/${item._id}/edit`}
+                                      to={`/inventory/${item.id}/edit`}
                                       size="small"
                                       color="primary"
                                     >
@@ -1675,7 +1675,7 @@ export default function InventoryList() {
                                     <IconButton
                                       size="small"
                                       color="error"
-                                      onClick={() => item._id && handleDelete(item._id)}
+                                      onClick={() => item.id && handleDelete(item.id)}
                                     >
                                       <DeleteIcon />
                                     </IconButton>
