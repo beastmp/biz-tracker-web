@@ -776,11 +776,11 @@ export default function Dashboard() {
               <List disablePadding sx={{ maxHeight: 350, overflow: "auto" }}>
                 {filteredItems.length > 0 ? (
                   filteredItems.map((item, index) => (
-                    <React.Fragment key={item._id || `item-${index}`}>
+                    <React.Fragment key={item.id || `item-${index}`}>
                       {index > 0 && <Divider component="li" />}
                       <ListItem
                         component={RouterLink}
-                        to={`/inventory/${item._id}`}
+                        to={`/inventory/${item.id}`}
                         sx={{
                           textDecoration: "none",
                           color: "inherit",
@@ -831,7 +831,7 @@ export default function Dashboard() {
                             `${item.weight} ${item.weightUnit}`
                           }
                           color={
-                            lowStockItems.some(i => i._id === item._id) ?
+                            lowStockItems.some(i => i.id === item.id) ?
                             "warning" : "default"
                           }
                           sx={{ ml: 1 }}
@@ -927,9 +927,9 @@ export default function Dashboard() {
                 {lowStockItems.length > 0 ? (
                   lowStockItems.slice(0, 8).map((item) => (
                     <ListItem
-                      key={item._id || `low-stock-${item.sku}`}
+                      key={item.id || `low-stock-${item.sku}`}
                       component={RouterLink}
-                      to={`/inventory/${item._id}`}
+                      to={`/inventory/${item.id}`}
                       sx={{
                         textDecoration: "none",
                         color: "inherit",
@@ -1065,13 +1065,13 @@ export default function Dashboard() {
               <List disablePadding>
                 {recentSales.length > 0 ? (
                   recentSales.map((sale, index) => (
-                    <React.Fragment key={sale._id || `sale-${index}`}>
+                    <React.Fragment key={sale.id || `sale-${index}`}>
                       {index > 0 &&
                         <Divider component="li" sx={{ my: 0.5, opacity: 0.6 }} />
                       }
                       <ListItem
                         component={RouterLink}
-                        to={`/sales/${sale._id}`}
+                        to={`/sales/${sale.id}`}
                         sx={{
                           py: 1.5,
                           px: 1,
@@ -1182,13 +1182,13 @@ export default function Dashboard() {
               <List disablePadding>
                 {recentPurchases.length > 0 ? (
                   recentPurchases.map((purchase, index) => (
-                    <React.Fragment key={purchase._id || `purchase-${index}`}>
+                    <React.Fragment key={purchase.id || `purchase-${index}`}>
                       {index > 0 &&
                         <Divider component="li" sx={{ my: 0.5, opacity: 0.6 }} />
                       }
                       <ListItem
                         component={RouterLink}
-                        to={`/purchases/${purchase._id}`}
+                        to={`/purchases/${purchase.id}`}
                         sx={{
                           py: 1.5,
                           px: 1,

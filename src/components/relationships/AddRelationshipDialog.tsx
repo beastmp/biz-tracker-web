@@ -82,7 +82,7 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
         // Item is derived from target
         relationshipData = {
           ...relationshipData,
-          primaryId: item._id as string,
+          primaryId: item.id as string,
           primaryType: "Item",
           secondaryId: targetItemId,
           secondaryType: "Item",
@@ -92,7 +92,7 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
         // Item uses target as material
         relationshipData = {
           ...relationshipData,
-          primaryId: item._id as string,
+          primaryId: item.id as string,
           primaryType: "Item",
           secondaryId: targetItemId,
           secondaryType: "Item",
@@ -155,7 +155,7 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
   /**
    * Filters out the current item from the items list
    */
-  const availableItems: Item[] = items ? items.filter((i: Item) => i._id !== item._id) : [];
+  const availableItems: Item[] = items ? items.filter((i: Item) => i.id !== item.id) : [];
 
   return (
     <>
@@ -203,7 +203,7 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
                     <MenuItem disabled>Loading items...</MenuItem>
                   ) : (
                     availableItems.map((targetItem) => (
-                      <MenuItem key={targetItem._id} value={targetItem._id}>
+                      <MenuItem key={targetItem.id} value={targetItem.id}>
                         {targetItem.name} ({targetItem.sku})
                       </MenuItem>
                     ))

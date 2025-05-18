@@ -432,14 +432,14 @@ const RelationshipsDisplay: React.FC<RelationshipsDisplayProps> = ({
                     </Typography>
                     <List>
                       {primaryRelationships.map((relationship) => (
-                        <React.Fragment key={relationship._id}>
+                        <React.Fragment key={relationship.id}>
                           <ListItem
                             secondaryAction={
                               <Tooltip title="Delete relationship">
                                 <Button
                                   color="error"
                                   size="small"
-                                  onClick={() => handleDeleteClick(relationship._id as string)}
+                                  onClick={() => handleDeleteClick(relationship.id as string)}
                                 >
                                   Delete
                                 </Button>
@@ -495,14 +495,14 @@ const RelationshipsDisplay: React.FC<RelationshipsDisplayProps> = ({
                     </Typography>
                     <List>
                       {secondaryRelationships.map((relationship) => (
-                        <React.Fragment key={relationship._id}>
+                        <React.Fragment key={relationship.id}>
                           <ListItem
                             secondaryAction={
                               <Tooltip title="Delete relationship">
                                 <Button
                                   color="error"
                                   size="small"
-                                  onClick={() => handleDeleteClick(relationship._id as string)}
+                                  onClick={() => handleDeleteClick(relationship.id as string)}
                                 >
                                   Delete
                                 </Button>

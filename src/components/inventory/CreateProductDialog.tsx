@@ -161,7 +161,7 @@ export default function CreateProductDialog({
     // Add multiple materials at once from the materials dialog
     const handleAddMultipleMaterials = () => {
         const newMaterials = selectedMaterialIds.map(id => {
-            const material = items.find(item => item._id === id);
+            const material = items.find(item => item.id === id);
             if (!material) return null;
 
             const quantity = parseInt(materialQuantities[id]) || 1;
@@ -209,7 +209,7 @@ export default function CreateProductDialog({
                 itemType: 'product',
                 cost: materialsCost,
                 components: selectedMaterials.map(({ material, quantity }) => ({
-                    item: material._id || '',
+                    item: material.id || '',
                     quantity
                 }))
             };
@@ -499,11 +499,11 @@ export default function CreateProductDialog({
                                             onChange={(e) => {
                                                 if (e.target.checked) {
                                                     // Select all materials
-                                                    setSelectedMaterialIds(filteredMaterials.map(m => m._id || ''));
+                                                    setSelectedMaterialIds(filteredMaterials.map(m => m.id || ''));
                                                     // Initialize all quantities to 1
                                                     const newQuantities: Record<string, string> = {};
                                                     filteredMaterials.forEach(m => {
-                                                        if (m._id) newQuantities[m._id] = '1';
+                                                        if (m.id) newQuantities[m.id] = '1';
                                                     });
                                                     setMaterialQuantities({ ...materialQuantities, ...newQuantities });
                                                 } else {
@@ -522,8 +522,8 @@ export default function CreateProductDialog({
                             <TableBody>
                                 {filteredMaterials.map(item => (
                                     <TableRow
-                                        key={item._id}
-                                        selected={item._id ? selectedMaterialIds.includes(item._id) : false}
+                                        key={item.id}
+                                        selected={item.id ? selectedMaterialIds.includes(item.id) : false}
                                         sx={{
                                             '&.Mui-selected': {
                                                 backgroundColor: 'rgba(25, 118, 210, 0.08)'
@@ -532,19 +532,19 @@ export default function CreateProductDialog({
                                     >
                                         <TableCell padding="checkbox">
                                             <Checkbox
-                                                checked={item._id ? selectedMaterialIds.includes(item._id) : false}
+                                                checked={item.id ? selectedMaterialIds.includes(item.id) : false}
                                                 onChange={(e) => {
                                                     if (e.target.checked) {
                                                         // Add to selection
-                                                        setSelectedMaterialIds(prev => [...prev, item._id || '']);
+                                                        setSelectedMaterialIds(prev => [...prev, item.id || '']);
                                                         // Set default quantity
                                                         setMaterialQuantities(prev => ({
                                                             ...prev,
-                                                            [item._id || '']: '1'
+                                                            [item.id || '']: '1'
                                                         }));
                                                     } else {
                                                         // Remove from selection
-                                                        setSelectedMaterialIds(prev => prev.filter(id => id !== item._id));
+                                                        setSelectedMaterialIds(prev => prev.filter(id => id !== item.id));
                                                     }
                                                 }}
                                             />
@@ -571,14 +571,14 @@ export default function CreateProductDialog({
                                                 : `${item.weight} ${item.weightUnit}`}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {item._id && selectedMaterialIds.includes(item._id) && (
+                                            {item.id && selectedMaterialIds.includes(item.id) && (
                                                 <TextField
                                                     type="number"
                                                     size="small"
-                                                    value={materialQuantities[item._id] || '1'}
+                                                    value={materialQuantities[item.id] || '1'}
                                                     onChange={(e) => setMaterialQuantities(prev => ({
                                                         ...prev,
-                                                        [item._id as string]: e.target.value
+                                                        [item.id as string]: e.target.value
                                                     }))}
                                                     InputProps={{ inputProps: { min: 1 } }}
                                                     sx={{ width: 70 }}

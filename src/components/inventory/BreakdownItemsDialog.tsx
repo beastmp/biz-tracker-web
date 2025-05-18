@@ -240,7 +240,7 @@ export default function BreakdownItemsDialog({
             updatedItems[index] = {
                 ...updatedItems[index],
                 item: selectedItem,
-                itemId: selectedItem?._id || '',
+                itemId: selectedItem?.id || '',
             };
             setDerivedItems(updatedItems);
             return;
@@ -304,7 +304,7 @@ export default function BreakdownItemsDialog({
 
     // Create breakdown items
     const handleCreateItems = async () => {
-        if (!sourceItem || !sourceItem._id) {
+        if (!sourceItem || !sourceItem.id) {
             setError('Source item is required');
             return;
         }
@@ -356,7 +356,7 @@ export default function BreakdownItemsDialog({
 
             // Send the same data structure regardless of mode
             const result = await createBreakdownItems.mutateAsync({
-                sourceItemId: sourceItem._id,
+                sourceItemId: sourceItem.id,
                 derivedItems: derivedItems.map(item => {
                     const baseItem = {
                         itemId: item.itemId,
@@ -468,11 +468,11 @@ export default function BreakdownItemsDialog({
     // Filter items based on search term and compatible tracking type
     const filteredItems = existingItems.filter(item => {
         // Don't include the source item itself
-        if (item._id === sourceItem?._id) return false;
+        if (item.id === sourceItem?.id) return false;
 
         // Don't include items that are already allocated
         const isAlreadyAllocated = derivedItems.some(derivedItem =>
-            derivedItem.itemId === item._id
+            derivedItem.itemId === item.id
         );
         if (isAlreadyAllocated) return false;
 

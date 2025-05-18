@@ -51,7 +51,7 @@ export default function AssetSelectDialog({
   );
 
   const isAssetSelected = (asset: BusinessAsset): boolean => {
-    return selectedAssets.some(selectedAsset => selectedAsset._id === asset._id);
+    return selectedAssets.some(selectedAsset => selectedAsset.id === asset.id);
   };
 
   return (
@@ -92,7 +92,7 @@ export default function AssetSelectDialog({
           <List>
             {filteredAssets.map((asset) => (
               <ListItemButton
-                key={asset._id}
+                key={asset.id}
                 onClick={() => onSelectAsset(asset)}
                 divider
                 selected={isAssetSelected(asset)}
