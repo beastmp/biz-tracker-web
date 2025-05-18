@@ -112,7 +112,7 @@ export default function SalesList() {
     let filtered = searchQuery
       ? sales.filter(sale =>
           (sale.customerName && sale.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (sale._id && sale._id.includes(searchQuery))
+          (sale.id && sale.id.includes(searchQuery))
         )
       : sales;
 
@@ -195,7 +195,7 @@ export default function SalesList() {
     csvContent += "ID,Date,Customer,Items,Total,Status,Payment Method\n";
 
     filteredSales.forEach(sale => {
-      csvContent += `${sale._id || ''},`;
+      csvContent += `${sale.id || ''},`;
       csvContent += `${sale.createdAt ? formatDate(sale.createdAt) : ''},`;
       csvContent += `${(sale.customerName || 'Walk-in Customer').replace(',', ' ')},`;
       csvContent += `${sale.items.length},`;
@@ -431,12 +431,12 @@ export default function SalesList() {
                   const itemsDisplay = getSaleItemsDisplayText(sale);
 
                   return (
-                    <TableRow key={sale._id} hover>
+                    <TableRow key={sale.id} hover>
                       <TableCell>
                         {sale.createdAt ? formatDate(sale.createdAt) : 'Unknown'}
                       </TableCell>
                       <TableCell>
-                        <RouterLink to={`/sales/${sale._id}`} style={{ textDecoration: 'none', color: '#0a7ea4' }}>
+                        <RouterLink to={`/sales/${sale.id}`} style={{ textDecoration: 'none', color: '#0a7ea4' }}>
                           {sale.customerName || 'Walk-in Customer'}
                         </RouterLink>
                       </TableCell>
@@ -470,7 +470,7 @@ export default function SalesList() {
                       <TableCell align="center">
                         <IconButton
                           component={RouterLink}
-                          to={`/sales/${sale._id}`}
+                          to={`/sales/${sale.id}`}
                           color="info"
                           size="small"
                           title="View details"
@@ -479,7 +479,7 @@ export default function SalesList() {
                         </IconButton>
                         <IconButton
                           component={RouterLink}
-                          to={`/sales/${sale._id}/edit`}
+                          to={`/sales/${sale.id}/edit`}
                           color="primary"
                           size="small"
                           title="Edit sale"
@@ -489,7 +489,7 @@ export default function SalesList() {
                         <IconButton
                           color="error"
                           size="small"
-                          onClick={() => sale._id && handleDelete(sale._id)}
+                          onClick={() => sale.id && handleDelete(sale.id)}
                           title="Delete sale"
                         >
                           <Delete fontSize="small" />
@@ -519,7 +519,7 @@ export default function SalesList() {
               const itemsDisplay = getSaleItemsDisplayText(sale);
 
               return (
-                <Grid size= {{ xs: 12, sm: 6, md: 4, lg: 3 }} key={sale._id}>
+                <Grid size= {{ xs: 12, sm: 6, md: 4, lg: 3 }} key={sale.id}>
                   <Card sx={{
                     height: '100%',
                     display: 'flex',
@@ -559,7 +559,7 @@ export default function SalesList() {
                     <CardActions>
                       <Button
                         component={RouterLink}
-                        to={`/sales/${sale._id}`}
+                        to={`/sales/${sale.id}`}
                         size="small"
                         startIcon={<Visibility />}
                       >
@@ -567,7 +567,7 @@ export default function SalesList() {
                       </Button>
                       <Button
                         component={RouterLink}
-                        to={`/sales/${sale._id}/edit`}
+                        to={`/sales/${sale.id}/edit`}
                         size="small"
                         startIcon={<Edit />}
                       >
@@ -577,7 +577,7 @@ export default function SalesList() {
                         size="small"
                         color="error"
                         startIcon={<Delete />}
-                        onClick={() => sale._id && handleDelete(sale._id)}
+                        onClick={() => sale.id && handleDelete(sale.id)}
                         sx={{ marginLeft: 'auto' }}
                       >
                         Delete

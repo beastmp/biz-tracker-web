@@ -1387,7 +1387,7 @@ export default function SalesReport() {
                               }
 
                               return (
-                                <TableRow key={`${sale._id}-${idx}`}>
+                                <TableRow key={`${sale.id}-${idx}`}>
                                   <TableCell>{itemName}</TableCell>
                                   <TableCell>{category}</TableCell>
                                   <TableCell>
@@ -1436,9 +1436,9 @@ export default function SalesReport() {
                 <TableBody>
                   {filteredSales.slice(0, 10).map((sale) => (
                     <TableRow
-                      key={sale._id}
+                      key={sale.id}
                       hover
-                      onClick={() => window.location.href = `/sales/${sale._id}`}
+                      onClick={() => window.location.href = `/sales/${sale.id}`}
                       style={{ cursor: 'pointer' }}
                     >
                       <TableCell>{sale.createdAt && formatDate(sale.createdAt)}</TableCell>

@@ -191,7 +191,7 @@ export default function SaleForm() {
           }
 
           newItem = {
-            item: selectedItem._id || '',
+            item: selectedItem.id || '',
             name: selectedItem.name,
             quantity,
             weight: 0,
@@ -213,7 +213,7 @@ export default function SaleForm() {
           }
 
           newItem = {
-            item: selectedItem._id || '',
+            item: selectedItem.id || '',
             name: selectedItem.name,
             quantity: 0,
             weight,
@@ -236,7 +236,7 @@ export default function SaleForm() {
           }
 
           newItem = {
-            item: selectedItem._id || '',
+            item: selectedItem.id || '',
             name: selectedItem.name,
             quantity: 0,
             weight: 0,
@@ -259,7 +259,7 @@ export default function SaleForm() {
           }
 
           newItem = {
-            item: selectedItem._id || '',
+            item: selectedItem.id || '',
             name: selectedItem.name,
             quantity: 0,
             weight: 0,
@@ -282,7 +282,7 @@ export default function SaleForm() {
           }
 
           newItem = {
-            item: selectedItem._id || '',
+            item: selectedItem.id || '',
             name: selectedItem.name,
             quantity: 0,
             weight: 0,
@@ -420,7 +420,7 @@ export default function SaleForm() {
 
     // Add the new product to the sale
     const newSaleItem: SaleItem = {
-      item: product._id || '',
+      item: product.id || '',
       name: product.name,
       quantity: 1,
       weight: 0,
@@ -1008,7 +1008,7 @@ export default function SaleForm() {
                 .map((item) => (
                   <ListItemButton
                     onClick={() => handleItemSelect(item)}
-                    key={item._id}
+                    key={item.id}
                     divider
                   >
                     <ListItemAvatar>

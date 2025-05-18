@@ -130,7 +130,7 @@ export default function SaleDetail() {
             Sale Details
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            {sale._id}
+            {sale.id}
           </Typography>
         </Box>
         <Stack direction="row" spacing={2}>
