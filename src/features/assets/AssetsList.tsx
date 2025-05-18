@@ -333,7 +333,7 @@ export default function AssetsList() {
       <Grid container spacing={3}>
         {filteredAssets.length > 0 ? (
           filteredAssets.map(asset => (
-            <Grid size={{ xs:12, sm:6, md:4 }} key={asset._id}>
+            <Grid size={{ xs:12, sm:6, md:4 }} key={asset.id}>
               <Card>
                 <CardContent>
                   <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -428,14 +428,14 @@ export default function AssetsList() {
                   <Button
                     size="small"
                     component={RouterLink}
-                    to={`/assets/${asset._id}`}
+                    to={`/assets/${asset.id}`}
                   >
                     View
                   </Button>
                   <Button
                     size="small"
                     component={RouterLink}
-                    to={`/assets/${asset._id}/edit`}
+                    to={`/assets/${asset.id}/edit`}
                   >
                     Edit
                   </Button>
@@ -443,7 +443,7 @@ export default function AssetsList() {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => handleDelete(asset._id || '')}
+                    onClick={() => handleDelete(asset.id || '')}
                   >
                     <Delete fontSize="small" />
                   </IconButton>

@@ -321,7 +321,7 @@ export default function AssetDetail() {
                   <Typography variant="subtitle2" color="text.secondary">Purchase Reference</Typography>
                   <Button
                     component={RouterLink}
-                    to={`/purchases/${typeof asset.purchaseId === 'string' ? asset.purchaseId : asset.purchaseId._id}`}
+                    to={`/purchases/${typeof asset.purchaseId === 'string' ? asset.purchaseId : asset.purchaseId.id}`}
                     size="small"
                     variant="outlined"
                     sx={{ mt: 0.5 }}
