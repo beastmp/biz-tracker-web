@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios'; // Add this import
-import { get, post, patch, del, RELATIONSHIP_TYPES, ENTITY_TYPES } from '@utils/apiClient';
+import { get, post, patch, del, postFormData, RELATIONSHIP_TYPES, ENTITY_TYPES } from '@utils/apiClient';
 import { Item, Relationship } from '@custTypes/models';
 import { config } from '@config/env';
 
@@ -89,17 +88,8 @@ export const useCreateItem = () => {
             console.log(`${pair[0]}: ${valueDisplay}`);
           }
 
-          const response = await axios({
-            method: 'post',
-            url: `${config.API_URL.replace(/\/+$/, '')}/items`,
-            data: itemData,
-            // Let browser set the content type with boundary
-            headers: {},
-            timeout: 60000,
-            maxContentLength: 10 * 1024 * 1024,
-            maxBodyLength: 10 * 1024 * 1024,
-          });
-          return response.data;
+          // Use the postFormData utility instead of direct axios
+          return await postFormData<Item>('/items', itemData);
         } else {
           // Regular JSON data
           return await post<Item>('/items', itemData);
@@ -163,16 +153,11 @@ export const useUpdateItem = (initialId?: string) => {
               jsonData[key] = value;
             }
           }
-          return await patch<Item>(`/items/${id}`, jsonData);
+          return await patch<Item>(`/items/${effectiveId}`, jsonData);
         }
 
         try {
-          const baseUrl = config.API_URL.replace(/\/+$/, '');
-          const apiPath = `/items/${id}`;
-          const url = new URL(baseUrl);
-          const requestUrl = url.toString() + apiPath;
-
-          console.log(`Making PATCH request to: ${requestUrl}`);
+          console.log(`Making PATCH request to: /items/${effectiveId}`);
           console.log('FormData entries:');
           for (const pair of itemData.entries()) {
             const value = pair[1];
@@ -182,21 +167,8 @@ export const useUpdateItem = (initialId?: string) => {
             console.log(`- ${pair[0]}: ${valueDisplay}`);
           }
 
-          const response = await axios({
-            method: 'patch',
-            url: requestUrl,
-            data: itemData,
-            // Let browser set the correct content-type with boundary
-            headers: {},
-            timeout: 60000,
-            maxContentLength: 10 * 1024 * 1024,
-            maxBodyLength: 10 * 1024 * 1024,
-            onUploadProgress: (progressEvent) => {
-              const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-              console.log(`Upload progress: ${percentCompleted}%`);
-            }
-          });
-          return response.data;
+          // Use the patchFormData utility instead of direct axios
+          return await patch<Item>(`/items/${effectiveId}`, itemData);
         } catch (error: unknown) {
           // Type narrowing for different error types
           if (error && typeof error === 'object' && 'response' in error) {
@@ -212,7 +184,8 @@ export const useUpdateItem = (initialId?: string) => {
         return await patch<Item>(`/items/${effectiveId}`, itemData);
       }
     },
-    onSuccess: (_, __, id) => {
+    onSuccess: (_, variables) => {
+      const id = variables instanceof FormData ? undefined : variables._id;
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
       queryClient.invalidateQueries({ queryKey: [ITEM_KEY, id || initialId] });
     },
@@ -278,12 +251,15 @@ export const useTags = () => {
   });
 };
 
-// Hook to rebuild item relationships using the new relationship system
+/**
+ * Hook to rebuild item relationships using the new relationship system
+ * Uses the item-specific endpoint that directly maps to the backend
+ */
 export const useRebuildRelationships = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => post('/items/rebuild-relationships'),
+    mutationFn: () => post("/items/rebuild-relationships"),
     onSuccess: () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
@@ -292,18 +268,21 @@ export const useRebuildRelationships = () => {
   });
 };
 
-// Hook to convert all item relationships to the new model
+/**
+ * Hook to convert all item relationships to the new model
+ * This hook uses the appropriate endpoints based on the backend implementation
+ */
 export const useConvertItemRelationships = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (itemId?: string) => {
       if (itemId) {
-        // Convert relationships for a specific item
-        return await post(`/relationships/convert/item/${itemId}`);
+        // Convert relationships for a specific item - use the item-specific endpoint
+        return await post(`/items/${itemId}/convert-relationships`);
       } else {
-        // Convert all item relationships
-        return await post('/relationships/convert/items');
+        // Convert all items' relationships - use the items-specific endpoint
+        return await post("/items/convert-relationships");
       }
     },
     onSuccess: () => {

@@ -331,6 +331,10 @@ export default function PurchaseDetail() {
                 </Typography>
                 <Typography variant="body1">{purchase.notes}</Typography>
               </>
+            ):(
+              <Typography variant="body1" color="text.secondary">
+                No supplier information available.
+              </Typography>
             )}
           </Paper>
         </Grid>

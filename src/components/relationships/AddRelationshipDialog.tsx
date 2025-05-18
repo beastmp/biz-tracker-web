@@ -12,7 +12,6 @@ import {
   Select,
   TextField,
   Grid,
-  Box,
   Typography,
   CircularProgress,
   Alert,
@@ -41,7 +40,10 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
   onRelationshipAdded,
 }) => {
   const { createRelationship, loading: relationshipLoading, error } = useRelationships();
-  const { items, loading: itemsLoading } = useItems();
+  /**
+   * Get items data from useItems hook
+   */
+  const { data: items, isLoading: itemsLoading } = useItems();
 
   const [relationshipType, setRelationshipType] = useState<RelationshipType | "">("");
   const [targetItemId, setTargetItemId] = useState<string>("");
@@ -150,7 +152,10 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
   };
 
   // Filter out the current item from the items list
-  const availableItems = items ? items.filter(i => i._id !== item._id) : [];
+  /**
+   * Filters out the current item from the items list
+   */
+  const availableItems: Item[] = items ? items.filter((i: Item) => i._id !== item._id) : [];
 
   return (
     <>
@@ -168,7 +173,7 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
           )}
 
           <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth margin="normal">
                 <InputLabel>Relationship Type</InputLabel>
                 <Select
@@ -185,7 +190,7 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
               </FormControl>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth margin="normal">
                 <InputLabel>Target Item</InputLabel>
                 <Select
@@ -207,13 +212,13 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
               </FormControl>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Typography variant="subtitle1" gutterBottom>
                 Measurements
               </Typography>
             </Grid>
 
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <TextField
                 label="Quantity"
                 type="number"
@@ -227,7 +232,7 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
               />
             </Grid>
 
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <TextField
                 label="Weight"
                 type="number"
@@ -241,7 +246,7 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
               />
             </Grid>
 
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <FormControl fullWidth>
                 <InputLabel>Weight Unit</InputLabel>
                 <Select
@@ -260,7 +265,7 @@ const AddRelationshipDialog: React.FC<AddRelationshipDialogProps> = ({
               </FormControl>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 label="Notes"
                 value={notes}

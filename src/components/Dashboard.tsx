@@ -820,7 +820,7 @@ export default function Dashboard() {
                               </Typography>
                               <Typography variant="body2" fontWeight="medium" color="primary.main" component="span">
                                 {formatCurrency(item.price)}
-                              </Box>
+                              </Typography>
                             </Box>
                           }
                         />
@@ -1108,7 +1108,7 @@ export default function Dashboard() {
                                 <CalendarToday fontSize="small" color="action" sx={{ fontSize: '0.9rem' }} />
                                 <Typography variant="caption" color="text.secondary" component="span">
                                   {formatDate(sale.createdAt || new Date())}
-                                </Box>
+                                </Typography>
                               </Box>
                               <StatusChip status={sale.status} size="small" />
                             </Box>
