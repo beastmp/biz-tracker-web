@@ -52,7 +52,7 @@ import StatusChip from "@components/ui/StatusChip";
 import LoadingScreen from "@components/ui/LoadingScreen";
 import { useSettings } from "@hooks/useSettings";
 import CreateProductDialog from "@components/inventory/CreateProductDialog";
-import { Item, Sale, RelationshipPurchase } from "@custTypes/models";
+import { Item, Sale, Purchase } from "@custTypes/models";
 import {
   PieChart,
   Pie,
@@ -146,7 +146,7 @@ export default function Dashboard() {
     if (!Array.isArray(sales)) return [];
     
     return [...sales]
-      .sort((a: Sale, b: Sale) => {
+      .sort((a, b) => {
         // Safely handle dates that might be strings, Date objects, or undefined
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -160,7 +160,7 @@ export default function Dashboard() {
     if (!Array.isArray(purchases)) return [];
     
     return [...purchases]
-      .sort((a: RelationshipPurchase, b: RelationshipPurchase) => {
+      .sort((a, b) => {
         // Safely handle dates that might be strings, Date objects, or undefined
         const dateA = a.purchaseDate ? new Date(a.purchaseDate).getTime() : 0;
         const dateB = b.purchaseDate ? new Date(b.purchaseDate).getTime() : 0;
@@ -222,10 +222,16 @@ export default function Dashboard() {
         if (!sale.createdAt) return;
         
         try {
-          const saleDate = new Date(sale.createdAt).toISOString().split("T")[0];
-          const dayData = last7Days.find(day => day.date === saleDate);
-          if (dayData) {
-            dayData.sales += sale.total || 0;
+          // Validate that createdAt is a valid date
+          const saleDate = new Date(sale.createdAt);
+          
+          // Check if date is valid before converting to ISO string
+          if (!isNaN(saleDate.getTime())) {
+            const formattedDate = saleDate.toISOString().split("T")[0];
+            const dayData = last7Days.find(day => day.date === formattedDate);
+            if (dayData) {
+              dayData.sales += sale.total || 0;
+            }
           }
         } catch (error) {
           console.error("Error processing sale date:", error);
@@ -240,10 +246,16 @@ export default function Dashboard() {
         if (!purchase.purchaseDate) return;
         
         try {
-          const purchaseDate = new Date(purchase.purchaseDate).toISOString().split("T")[0];
-          const dayData = last7Days.find(day => day.date === purchaseDate);
-          if (dayData) {
-            dayData.purchases += purchase.total || 0;
+          // Validate that purchaseDate is a valid date
+          const purchaseDate = new Date(purchase.purchaseDate);
+          
+          // Check if date is valid before converting to ISO string
+          if (!isNaN(purchaseDate.getTime())) {
+            const formattedDate = purchaseDate.toISOString().split("T")[0];
+            const dayData = last7Days.find(day => day.date === formattedDate);
+            if (dayData) {
+              dayData.purchases += purchase.total || 0;
+            }
           }
         } catch (error) {
           console.error("Error processing purchase date:", error);
