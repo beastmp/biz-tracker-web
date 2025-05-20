@@ -6,22 +6,31 @@ import ErrorBoundary from '@components/ErrorBoundary';
 // Import route objects
 import appRoutes from './routes';
 
-// Component that uses the route objects
+/**
+ * Component that uses the route objects
+ *
+ * @returns {JSX.Element} The routes for the application
+ */
 function AppRoutes() {
   return useRoutes(appRoutes);
 }
 
+/**
+ * Main application component
+ *
+ * @returns {JSX.Element} The main application structure
+ */
 function App() {
   return (
-    <ErrorBoundary>
-      <AppProvider>
-        <SettingsProvider>
-          <BrowserRouter>
+    <AppProvider>
+      <SettingsProvider>
+        <BrowserRouter>
+          <ErrorBoundary>
             <AppRoutes />
-          </BrowserRouter>
-        </SettingsProvider>
-      </AppProvider>
-    </ErrorBoundary>
+          </ErrorBoundary>
+        </BrowserRouter>
+      </SettingsProvider>
+    </AppProvider>
   );
 }
 

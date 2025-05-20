@@ -52,7 +52,7 @@ import StatusChip from "@components/ui/StatusChip";
 import LoadingScreen from "@components/ui/LoadingScreen";
 import { useSettings } from "@hooks/useSettings";
 import CreateProductDialog from "@components/inventory/CreateProductDialog";
-import { Item } from "@custTypes/models";
+import { Item, Sale, RelationshipPurchase } from "@custTypes/models";
 import {
   PieChart,
   Pie,
@@ -70,13 +70,18 @@ import {
 // Colors for charts
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
+/**
+ * Main Dashboard component that displays business overview and metrics
+ * 
+ * @returns {JSX.Element} Dashboard component
+ */
 export default function Dashboard() {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Fetch data using React Query hooks
+  // Fetch data using React Query hooks with proper array validation
   const { data: items = [], isLoading: itemsLoading } = useItems();
   const { data: sales = [], isLoading: salesLoading } = useSales();
   const { data: purchases = [], isLoading: purchasesLoading } = usePurchases();
@@ -85,14 +90,17 @@ export default function Dashboard() {
   // Get low stock threshold settings
   const { settings } = useSettings();
 
-  // Calculate stats
+  // Calculate stats with safety checks
   const lowStockItems = useMemo(() => {
+    // Ensure items is an array
+    if (!Array.isArray(items)) return [];
+    
     return items.filter(item => {
       // If alerts are disabled, don't consider anything low stock
       if (!settings.lowStockAlertsEnabled) return false;
 
       if (item.trackingType === "quantity" &&
-          item.quantity <= settings.quantityThreshold) {
+          (item.quantity || 0) <= (settings.quantityThreshold || 5)) {
         return true;
       }
 
@@ -100,12 +108,12 @@ export default function Dashboard() {
         if (item.priceType === "each" && (item.quantity || 0) <= 3) return true;
 
         const threshold =
-          item.weightUnit === "kg" ? settings.weightThresholds.kg :
-          item.weightUnit === "g" ? settings.weightThresholds.g :
-          item.weightUnit === "lb" ? settings.weightThresholds.lb :
-          item.weightUnit === "oz" ? settings.weightThresholds.oz : 5;
+          item.weightUnit === "kg" ? (settings.weightThresholds?.kg || 5) :
+          item.weightUnit === "g" ? (settings.weightThresholds?.g || 500) :
+          item.weightUnit === "lb" ? (settings.weightThresholds?.lb || 10) :
+          item.weightUnit === "oz" ? (settings.weightThresholds?.oz || 16) : 5;
 
-        if (item.weight <= threshold) return true;
+        if ((item.weight || 0) <= threshold) return true;
       }
 
       return false;
@@ -118,46 +126,68 @@ export default function Dashboard() {
   ]);
 
   const totalInventoryValue = useMemo(() => {
+    // Ensure items is an array
+    if (!Array.isArray(items)) return 0;
+    
     return items.reduce((total, item) => {
       if (item.trackingType === "quantity") {
-        return total + (item.price * item.quantity);
+        return total + ((item.price || 0) * (item.quantity || 0));
       } else {
         if (item.priceType === "each") {
-          return total + (item.price * (item.quantity || 0));
+          return total + ((item.price || 0) * (item.quantity || 0));
         }
-        return total + (item.price * item.weight);
+        return total + ((item.price || 0) * (item.weight || 0));
       }
     }, 0);
   }, [items]);
 
   const recentSales = useMemo(() => {
-    return [...(sales || [])]
-      .sort((a, b) =>
-        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    // Ensure sales is an array
+    if (!Array.isArray(sales)) return [];
+    
+    return [...sales]
+      .sort((a: Sale, b: Sale) => {
+        // Safely handle dates that might be strings, Date objects, or undefined
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      })
       .slice(0, 5);
   }, [sales]);
 
   const recentPurchases = useMemo(() => {
-    return [...(purchases || [])]
-      .sort((a, b) =>
-        new Date(b.purchaseDate || 0).getTime() -
-        new Date(a.purchaseDate || 0).getTime())
+    // Ensure purchases is an array
+    if (!Array.isArray(purchases)) return [];
+    
+    return [...purchases]
+      .sort((a: RelationshipPurchase, b: RelationshipPurchase) => {
+        // Safely handle dates that might be strings, Date objects, or undefined
+        const dateA = a.purchaseDate ? new Date(a.purchaseDate).getTime() : 0;
+        const dateB = b.purchaseDate ? new Date(b.purchaseDate).getTime() : 0;
+        return dateB - dateA;
+      })
       .slice(0, 5);
   }, [purchases]);
 
-  // Filter items based on search
+  // Filter items based on search with safety checks
   const filteredItems = useMemo(() => {
+    // Ensure items is an array
+    if (!Array.isArray(items)) return [];
+    
     return items
       .filter(
         item =>
-          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.sku.toLowerCase().includes(searchQuery.toLowerCase())
+          (item.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (item.sku || "").toLowerCase().includes(searchQuery.toLowerCase())
       )
       .slice(0, 10);
   }, [items, searchQuery]);
 
-  // Prepare data for charts
+  // Prepare data for charts with safety checks
   const categoryData = useMemo(() => {
+    // Ensure items is an array
+    if (!Array.isArray(items)) return [];
+    
     const categories: Record<string, number> = {};
     items.forEach(item => {
       const category = item.category || "Uncategorized";
@@ -173,6 +203,7 @@ export default function Dashboard() {
   }, [items]);
 
   const salesOverTime = useMemo(() => {
+    // Set up the last 7 days
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const date = new Date();
       date.setDate(date.getDate() - i);
@@ -184,25 +215,41 @@ export default function Dashboard() {
       };
     }).reverse();
 
-    // Aggregate sales by day
-    sales.forEach(sale => {
-      const saleDate =
-        new Date(sale.createdAt ?? new Date()).toISOString().split("T")[0];
-      const dayData = last7Days.find(day => day.date === saleDate);
-      if (dayData) {
-        dayData.sales += sale.total;
-      }
-    });
+    // Ensure sales is an array before using it
+    if (Array.isArray(sales)) {
+      // Aggregate sales by day with proper date validation
+      sales.forEach(sale => {
+        if (!sale.createdAt) return;
+        
+        try {
+          const saleDate = new Date(sale.createdAt).toISOString().split("T")[0];
+          const dayData = last7Days.find(day => day.date === saleDate);
+          if (dayData) {
+            dayData.sales += sale.total || 0;
+          }
+        } catch (error) {
+          console.error("Error processing sale date:", error);
+        }
+      });
+    }
 
-    // Aggregate purchases by day
-    purchases.forEach(purchase => {
-      const purchaseDate =
-        new Date(purchase.purchaseDate || new Date()).toISOString().split("T")[0];
-      const dayData = last7Days.find(day => day.date === purchaseDate);
-      if (dayData) {
-        dayData.purchases += purchase.total;
-      }
-    });
+    // Ensure purchases is an array before using it
+    if (Array.isArray(purchases)) {
+      // Aggregate purchases by day with proper date validation
+      purchases.forEach(purchase => {
+        if (!purchase.purchaseDate) return;
+        
+        try {
+          const purchaseDate = new Date(purchase.purchaseDate).toISOString().split("T")[0];
+          const dayData = last7Days.find(day => day.date === purchaseDate);
+          if (dayData) {
+            dayData.purchases += purchase.total || 0;
+          }
+        } catch (error) {
+          console.error("Error processing purchase date:", error);
+        }
+      });
+    }
 
     return last7Days;
   }, [sales, purchases]);
@@ -217,6 +264,36 @@ export default function Dashboard() {
   if (itemsLoading || salesLoading || purchasesLoading || assetsLoading) {
     return <LoadingScreen message="Loading dashboard data..." />;
   }
+
+  // Safely calculate the total sales value
+  const totalSalesValue = Array.isArray(sales) 
+    ? sales.reduce((sum, sale) => sum + (sale.total || 0), 0) 
+    : 0;
+
+  // Safely calculate the total purchases value
+  const totalPurchasesValue = Array.isArray(purchases) 
+    ? purchases.reduce((sum, purchase) => sum + (purchase.total || 0), 0) 
+    : 0;
+    
+  // Safely calculate the total assets value
+  const totalAssetsValue = Array.isArray(assets) 
+    ? assets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0) 
+    : 0;
+
+  // Safely count pending sales
+  const pendingSalesCount = Array.isArray(sales) 
+    ? sales.filter(s => s.status === "pending").length 
+    : 0;
+
+  // Safely count pending purchases
+  const pendingPurchasesCount = Array.isArray(purchases) 
+    ? purchases.filter(p => p.status === "pending").length 
+    : 0;
+
+  // Safely count assets in maintenance
+  const maintenanceAssetsCount = Array.isArray(assets) 
+    ? assets.filter(a => a.status === "maintenance").length 
+    : 0;
 
   return (
     <Box className="fade-in">
@@ -337,7 +414,7 @@ export default function Dashboard() {
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" fontWeight="bold">
-                    {sales.length}
+                    {Array.isArray(sales) ? sales.length : 0}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -345,12 +422,12 @@ export default function Dashboard() {
                     component="div"
                     sx={{ mb: 1 }}
                   >
-                    {formatCurrency(sales.reduce((sum, sale) => sum + sale.total, 0))}
+                    {formatCurrency(totalSalesValue)}
                   </Typography>
 
-                  {sales.filter(s => s.status === "pending").length > 0 && (
+                  {pendingSalesCount > 0 && (
                     <Chip
-                      label={`${sales.filter(s => s.status === "pending").length} pending`}
+                      label={`${pendingSalesCount} pending`}
                       color="info"
                       size="small"
                       icon={<Info fontSize="small" />}
@@ -384,7 +461,7 @@ export default function Dashboard() {
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" fontWeight="bold">
-                    {purchases.length}
+                    {Array.isArray(purchases) ? purchases.length : 0}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -392,16 +469,12 @@ export default function Dashboard() {
                     component="div"
                     sx={{ mb: 1 }}
                   >
-                    {formatCurrency(
-                      purchases.reduce((sum, purchase) => sum + purchase.total, 0)
-                    )}
+                    {formatCurrency(totalPurchasesValue)}
                   </Typography>
 
-                  {purchases.filter(p => p.status === "pending").length > 0 && (
+                  {pendingPurchasesCount > 0 && (
                     <Chip
-                      label={
-                        `${purchases.filter(p => p.status === "pending").length} in transit`
-                      }
+                      label={`${pendingPurchasesCount} in transit`}
                       color="secondary"
                       size="small"
                       icon={<LocalShippingOutlined fontSize="small" />}
@@ -435,7 +508,7 @@ export default function Dashboard() {
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" fontWeight="bold">
-                    {assets.length}
+                    {Array.isArray(assets) ? assets.length : 0}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -443,16 +516,12 @@ export default function Dashboard() {
                     component="div"
                     sx={{ mb: 1 }}
                   >
-                    {formatCurrency(
-                      assets.reduce((sum, asset) => sum + asset.currentValue, 0)
-                    )}
+                    {formatCurrency(totalAssetsValue)}
                   </Typography>
 
-                  {assets.filter(a => a.status === "maintenance").length > 0 && (
+                  {maintenanceAssetsCount > 0 && (
                     <Chip
-                      label={
-                        `${assets.filter(a => a.status === "maintenance").length} in maintenance`
-                      }
+                      label={`${maintenanceAssetsCount} in maintenance`}
                       color="warning"
                       size="small"
                       icon={<Construction fontSize="small" />}
@@ -644,19 +713,15 @@ export default function Dashboard() {
                       All inventory items are at healthy stock levels. Keep up the good work!
                     </Typography>
                   )}
-                  {sales.filter(s => s.status === "pending").length > 0 && (
+                  {pendingSalesCount > 0 && (
                     <Typography variant="body2" sx={{ mt: 1 }} component="div">
-                      There are <strong>
-                        {sales.filter(s => s.status === "pending").length} pending
-                        sales orders
-                      </strong> that require processing.
+                      There are <strong>{pendingSalesCount} pending sales orders</strong> that 
+                      require processing.
                     </Typography>
                   )}
-                  {purchases.filter(p => p.status === "pending").length > 0 && (
+                  {pendingPurchasesCount > 0 && (
                     <Typography variant="body2" sx={{ mt: 1 }} component="div">
-                      <strong>
-                        {purchases.filter(p => p.status === "pending").length} purchases
-                      </strong> are currently in transit.
+                      <strong>{pendingPurchasesCount} purchases</strong> are currently in transit.
                     </Typography>
                   )}
                 </Paper>
@@ -819,7 +884,7 @@ export default function Dashboard() {
                                 SKU: {item.sku}
                               </Typography>
                               <Typography variant="body2" fontWeight="medium" color="primary.main" component="span">
-                                {formatCurrency(item.price)}
+                                {formatCurrency(item.price || 0)}
                               </Typography>
                             </Box>
                           }
@@ -827,8 +892,8 @@ export default function Dashboard() {
                         <Chip
                           size="small"
                           label={item.trackingType === "quantity" ?
-                            `${item.quantity} in stock` :
-                            `${item.weight} ${item.weightUnit}`
+                            `${item.quantity || 0} in stock` :
+                            `${item.weight || 0} ${item.weightUnit || 'units'}`
                           }
                           color={
                             lowStockItems.some(i => i.id === item.id) ?
@@ -963,8 +1028,8 @@ export default function Dashboard() {
                               color="warning"
                               icon={<Warning fontSize="small" />}
                               label={item.trackingType === "quantity" ?
-                                `${item.quantity} left` :
-                                `${item.weight} ${item.weightUnit} left`
+                                `${item.quantity || 0} left` :
+                                `${item.weight || 0} ${item.weightUnit || 'units'} left`
                               }
                             />
                           </Box>
@@ -976,7 +1041,7 @@ export default function Dashboard() {
                                 <LinearProgress
                                   variant="determinate"
                                   value={item.trackingType === 'quantity'
-                                    ? Math.min(item.quantity / settings.quantityThreshold * 50, 100)
+                                    ? Math.min((item.quantity || 0) / (settings.quantityThreshold || 5) * 50, 100)
                                     : 30 // Simplified for weight-based items
                                   }
                                   color="warning"
@@ -1098,7 +1163,7 @@ export default function Dashboard() {
                                 {sale.customerName || "Walk-in Customer"}
                               </Typography>
                               <Typography fontWeight={600} color="primary.main" component="div">
-                                {formatCurrency(sale.total)}
+                                {formatCurrency(sale.total || 0)}
                               </Typography>
                             </Box>
                           }
@@ -1107,10 +1172,10 @@ export default function Dashboard() {
                               <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <CalendarToday fontSize="small" color="action" sx={{ fontSize: '0.9rem' }} />
                                 <Typography variant="caption" color="text.secondary" component="span">
-                                  {formatDate(sale.createdAt || new Date())}
+                                  {sale.createdAt ? formatDate(sale.createdAt) : ""}
                                 </Typography>
                               </Box>
-                              <StatusChip status={sale.status} size="small" />
+                              <StatusChip status={sale.status || "pending"} size="small" />
                             </Box>
                           }
                         />
@@ -1136,7 +1201,7 @@ export default function Dashboard() {
                 )}
               </List>
 
-              {sales.length > 5 && (
+              {Array.isArray(sales) && sales.length > 5 && (
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
                   <Button
                     component={RouterLink}
@@ -1215,7 +1280,7 @@ export default function Dashboard() {
                                 {purchase.supplier?.name || "Unknown Supplier"}
                               </Typography>
                               <Typography fontWeight={600} color="info.main" component="div">
-                                {formatCurrency(purchase.total)}
+                                {formatCurrency(purchase.total || 0)}
                               </Typography>
                             </Box>
                           }
@@ -1225,10 +1290,10 @@ export default function Dashboard() {
                                 <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                   <CalendarToday fontSize="small" color="action" sx={{ fontSize: '0.9rem' }} />
                                   <Typography variant="caption" color="text.secondary" component="span">
-                                    {formatDate(purchase.purchaseDate || new Date())}
+                                    {purchase.purchaseDate ? formatDate(purchase.purchaseDate) : ""}
                                   </Typography>
                                 </Box>
-                                <StatusChip status={purchase.status} size="small" />
+                                <StatusChip status={purchase.status || "pending"} size="small" />
                               </Box>
                             </Typography>
                           }
@@ -1255,7 +1320,7 @@ export default function Dashboard() {
                 )}
               </List>
 
-              {purchases.length > 5 && (
+              {Array.isArray(purchases) && purchases.length > 5 && (
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
                   <Button
                     component={RouterLink}
