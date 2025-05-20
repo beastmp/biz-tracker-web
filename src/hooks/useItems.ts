@@ -23,7 +23,7 @@ export const useItems = () => {
     queryFn: async () => {
       try {
         // Request all items by setting a very high limit
-        const response = await get<{ status: string; results: number; data: Item[] }>("/items?page=1&limit=10000");
+        const response = await get<{ status: string; results: number; data: Item[] }>("/items");
         // Ensure we always return an array from the data property
         return Array.isArray(response.data) ? response.data : [];
       } catch (error) {
@@ -238,50 +238,131 @@ export const useDeleteItem = () => {
   });
 };
 
-// Hook to get the next SKU
+/**
+ * Hook to get the next SKU
+ * Provides the next available SKU based on the pattern of 10 digits (e.g., 0000000001)
+ * Falls back to local calculation when backend API is unavailable
+ *
+ * @returns {Object} Query result with the next available SKU string
+ */
 export const useNextSku = () => {
+  const { data: items } = useItems();
+  
   return useQuery({
     queryKey: [SKU_KEY],
     queryFn: async () => {
       try {
-        const response = await get<{ nextSku: string }>('/items/nextsku');
+        // Try to get from backend first
+        const response = await get<{ nextSku: string }>("/items/nextsku");
         return response.nextSku;
       } catch (error) {
-        console.error('Error in getNextSku:', error);
-        return "0000000001"; // Default fallback
+        console.warn("Backend nextSku API unavailable, calculating locally:", error);
+        
+        // Fall back to local calculation
+        if (!Array.isArray(items)) {
+          return "0000000001"; // Default if no items available
+        }
+        
+        // Filter items with numeric SKUs matching our 10-digit pattern
+        const numericSkus = items
+          .map(item => item.sku)
+          .filter(sku => /^\d{10}$/.test(sku))
+          .map(sku => parseInt(sku, 10))
+          .filter(num => !isNaN(num));
+        
+        if (numericSkus.length === 0) {
+          return "0000000001"; // First SKU if none match pattern
+        }
+        
+        // Find highest existing SKU and increment
+        const highestSku = Math.max(...numericSkus);
+        const nextSkuNumber = highestSku + 1;
+        
+        // Pad to 10 digits
+        return nextSkuNumber.toString().padStart(10, "0");
       }
     },
+    // Re-calculate when items change since we might use them for fallback
+    enabled: Array.isArray(items),
     staleTime: Infinity, // This rarely changes during a session
   });
 };
 
-// Hook to get all categories
+/**
+ * Hook to get all unique categories from items
+ * Falls back to extracting categories from items when backend API is unavailable
+ *
+ * @returns {Object} Query result with array of unique category strings
+ */
 export const useCategories = () => {
+  const { data: items } = useItems();
+  
   return useQuery({
     queryKey: [CATEGORIES_KEY],
     queryFn: async () => {
       try {
-        return await get<string[]>('/items/categories?page=1&limit=10000');
+        // Try to get from backend first
+        const response = await get<string[]>("/items/categories");
+        return response;
       } catch (error) {
-        console.error('Error in getCategories:', error);
-        return []; // Default fallback
+        console.warn("Backend categories API unavailable, calculating locally:", error);
+        
+        // Fall back to extracting from items
+        if (!Array.isArray(items)) {
+          return []; // Default if no items
+        }
+        
+        // Extract unique categories, excluding empty ones
+        const uniqueCategories = [...new Set(
+          items
+            .map(item => item.category)
+            .filter(category => typeof category === "string" && category.trim() !== "")
+        )];
+        
+        return uniqueCategories.sort();
       }
-    }
+    },
+    // Re-calculate when items change since we might use them for fallback
+    enabled: Array.isArray(items),
   });
 };
 
-// Hook to get all tags
+/**
+ * Hook to get all unique tags from items
+ * Falls back to extracting tags from items when backend API is unavailable
+ *
+ * @returns {Object} Query result with array of unique tag strings
+ */
 export const useTags = () => {
+  const { data: items } = useItems();
+  
   return useQuery({
     queryKey: [TAGS_KEY],
     queryFn: async () => {
       try {
-        return await get<string[]>('/items/tags?page=1&limit=10000');
+        // Try to get from backend first
+        const response = await get<string[]>("/items/tags");
+        return response;
       } catch (error) {
-        console.error('Error in getTags:', error);
-        return []; // Default fallback
+        console.warn("Backend tags API unavailable, calculating locally:", error);
+        
+        // Fall back to extracting from items
+        if (!Array.isArray(items)) {
+          return []; // Default if no items
+        }
+        
+        // Extract unique tags from all items, flattening arrays and excluding empty tags
+        const allTags = items
+          .flatMap(item => Array.isArray(item.tags) ? item.tags : [])
+          .filter(tag => typeof tag === "string" && tag.trim() !== "");
+          
+        const uniqueTags = [...new Set(allTags)];
+        
+        return uniqueTags.sort();
       }
-    }
+    },
+    // Re-calculate when items change since we might use them for fallback
+    enabled: Array.isArray(items),
   });
 };
 
@@ -338,7 +419,7 @@ export const useItemRelationships = (itemId: string | undefined) => {
     queryFn: async () => {
       try {
         const response = await get<{ status: string; results: number; data: Relationship[] }>(
-          `/relationships/primary/${itemId}/Item?page=1&limit=10000`
+          `/relationships/primary/${itemId}/Item`
         );
         // Ensure we always return an array from the data property
         return Array.isArray(response.data) ? response.data : [];
