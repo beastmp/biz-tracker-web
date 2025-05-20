@@ -12,10 +12,25 @@ const SKU_KEY = "nextSku";
 const RELATIONSHIPS_KEY = "relationships";
 
 // Hook to fetch all items
+/**
+ * Hook to fetch all items without pagination limits
+ * 
+ * @returns {Object} Query result with items data always as an array
+ */
 export const useItems = () => {
   return useQuery({
     queryKey: [ITEMS_KEY],
-    queryFn: () => get<Item[]>('/items')
+    queryFn: async () => {
+      try {
+        // Request all items by setting a very high limit
+        const response = await get<{ status: string; results: number; data: Item[] }>("/items?page=1&limit=10000");
+        // Ensure we always return an array from the data property
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error("Error fetching items:", error);
+        return []; // Return empty array on error
+      }
+    }
   });
 };
 
@@ -26,7 +41,8 @@ export const useItem = (id: string | undefined) => {
     queryFn: async () => {
       try {
         // Always request populated version for relationship data
-        return await get<Item>(`/items/${id}?populate=true`);
+        const response = await get<{ status: string; data: Item }>(`/items/${id}?populate=true`);
+        return response.data;
       } catch (error) {
         console.error(`Error fetching item ${id}:`, error);
         throw error;
@@ -112,6 +128,12 @@ export const useCreateItem = () => {
 };
 
 // Hook to update an item
+/**
+ * Hook to update an item, letting the backend handle tag array conversion
+ * 
+ * @param {string} [initialId] - Optional initial ID of the item to update
+ * @returns {Object} Mutation object for updating an item
+ */
 export const useUpdateItem = (initialId?: string) => {
   const queryClient = useQueryClient();
 
@@ -119,11 +141,11 @@ export const useUpdateItem = (initialId?: string) => {
     mutationFn: async (itemData: FormData | Item, id?: string) => {
       // Use the provided ID, or the initial ID, or try to get it from the item data
       const effectiveId = id || initialId || (
-        itemData instanceof FormData ? undefined : itemData._id
+        itemData instanceof FormData ? undefined : itemData.id
       );
 
       if (!effectiveId) {
-        throw new Error('Item ID is required for updates');
+        throw new Error("Item ID is required for updates");
       }
 
       // Check if we're dealing with FormData with an actual image file
@@ -131,7 +153,7 @@ export const useUpdateItem = (initialId?: string) => {
         // Check if there's an actual new image file being uploaded
         let hasImageFile = false;
         for (const pair of itemData.entries()) {
-          if (pair[0] === 'image' && pair[1] instanceof File) {
+          if (pair[0] === "image" && pair[1] instanceof File) {
             hasImageFile = true;
             break;
           }
@@ -140,25 +162,35 @@ export const useUpdateItem = (initialId?: string) => {
         // If no actual file is being uploaded, convert to regular JSON
         if (!hasImageFile) {
           const jsonData: Record<string, unknown> = {};
+          
+          // Pre-process FormData without special tag handling
           for (const [key, value] of itemData.entries()) {
-            // Parse special fields as needed
-            if (key === 'tags') {
-              jsonData[key] = JSON.parse(value as string);
-            } else if ([
-              'quantity', 'weight', 'length', 'area', 'volume', 'price', 'cost'
+            if ([
+              "quantity", "weight", "length", "area", "volume", "price", "cost"
             ].includes(key)) {
               // Parse all numeric measurement fields
               jsonData[key] = parseFloat(value as string);
+            } else if (key === "tags" && typeof value === "string") {
+              // Simple parsing of tags as JSON without special handling for empty arrays
+              try {
+                jsonData[key] = JSON.parse(value);
+              } catch (e) {
+                jsonData[key] = value;
+              }
             } else {
               jsonData[key] = value;
             }
           }
+          
+          console.log(`Sending JSON data update to: /items/${effectiveId}`);
+          
           return await patch<Item>(`/items/${effectiveId}`, jsonData);
         }
 
         try {
           console.log(`Making PATCH request to: /items/${effectiveId}`);
-          console.log('FormData entries:');
+          console.log("FormData entries:");
+          
           for (const pair of itemData.entries()) {
             const value = pair[1];
             const valueDisplay = value instanceof File
@@ -167,25 +199,27 @@ export const useUpdateItem = (initialId?: string) => {
             console.log(`- ${pair[0]}: ${valueDisplay}`);
           }
 
-          // Use the patchFormData utility instead of direct axios
+          // Use the patch utility without special tag handling
           return await patch<Item>(`/items/${effectiveId}`, itemData);
         } catch (error: unknown) {
           // Type narrowing for different error types
-          if (error && typeof error === 'object' && 'response' in error) {
+          if (error && typeof error === "object" && "response" in error) {
             const axiosError = error as { response?: { data?: unknown }; message?: string };
-            console.error('Upload error details:', axiosError.response?.data || axiosError.message);
+            console.error("Upload error details:", axiosError.response?.data || axiosError.message);
           } else {
-            console.error('Upload error:', error);
+            console.error("Upload error:", error);
           }
           throw error;
         }
       } else {
-        // Regular JSON data
+        // Regular JSON data - send directly without tag handling
+        console.log(`Sending direct JSON update to: /items/${effectiveId}`);
+        
         return await patch<Item>(`/items/${effectiveId}`, itemData);
       }
     },
     onSuccess: (_, variables) => {
-      const id = variables instanceof FormData ? undefined : variables._id;
+      const id = variables instanceof FormData ? undefined : variables.id;
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
       queryClient.invalidateQueries({ queryKey: [ITEM_KEY, id || initialId] });
     },
@@ -227,7 +261,7 @@ export const useCategories = () => {
     queryKey: [CATEGORIES_KEY],
     queryFn: async () => {
       try {
-        return await get<string[]>('/items/categories');
+        return await get<string[]>('/items/categories?page=1&limit=10000');
       } catch (error) {
         console.error('Error in getCategories:', error);
         return []; // Default fallback
@@ -242,7 +276,7 @@ export const useTags = () => {
     queryKey: [TAGS_KEY],
     queryFn: async () => {
       try {
-        return await get<string[]>('/items/tags');
+        return await get<string[]>('/items/tags?page=1&limit=10000');
       } catch (error) {
         console.error('Error in getTags:', error);
         return []; // Default fallback
@@ -292,32 +326,79 @@ export const useConvertItemRelationships = () => {
 };
 
 // Hook to get item relationships
+/**
+ * Hook to get item relationships without pagination limits
+ * 
+ * @param {string | undefined} itemId - ID of the item
+ * @returns {Object} Query result with relationships data always as an array
+ */
 export const useItemRelationships = (itemId: string | undefined) => {
   return useQuery({
     queryKey: [RELATIONSHIPS_KEY, "item", itemId],
-    queryFn: () => get<Relationship[]>(`/relationships/primary/${itemId}/Item`),
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; results: number; data: Relationship[] }>(
+          `/relationships/primary/${itemId}/Item?page=1&limit=10000`
+        );
+        // Ensure we always return an array from the data property
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error(`Error fetching relationships for item ${itemId}:`, error);
+        return []; // Return empty array on error
+      }
+    },
     enabled: !!itemId,
   });
 };
 
 // Hook to get product components (materials)
+/**
+ * Hook to get product components (materials) without pagination limits
+ * 
+ * @param {string | undefined} productId - ID of the product
+ * @returns {Object} Query result with relationships data always as an array
+ */
 export const useProductComponents = (productId: string | undefined) => {
   return useQuery({
     queryKey: [RELATIONSHIPS_KEY, "product", productId, "components"],
-    queryFn: () => get<Relationship[]>(
-      `/relationships/primary/${productId}/Item?relationshipType=${RELATIONSHIP_TYPES.PRODUCT_MATERIAL}`
-    ),
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; results: number; data: Relationship[] }>(
+          `/relationships/primary/${productId}/Item?relationshipType=${RELATIONSHIP_TYPES.PRODUCT_MATERIAL}&page=1&limit=10000`
+        );
+        // Ensure we always return an array from the data property
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error(`Error fetching components for product ${productId}:`, error);
+        return []; // Return empty array on error
+      }
+    },
     enabled: !!productId,
   });
 };
 
 // Hook to get products using a material
+/**
+ * Hook to get products using a material without pagination limits
+ * 
+ * @param {string | undefined} materialId - ID of the material
+ * @returns {Object} Query result with relationships data always as an array
+ */
 export const useProductsUsingMaterial = (materialId: string | undefined) => {
   return useQuery({
     queryKey: [RELATIONSHIPS_KEY, "material", materialId, "products"],
-    queryFn: () => get<Relationship[]>(
-      `/relationships/secondary/${materialId}/Item?relationshipType=${RELATIONSHIP_TYPES.PRODUCT_MATERIAL}`
-    ),
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; results: number; data: Relationship[] }>(
+          `/relationships/secondary/${materialId}/Item?relationshipType=${RELATIONSHIP_TYPES.PRODUCT_MATERIAL}&page=1&limit=10000`
+        );
+        // Ensure we always return an array from the data property
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error(`Error fetching products using material ${materialId}:`, error);
+        return []; // Return empty array on error
+      }
+    },
     enabled: !!materialId,
   });
 };
@@ -372,13 +453,13 @@ export const useCreateBreakdownItems = () => {
       queryClient.invalidateQueries({ queryKey: [ITEMS_KEY] });
       queryClient.invalidateQueries({ queryKey: [RELATIONSHIPS_KEY] });
 
-      if (data.sourceItem._id) {
-        queryClient.invalidateQueries({ queryKey: [ITEM_KEY, data.sourceItem._id] });
+      if (data.sourceItem.id) {
+        queryClient.invalidateQueries({ queryKey: [ITEM_KEY, data.sourceItem.id] });
       }
       // Also invalidate any derived/allocated items
       data.derivedItems.forEach(item => {
-        if (item._id) {
-          queryClient.invalidateQueries({ queryKey: [ITEM_KEY, item._id] });
+        if (item.id) {
+          queryClient.invalidateQueries({ queryKey: [ITEM_KEY, item.id] });
         }
       });
     },
@@ -386,23 +467,53 @@ export const useCreateBreakdownItems = () => {
 };
 
 // Hook to get derived items using the new relationship system
+/**
+ * Hook to get derived items using the new relationship system
+ * 
+ * @param {string | undefined} itemId - ID of the source item
+ * @returns {Object} Query result with relationships data always as an array
+ */
 export const useDerivedItems = (itemId: string | undefined) => {
   return useQuery({
     queryKey: [RELATIONSHIPS_KEY, "source", itemId, "derived"],
-    queryFn: () => get<Relationship[]>(
-      `/relationships/secondary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.DERIVED}`
-    ),
+    queryFn: async () => {
+      try {
+        const response = await get<Relationship[]>(
+          `/relationships/secondary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.DERIVED}&page=1&limit=10000`
+        );
+        // Ensure we always return an array
+        return Array.isArray(response) ? response : [];
+      } catch (error) {
+        console.error(`Error fetching derived items for item ${itemId}:`, error);
+        return []; // Return empty array on error
+      }
+    },
     enabled: !!itemId,
   });
 };
 
 // Hook to get parent item using the new relationship system
+/**
+ * Hook to get parent item using the new relationship system
+ * 
+ * @param {string | undefined} itemId - ID of the derived item
+ * @returns {Object} Query result with relationships data always as an array
+ */
 export const useParentItem = (itemId: string | undefined) => {
   return useQuery({
     queryKey: [RELATIONSHIPS_KEY, "derived", itemId, "source"],
-    queryFn: () => get<Relationship[]>(
-      `/relationships/primary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.DERIVED}`
-    ),
+    queryFn: async () => {
+      try {
+        const response = await get<Relationship[]>(
+          `/relationships/primary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.DERIVED}&page=1&limit=10000`
+        );
+        // Ensure we always return an array
+        return Array.isArray(response) ? response : [];
+      } catch (error) {
+        console.error(`Error fetching parent item for derived item ${itemId}:`, error);
+        return []; // Return empty array on error
+      }
+    },
     enabled: !!itemId,
   });
 };

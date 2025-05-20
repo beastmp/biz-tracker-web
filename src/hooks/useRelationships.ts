@@ -35,6 +35,9 @@ export interface ConversionJobStatus {
   error?: string;
 }
 
+/**
+ * Interface for the useRelationships hook result
+ */
 interface UseRelationshipsResult {
   relationships: Relationship[];
   loading: boolean;
@@ -106,19 +109,27 @@ interface UseRelationshipsResult {
   getItemSales: (itemId: string) => Promise<Relationship[]>;
 }
 
+/**
+ * Interface for API errors
+ */
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
+/**
+ * Hook for managing relationships between entities
+ * 
+ * @returns {UseRelationshipsResult} Object containing relationships state and operations
+ */
 const useRelationships = (): UseRelationshipsResult => {
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
-  interface ApiError {
-    response?: {
-      data?: {
-        message?: string;
-      };
-    };
-    message?: string;
-  }
 
   const handleApiError = useCallback((error: ApiError) => {
     console.error("Relationship API error:", error);
@@ -134,6 +145,12 @@ const useRelationships = (): UseRelationshipsResult => {
     setRelationships([]);
   }, []);
 
+  /**
+   * Creates a new relationship
+   * 
+   * @param {Partial<Relationship>} relationshipData - The relationship data to create
+   * @returns {Promise<Relationship>} The created relationship
+   */
   const createRelationship = useCallback(
     async (relationshipData: Partial<Relationship>): Promise<Relationship> => {
       setLoading(true);
@@ -154,9 +171,16 @@ const useRelationships = (): UseRelationshipsResult => {
         return handleApiError(error as ApiError);
       }
     },
-    []
+    [handleApiError]
   );
 
+  /**
+   * Updates an existing relationship
+   * 
+   * @param {string} id - The ID of the relationship to update
+   * @param {Partial<Relationship>} data - The data to update
+   * @returns {Promise<Relationship>} The updated relationship
+   */
   const updateRelationship = useCallback(
     async (id: string, data: Partial<Relationship>): Promise<Relationship> => {
       setLoading(true);
@@ -168,9 +192,9 @@ const useRelationships = (): UseRelationshipsResult => {
           data
         );
 
-        // Update relationship in state
+        // Update relationship in state using the standard id field
         setRelationships(prev =>
-          prev.map(rel => rel._id === id ? response : rel)
+          prev.map(rel => rel.id === id ? response : rel)
         );
 
         setLoading(false);
@@ -180,9 +204,15 @@ const useRelationships = (): UseRelationshipsResult => {
         return handleApiError(error as ApiError);
       }
     },
-    []
+    [handleApiError]
   );
 
+  /**
+   * Deletes a relationship
+   * 
+   * @param {string} id - The ID of the relationship to delete
+   * @returns {Promise<boolean>} True if deletion was successful
+   */
   const deleteRelationship = useCallback(
     async (id: string): Promise<boolean> => {
       setLoading(true);
@@ -191,8 +221,8 @@ const useRelationships = (): UseRelationshipsResult => {
       try {
         await del<void>(`/relationships/${id}`);
 
-        // Remove relationship from state
-        setRelationships(prev => prev.filter(rel => rel._id !== id));
+        // Remove relationship from state using standard id field
+        setRelationships(prev => prev.filter(rel => rel.id !== id));
 
         setLoading(false);
         return true;
@@ -201,24 +231,30 @@ const useRelationships = (): UseRelationshipsResult => {
         return handleApiError(error as ApiError);
       }
     },
-    []
+    [handleApiError]
   );
 
+  /**
+   * Gets a relationship by its ID
+   * 
+   * @param {string} id - The ID of the relationship to fetch
+   * @returns {Promise<Relationship>} The fetched relationship
+   */
   const getRelationshipById = useCallback(
     async (id: string): Promise<Relationship> => {
       setLoading(true);
       setError(null);
 
       try {
-        const response = await get<Relationship>(`/relationships/${id}`);
+        const response = await get<{ status: string; data: Relationship }>(`/relationships/${id}`);
         setLoading(false);
-        return response;
+        return response.data;
       } catch (error) {
         setLoading(false);
         return handleApiError(error as ApiError);
       }
     },
-    []
+    [handleApiError]
   );
 
   const getRelationshipsByPrimary = useCallback(
@@ -246,31 +282,35 @@ const useRelationships = (): UseRelationshipsResult => {
 
         console.log(`Making API request to: ${url}`);
 
-        const response = await get<Relationship[]>(url);
-        console.log(`Got ${response.length} relationships from API`);
+        const response = await get<{ status: string; results: number; data: Relationship[] }>(url);
+        console.log(`Got ${response?.data ? response.data.length : 0} relationships from API`);
+
+        // Ensure we have a valid array response
+        if (!response?.data || !Array.isArray(response.data)) {
+          console.warn("API returned invalid data structure for relationships query:", response);
+          setLoading(false);
+          return [];
+        }
 
         // Clean up Mongoose/MongoDB document properties if they exist
-        const cleanRelationships = response.map(rel => {
-          // If this is a MongoDB document with _doc property
-          const relationshipData = rel._doc || rel;
-
+        const cleanRelationships = response.data.map(rel => {
           // Return a clean object without MongoDB internals
           return {
-            _id: relationshipData._id,
-            primaryId: relationshipData.primaryId,
-            primaryType: relationshipData.primaryType,
-            secondaryId: relationshipData.secondaryId,
-            secondaryType: relationshipData.secondaryType,
-            relationshipType: relationshipData.relationshipType,
-            measurements: relationshipData.measurements || {},
-            purchaseItemAttributes: relationshipData.purchaseItemAttributes || {},
-            purchaseAssetAttributes: relationshipData.purchaseAssetAttributes || {},
-            saleItemAttributes: relationshipData.saleItemAttributes || {},
-            createdAt: relationshipData.createdAt,
-            updatedAt: relationshipData.updatedAt,
-            notes: relationshipData.notes,
-            isLegacy: relationshipData.isLegacy || false,
-            metadata: relationshipData.metadata || {}
+            id: rel.id,
+            primaryId: rel.primaryId,
+            primaryType: rel.primaryType,
+            secondaryId: rel.secondaryId,
+            secondaryType: rel.secondaryType,
+            relationshipType: rel.relationshipType,
+            measurements: rel.measurements || {},
+            purchaseItemAttributes: rel.purchaseItemAttributes || {},
+            purchaseAssetAttributes: rel.purchaseAssetAttributes || {},
+            saleItemAttributes: rel.saleItemAttributes || {},
+            createdAt: rel.createdAt,
+            updatedAt: rel.updatedAt,
+            notes: rel.notes,
+            isLegacy: rel.isLegacy || false,
+            metadata: rel.metadata || {}
           };
         });
 
@@ -280,7 +320,7 @@ const useRelationships = (): UseRelationshipsResult => {
       } catch (error) {
         console.error("Error in getRelationshipsByPrimary:", error);
         setLoading(false);
-        return handleApiError(error as ApiError);
+        return []; // Return empty array on error instead of rejecting
       }
     },
     [handleApiError]
@@ -311,31 +351,35 @@ const useRelationships = (): UseRelationshipsResult => {
 
         console.log(`Making API request to: ${url}`);
 
-        const response = await get<Relationship[]>(url);
-        console.log(`Got ${response.length} relationships from API`);
+        const response = await get<{ status: string; results: number; data: Relationship[] }>(url);
+        console.log(`Got ${response?.data ? response.data.length : 0} relationships from API`);
+
+        // Ensure we have a valid array response
+        if (!response?.data || !Array.isArray(response.data)) {
+          console.warn("API returned invalid data structure for relationships query:", response);
+          setLoading(false);
+          return [];
+        }
 
         // Clean up Mongoose/MongoDB document properties if they exist
-        const cleanRelationships = response.map(rel => {
-          // If this is a MongoDB document with _doc property
-          const relationshipData = rel._doc || rel;
-
+        const cleanRelationships = response.data.map(rel => {
           // Return a clean object without MongoDB internals
           return {
-            _id: relationshipData._id,
-            primaryId: relationshipData.primaryId,
-            primaryType: relationshipData.primaryType,
-            secondaryId: relationshipData.secondaryId,
-            secondaryType: relationshipData.secondaryType,
-            relationshipType: relationshipData.relationshipType,
-            measurements: relationshipData.measurements || {},
-            purchaseItemAttributes: relationshipData.purchaseItemAttributes || {},
-            purchaseAssetAttributes: relationshipData.purchaseAssetAttributes || {},
-            saleItemAttributes: relationshipData.saleItemAttributes || {},
-            createdAt: relationshipData.createdAt,
-            updatedAt: relationshipData.updatedAt,
-            notes: relationshipData.notes,
-            isLegacy: relationshipData.isLegacy || false,
-            metadata: relationshipData.metadata || {}
+            id: rel.id,
+            primaryId: rel.primaryId,
+            primaryType: rel.primaryType,
+            secondaryId: rel.secondaryId,
+            secondaryType: rel.secondaryType,
+            relationshipType: rel.relationshipType,
+            measurements: rel.measurements || {},
+            purchaseItemAttributes: rel.purchaseItemAttributes || {},
+            purchaseAssetAttributes: rel.purchaseAssetAttributes || {},
+            saleItemAttributes: rel.saleItemAttributes || {},
+            createdAt: rel.createdAt,
+            updatedAt: rel.updatedAt,
+            notes: rel.notes,
+            isLegacy: rel.isLegacy || false,
+            metadata: rel.metadata || {}
           };
         });
 
@@ -345,7 +389,7 @@ const useRelationships = (): UseRelationshipsResult => {
       } catch (error) {
         console.error("Error in getRelationshipsBySecondary:", error);
         setLoading(false);
-        return handleApiError(error as ApiError);
+        return []; // Return empty array on error instead of rejecting
       }
     },
     [handleApiError]

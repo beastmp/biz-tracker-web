@@ -3,6 +3,7 @@ import { get, post, patch, del, RELATIONSHIP_TYPES, ENTITY_TYPES } from "@utils/
 import { Sale, SalesReport, Item, SaleItem, SalesTrendItem, Relationship } from "@custTypes/models";
 import { useState, useEffect } from "react";
 import apiClientInstance from "@utils/apiClient";
+import { formatDate, formatDateTime } from "@utils/formatters";
 
 // Query keys
 const SALES_KEY = "sales";
@@ -23,7 +24,7 @@ export const createSaleItem = (
   const price = customPrice !== undefined ? customPrice : item.price || 0;
 
   const saleItem: SaleItem = {
-    item: item._id || "",
+    item: item.id || "",
     name: item.name, // Add name field which is needed in several components
     quantity: 0,
     weight: 0,
@@ -125,19 +126,96 @@ export const calculateSaleItemTotal = (saleItem: SaleItem): number => {
   }
 };
 
-// Hook to fetch all sales
+/**
+ * Hook to fetch all sales
+ * 
+ * @returns {Object} Query result with sales data always as an array and validated date fields
+ */
 export const useSales = () => {
   return useQuery({
     queryKey: [SALES_KEY],
-    queryFn: () => get<Sale[]>("/sales")
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; results: number; data: Sale[] }>("/sales");
+        
+        // Ensure we always return an array from the data property
+        const salesData = Array.isArray(response.data) 
+          ? response.data 
+          : [];
+        
+        // Process and validate each sale's date fields
+        return salesData.map(sale => ({
+          ...sale,
+          // Ensure createdAt is valid or default to current date
+          createdAt: validateAndFormatDateField(sale.createdAt),
+          // Ensure updatedAt is valid or default to current date
+          updatedAt: validateAndFormatDateField(sale.updatedAt)
+        }));
+      } catch (error) {
+        console.error("Error fetching sales:", error);
+        return []; // Return empty array on error
+      }
+    }
   });
 };
 
+/**
+ * Validates and formats a date field, ensuring it returns a valid date string
+ * 
+ * @param {Date | string | undefined} dateField - The date field to validate
+ * @returns {string} A properly formatted date string
+ */
+const validateAndFormatDateField = (dateField: Date | string | undefined | null): string => {
+  try {
+    if (!dateField) return "";
+    
+    // If it's already a string, verify it's a valid date first
+    if (typeof dateField === "string") {
+      const parsedDate = new Date(dateField);
+      // Check if the date is valid (invalid dates return NaN for getTime())
+      if (isNaN(parsedDate.getTime())) {
+        console.warn(`Invalid date string encountered: ${dateField}`);
+        return "";
+      }
+      return dateField;
+    }
+    
+    // If it's a Date object, format it
+    return formatDate(dateField);
+  } catch (error) {
+    console.error("Error validating date field:", error);
+    return ""; // Return empty string for invalid dates
+  }
+};
+
 // Hook to fetch a single sale
+/**
+ * Hook to fetch a single sale
+ * 
+ * @param {string | undefined} id - ID of the sale to fetch
+ * @returns {Object} Query result with sale data with validated date fields
+ */
 export const useSale = (id: string | undefined) => {
   return useQuery({
     queryKey: [SALES_KEY, id],
-    queryFn: () => get<Sale>(`/sales/${id}`),
+    queryFn: async () => {
+      try {
+        if (!id) throw new Error("Sale ID is required");
+        
+        const response = await get<{ status: string; data: Sale }>(`/sales/${id}`);
+        const sale = response.data;
+        
+        // Validate and process date fields
+        return {
+          ...sale,
+          createdAt: validateAndFormatDateField(sale.createdAt),
+          updatedAt: validateAndFormatDateField(sale.updatedAt)
+        };
+      } catch (error) {
+        console.error(`Error fetching sale ${id}:`, error);
+        throw error;
+      }
+    },
     enabled: !!id, // Only run if id exists
   });
 };
@@ -214,11 +292,37 @@ export const useSalesReport = (startDate?: string, endDate?: string) => {
   });
 };
 
-// Hook to get sales containing a specific item
+/**
+ * Hook to get sales containing a specific item
+ * 
+ * @param {string | undefined} itemId - ID of the item to get sales for
+ * @returns {Object} Query result with sales data always as an array with validated date fields
+ */
 export const useItemSales = (itemId: string | undefined) => {
   return useQuery({
     queryKey: [SALES_KEY, "item", itemId],
-    queryFn: () => get<Sale[]>(`/relationships/secondary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`),
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; results: number; data: Sale[] }>(
+          `/relationships/secondary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`
+        );
+        
+        // Ensure we always return an array from the data property
+        const salesData = Array.isArray(response.data) 
+          ? response.data 
+          : [];
+        
+        // Process and validate each sale's date fields
+        return salesData.map(sale => ({
+          ...sale,
+          createdAt: validateAndFormatDateField(sale.createdAt),
+          updatedAt: validateAndFormatDateField(sale.updatedAt)
+        }));
+      } catch (error) {
+        console.error(`Error fetching sales for item ${itemId}:`, error);
+        return []; // Return empty array on error
+      }
+    },
     enabled: !!itemId // Only run if itemId exists
   });
 };
@@ -245,9 +349,20 @@ export function useSalesTrend(startDate?: string, endDate?: string) {
           `/sales/stats?startDate=${startDate}&endDate=${endDate}&includeBreakdown=true`
         );
 
+        // Check if the response data exists and is an array
+        const trendItems = response.data?.data || [];
+        if (!Array.isArray(trendItems)) {
+          console.warn("API returned non-array trend data:", trendItems);
+          setData([]);
+          return;
+        }
+
         // Process data to include measurement type information
-        const processedData = (response.data.data || []).map((item: SalesTrendItem) => ({
+        // and validate date fields
+        const processedData = trendItems.map((item: SalesTrendItem) => ({
           ...item,
+          // Validate date field
+          date: validateAndFormatDateField(item.date),
           // Include breakdowns by measurement type if available
           quantityTotal: item.measurementBreakdown?.quantity?.total || 0,
           weightTotal: item.measurementBreakdown?.weight?.total || 0,
@@ -258,7 +373,9 @@ export function useSalesTrend(startDate?: string, endDate?: string) {
 
         setData(processedData);
       } catch (err) {
+        console.error("Error fetching trend data:", err);
         setError(err instanceof Error ? err : new Error("Failed to fetch trends data"));
+        setData([]);
       } finally {
         setIsLoading(false);
       }
@@ -270,20 +387,52 @@ export function useSalesTrend(startDate?: string, endDate?: string) {
   return { data, isLoading, error };
 }
 
-// Hook to get sale items using the new relationship system
+/**
+ * Hook to get sale items using the new relationship system
+ * 
+ * @param {string | undefined} saleId - ID of the sale to get items for
+ * @returns {Object} Query result with relationships data always as an array
+ */
 export const useSaleItems = (saleId: string | undefined) => {
   return useQuery({
     queryKey: [RELATIONSHIPS_KEY, "sale", saleId, "items"],
-    queryFn: () => get<Relationship[]>(`/relationships/primary/${saleId}/Sale?relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`),
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; results: number; data: Relationship[] }>(
+          `/relationships/primary/${saleId}/Sale?relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`
+        );
+        // Ensure we always return an array from the data property
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error(`Error fetching items for sale ${saleId}:`, error);
+        return []; // Return empty array on error
+      }
+    },
     enabled: !!saleId,
   });
 };
 
-// Hook to get item sales history using the new relationship system
+/**
+ * Hook to get item sales history using the new relationship system
+ * 
+ * @param {string | undefined} itemId - ID of the item to get sales history for
+ * @returns {Object} Query result with relationships data always as an array
+ */
 export const useItemSalesHistory = (itemId: string | undefined) => {
   return useQuery({
     queryKey: [RELATIONSHIPS_KEY, "item", itemId, "sales"],
-    queryFn: () => get<Relationship[]>(`/relationships/secondary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`),
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; results: number; data: Relationship[] }>(
+          `/relationships/secondary/${itemId}/Item?relationshipType=${RELATIONSHIP_TYPES.SALE_ITEM}`
+        );
+        // Ensure we always return an array from the data property
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error(`Error fetching sales history for item ${itemId}:`, error);
+        return []; // Return empty array on error
+      }
+    },
     enabled: !!itemId,
   });
 };
@@ -353,8 +502,6 @@ export const useCancelSale = (saleId: string | undefined) => {
         queryClient.invalidateQueries({ queryKey: [SALES_KEY, saleId] });
       }
       queryClient.invalidateQueries({ queryKey: [SALES_KEY] });
-      // Also invalidate items as inventory quantities will change when a sale is canceled
-      queryClient.invalidateQueries({ queryKey: ["items"] });
     }
   });
 };

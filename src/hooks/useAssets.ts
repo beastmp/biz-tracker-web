@@ -9,15 +9,32 @@ const RELATIONSHIPS_KEY = "relationships";
 export const useAssets = () => {
   return useQuery({
     queryKey: [ASSETS_KEY],
-    queryFn: () => get<BusinessAsset[]>("/assets")
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; results: number; data: BusinessAsset[] }>("/assets");
+        // Ensure we always return an array from the data property
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error("Error fetching assets:", error);
+        return []; // Return empty array on error
+      }
+    }
   });
 };
 
-// Hook to fetch a single asset
+/**
+ * Hook to fetch a single asset
+ * 
+ * @param {string | undefined} id - ID of the asset to fetch
+ * @returns {Object} Query result with asset data
+ */
 export const useAsset = (id: string | undefined) => {
   return useQuery({
     queryKey: [ASSETS_KEY, id],
-    queryFn: () => get<BusinessAsset>(`/assets/${id}`),
+    queryFn: async () => {
+      const response = await get<{ status: string; data: BusinessAsset }>(`/assets/${id}`);
+      return response.data;
+    },
     enabled: !!id, // Only run if id exists
   });
 };
@@ -41,11 +58,11 @@ export const useUpdateAsset = (id?: string) => {
   return useMutation({
     mutationFn: (asset: Partial<BusinessAsset> | FormData) => 
       // Use PATCH instead of PUT for updates to match our backend convention
-      patch<BusinessAsset>(`/assets/${id || (asset as BusinessAsset)._id}`, asset),
+      patch<BusinessAsset>(`/assets/${id || (asset as BusinessAsset).id}`, asset),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [ASSETS_KEY] });
-      if (id || (variables as BusinessAsset)._id) {
-        queryClient.invalidateQueries({ queryKey: [ASSETS_KEY, id || (variables as BusinessAsset)._id] });
+      if (id || (variables as BusinessAsset).id) {
+        queryClient.invalidateQueries({ queryKey: [ASSETS_KEY, id || (variables as BusinessAsset).id] });
       }
     }
   });
@@ -107,32 +124,73 @@ export const useAddMaintenanceRecord = () => {
   });
 };
 
-// Hook to get assets categories
+/**
+ * Hook to get assets categories
+ * 
+ * @returns {Object} Query result with categories data always as an array
+ */
 export const useAssetCategories = () => {
   return useQuery({
     queryKey: [ASSETS_KEY, "categories"],
-    queryFn: () => get<string[]>("/assets/categories")
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; data: string[] }>("/assets/categories");
+        // Ensure we always return an array from the data property
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error("Error fetching asset categories:", error);
+        return []; // Return empty array on error
+      }
+    }
   });
 };
 
-// Hook to get assets for a specific purchase using relationships
+/**
+ * Hook to get assets for a specific purchase using relationships
+ * 
+ * @param {string | undefined} purchaseId - ID of the purchase to get assets for
+ * @returns {Object} Query result with relationships data always as an array
+ */
 export const useAssetsByPurchase = (purchaseId: string | undefined) => {
   return useQuery({
     queryKey: [RELATIONSHIPS_KEY, "purchase", purchaseId, "assets"],
-    queryFn: () => get<Relationship[]>(
-      `/relationships/primary/${purchaseId}/Purchase?relationshipType=${RELATIONSHIP_TYPES.PURCHASE_ASSET}`
-    ),
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; results: number; data: Relationship[] }>(
+          `/relationships/primary/${purchaseId}/Purchase?relationshipType=${RELATIONSHIP_TYPES.PURCHASE_ASSET}`
+        );
+        // Ensure we always return an array from the data property
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error(`Error fetching assets for purchase ${purchaseId}:`, error);
+        return []; // Return empty array on error
+      }
+    },
     enabled: !!purchaseId
   });
 };
 
-// Hook to get purchase history for an asset
+/**
+ * Hook to get purchase history for an asset
+ * 
+ * @param {string | undefined} assetId - ID of the asset to get purchase history for
+ * @returns {Object} Query result with relationships data always as an array
+ */
 export const useAssetPurchases = (assetId: string | undefined) => {
   return useQuery({
     queryKey: [RELATIONSHIPS_KEY, "asset", assetId, "purchases"],
-    queryFn: () => get<Relationship[]>(
-      `/relationships/secondary/${assetId}/Asset?relationshipType=${RELATIONSHIP_TYPES.PURCHASE_ASSET}`
-    ),
+    queryFn: async () => {
+      try {
+        const response = await get<{ status: string; results: number; data: Relationship[] }>(
+          `/relationships/secondary/${assetId}/Asset?relationshipType=${RELATIONSHIP_TYPES.PURCHASE_ASSET}`
+        );
+        // Ensure we always return an array from the data property
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error(`Error fetching purchase history for asset ${assetId}:`, error);
+        return []; // Return empty array on error
+      }
+    },
     enabled: !!assetId
   });
 };

@@ -15,15 +15,18 @@ import {
   PurchaseItemAttributes
 } from "@custTypes/models";
 import useRelationships from "./useRelationships";
+import { formatDate, formatDateTime } from "@utils/formatters";
 
 // Query keys
 const PURCHASES_KEY = "purchases";
 const PURCHASES_REPORT_KEY = "purchases-report";
 const RELATIONSHIPS_KEY = "relationships";
 
-// Define relationship-based purchase interface - this replaces the old Purchase interface
+/**
+ * Define relationship-based purchase interface - this replaces the old Purchase interface
+ */
 export interface RelationshipPurchase {
-  _id?: string;
+  id?: string;
   supplier: {
     name: string;
     contactName?: string;
@@ -47,35 +50,79 @@ export interface RelationshipPurchase {
   relationshipItems?: Relationship[];
 }
 
-// Hook to fetch all purchases with their relationships
+/**
+ * Validates and formats a date field, ensuring it returns a valid date string
+ * 
+ * @param {Date | string | undefined} dateField - The date field to validate
+ * @returns {string} A properly formatted date string
+ */
+const validateAndFormatDateField = (dateField: Date | string | undefined | null): string => {
+  try {
+    if (!dateField) return "";
+    
+    // If it's already a string, verify it's a valid date first
+    if (typeof dateField === "string") {
+      const parsedDate = new Date(dateField);
+      // Check if the date is valid (invalid dates return NaN for getTime())
+      if (isNaN(parsedDate.getTime())) {
+        console.warn(`Invalid date string encountered: ${dateField}`);
+        return "";
+      }
+      return dateField;
+    }
+    
+    // If it's a Date object, format it
+    return formatDate(dateField);
+  } catch (error) {
+    console.error("Error validating date field:", error);
+    return ""; // Return empty string for invalid dates
+  }
+};
+
+/**
+ * Hook to fetch all purchases with their relationships
+ * 
+ * @returns {Object} Query result with purchases data that includes validated date fields
+ */
 export const usePurchases = () => {
   return useQuery({
     queryKey: [PURCHASES_KEY],
     queryFn: async () => {
       try {
         // Get purchases from API - these should include relationships
-        const response = await get<any[]>("/purchases");
+        const response = await get<{ status: string; results: number; data: any[] }>("/purchases");
 
+        // If no response or invalid response format, return empty array
+        if (!response) {
+          return [];
+        }
+
+        // Ensure we're getting the data array from the response structure
+        const purchasesData = Array.isArray(response.data) 
+          ? response.data 
+          : [];
+        
         // If no purchases are returned, return empty array
-        if (!response || response.length === 0) {
+        if (purchasesData.length === 0) {
           return [];
         }
 
         // Convert API response to RelationshipPurchase format
-        const purchasesWithRelationships: RelationshipPurchase[] = response.map(
+        const purchasesWithRelationships: RelationshipPurchase[] = purchasesData.map(
           purchase => {
             const purchaseData = purchase._doc || purchase;
-            const purchaseId = purchaseData._id || "unknown";
+            const purchaseId = purchaseData.id || "unknown";
 
             // Extract relationships from the API response
             const items = purchase.relationships?.items || [];
 
             // Create a clean RelationshipPurchase object
             return {
-              _id: purchaseId,
+              id: purchaseId,
               supplier: purchaseData.supplier || {},
               invoiceNumber: purchaseData.invoiceNumber,
-              purchaseDate: purchaseData.purchaseDate,
+              // Validate and format date fields
+              purchaseDate: validateAndFormatDateField(purchaseData.purchaseDate),
               subtotal: purchaseData.subtotal || 0,
               discountAmount: purchaseData.discountAmount || 0,
               taxRate: purchaseData.taxRate || 0,
@@ -85,8 +132,8 @@ export const usePurchases = () => {
               notes: purchaseData.notes,
               paymentMethod: purchaseData.paymentMethod || "cash",
               status: purchaseData.status || "pending",
-              createdAt: purchaseData.createdAt,
-              updatedAt: purchaseData.updatedAt,
+              createdAt: validateAndFormatDateField(purchaseData.createdAt),
+              updatedAt: validateAndFormatDateField(purchaseData.updatedAt),
               relationshipItems: items
             };
           }
@@ -95,13 +142,18 @@ export const usePurchases = () => {
         return purchasesWithRelationships;
       } catch (error) {
         console.error("Error fetching purchases:", error);
-        throw error;
+        return []; // Return empty array on error instead of throwing
       }
     }
   });
 };
 
-// Hook to fetch a single purchase with its relationships
+/**
+ * Hook to fetch a single purchase with its relationships
+ * 
+ * @param {string | undefined} id - ID of the purchase to fetch
+ * @returns {Object} Query result with purchase data
+ */
 export const usePurchase = (id: string | undefined) => {
   const { getRelationshipsByPrimary } = useRelationships();
 
@@ -116,7 +168,9 @@ export const usePurchase = (id: string | undefined) => {
 
       try {
         // Get the purchase document
-        const purchaseData = await get<RelationshipPurchase>(`/purchases/${id}`);
+        const response = await get<{ status: string; data: RelationshipPurchase }>(`/purchases/${id}`);
+        const purchaseData = response.data;
+        
         console.log("Received purchase data:", purchaseData);
 
         // Get relationships for this purchase
@@ -127,9 +181,12 @@ export const usePurchase = (id: string | undefined) => {
         );
         console.log("Received relationships:", relationships);
 
-        // Return the combined data
+        // Return the combined data with validated date fields
         const combinedData = {
           ...purchaseData,
+          purchaseDate: validateAndFormatDateField(purchaseData.purchaseDate),
+          createdAt: validateAndFormatDateField(purchaseData.createdAt),
+          updatedAt: validateAndFormatDateField(purchaseData.updatedAt),
           relationshipItems: relationships || []
         } as RelationshipPurchase;
 
@@ -144,7 +201,21 @@ export const usePurchase = (id: string | undefined) => {
   });
 };
 
-// Helper function to create a relationship measurement from purchase data
+/**
+ * Helper function to create a relationship measurement from purchase data
+ * 
+ * @param {string} trackingType - How the item is tracked (quantity, weight, etc.)
+ * @param {number} quantity - Quantity value
+ * @param {number} weight - Weight value
+ * @param {string} weightUnit - Weight unit
+ * @param {number} length - Length value
+ * @param {string} lengthUnit - Length unit
+ * @param {number} area - Area value
+ * @param {string} areaUnit - Area unit
+ * @param {number} volume - Volume value
+ * @param {string} volumeUnit - Volume unit
+ * @returns {RelationshipMeasurement} Formatted measurement object
+ */
 export const createPurchaseMeasurement = (
   trackingType: string,
   quantity: number = 0,
@@ -189,7 +260,6 @@ export const createPurchaseMeasurement = (
 export const createPurchaseItemAttributes = (
   costPerUnit: number,
   totalCost: number,
-  purchasedBy: string,
   originalCost?: number,
   discountAmount?: number,
   discountPercentage?: number
@@ -197,7 +267,6 @@ export const createPurchaseItemAttributes = (
   return {
     costPerUnit,
     totalCost,
-    purchasedBy,
     originalCost: originalCost || costPerUnit,
     discountAmount: discountAmount || 0,
     discountPercentage: discountPercentage || 0
@@ -250,7 +319,11 @@ export const formatPurchaseMeasurement = (
   }
 };
 
-// Hook to create a new purchase with relationships
+/**
+ * Hook to create a new purchase with relationships
+ * 
+ * @returns {Object} Mutation object for creating a purchase
+ */
 export const useCreatePurchase = () => {
   const queryClient = useQueryClient();
   const { createPurchaseItemRelationship } = useRelationships();
@@ -275,13 +348,15 @@ export const useCreatePurchase = () => {
 
       // Create the purchase first
       const newPurchase = await post<RelationshipPurchase>("/purchases", purchaseData);
+      
+      const purchaseId = newPurchase.id;
 
       // Then create relationship for each item if we have any relationships
-      if (purchase.relationshipItems && purchase.relationshipItems.length > 0) {
+      if (purchase.relationshipItems && purchase.relationshipItems.length > 0 && purchaseId) {
         // We need to transform from UI relationships to backend format
         const createRelationshipPromises = purchase.relationshipItems.map(rel => {
           return createPurchaseItemRelationship(
-            newPurchase._id || "",
+            purchaseId,
             rel.secondaryId,
             rel.measurements || {},
             rel.purchaseItemAttributes || {}
@@ -303,7 +378,12 @@ export const useCreatePurchase = () => {
   });
 };
 
-// Hook to update a purchase
+/**
+ * Hook to update a purchase
+ * 
+ * @param {string | undefined} id - ID of the purchase to update
+ * @returns {Object} Mutation object for updating a purchase
+ */
 export const useUpdatePurchase = (id: string | undefined) => {
   const queryClient = useQueryClient();
   const {
@@ -357,10 +437,12 @@ export const useUpdatePurchase = (id: string | undefined) => {
 
           if (existingRel) {
             // Update existing relationship
-            await updateRelationship(existingRel._id || "", {
-              measurements: rel.measurements,
-              purchaseItemAttributes: rel.purchaseItemAttributes
-            });
+            if (existingRel.id) {
+              await updateRelationship(existingRel.id, {
+                measurements: rel.measurements,
+                purchaseItemAttributes: rel.purchaseItemAttributes
+              });
+            }
 
             // Remove from map to track what's been processed
             existingRelMap.delete(rel.secondaryId);
@@ -377,8 +459,8 @@ export const useUpdatePurchase = (id: string | undefined) => {
 
         // Delete any relationships that weren't in the new set
         for (const [_, rel] of existingRelMap) {
-          if (rel._id) {
-            await deleteRelationship(rel._id);
+          if (rel.id) {
+            await deleteRelationship(rel.id);
           }
         }
       }
@@ -429,41 +511,60 @@ export const usePurchasesReport = (startDate?: string, endDate?: string) => {
   });
 };
 
-// Hook to get purchases containing a specific item
+/**
+ * Hook to get purchases containing a specific item
+ * 
+ * @param {string | undefined} itemId - ID of the item to get purchases for
+ * @returns {Object} Query result with purchase data always as an array
+ */
 export const useItemPurchases = (itemId: string | undefined) => {
   const { getItemPurchases } = useRelationships();
 
   return useQuery({
     queryKey: [RELATIONSHIPS_KEY, "item", itemId, "purchases"],
     queryFn: async () => {
-      if (!itemId) {
-        throw new Error("Item ID is required");
-      }
+      try {
+        if (!itemId) {
+          return []; // Return empty array if no itemId
+        }
 
-      // Get all purchase relationships for this item
-      const relationships = await getItemPurchases(itemId);
+        // Get all purchase relationships for this item
+        const relationships = await getItemPurchases(itemId);
+        
+        // If no relationships found, return empty array
+        if (!relationships || !relationships.length) {
+          return [];
+        }
 
-      // Get unique purchase IDs
-      const purchaseIds = [...new Set(relationships.map(rel => rel.primaryId))];
+        // Get unique purchase IDs
+        const purchaseIds = [...new Set(relationships.map(rel => rel.primaryId))];
 
-      // Fetch each purchase
-      const purchasesPromises = purchaseIds.map(id =>
-        get<RelationshipPurchase>(`/purchases/${id}`)
-      );
-
-      const purchases = await Promise.all(purchasesPromises);
-
-      // Add relationships to each purchase
-      return purchases.map(purchase => {
-        const purchaseRelationships = relationships.filter(
-          rel => rel.primaryId === purchase._id
+        // Fetch each purchase
+        const purchasesPromises = purchaseIds.map(id =>
+          get<{ status: string; data: RelationshipPurchase }>(`/purchases/${id}`)
+            .then(response => response.data) // Extract data from standardized response format
         );
 
-        return {
-          ...purchase,
-          relationshipItems: purchaseRelationships
-        };
-      });
+        const purchasesResults = await Promise.all(purchasesPromises);
+        
+        // Filter out any null/undefined results
+        const purchases = purchasesResults.filter(purchase => !!purchase);
+
+        // Add relationships to each purchase
+        return purchases.map(purchase => {
+          const purchaseRelationships = relationships.filter(
+            rel => rel.primaryId === purchase.id
+          );
+
+          return {
+            ...purchase,
+            relationshipItems: purchaseRelationships || []
+          };
+        });
+      } catch (error) {
+        console.error(`Error fetching purchases for item ${itemId}:`, error);
+        return []; // Return empty array on error
+      }
     },
     enabled: !!itemId
   });
@@ -491,26 +592,37 @@ export function usePurchasesTrend(startDate?: string, endDate?: string) {
           `/purchases/stats?startDate=${startDate}&endDate=${endDate}&includeBreakdown=true`
         );
 
+        // Check if the response data exists and is an array
+        const trendItems = response.data?.data || [];
+        if (!Array.isArray(trendItems)) {
+          console.warn("API returned non-array trend data:", trendItems);
+          setData([]);
+          return;
+        }
+
         // Process data to include measurement type information
-        const processedData = (response.data.data || []).map(
-          (item: PurchaseTrendItem) => ({
-            ...item,
-            // Include breakdowns by measurement type if available
-            quantityTotal: item.measurementBreakdown?.quantity?.total || 0,
-            weightTotal: item.measurementBreakdown?.weight?.total || 0,
-            lengthTotal: item.measurementBreakdown?.length?.total || 0,
-            areaTotal: item.measurementBreakdown?.area?.total || 0,
-            volumeTotal: item.measurementBreakdown?.volume?.total || 0
-          })
-        );
+        // and validate date fields
+        const processedData = trendItems.map((item: PurchaseTrendItem) => ({
+          ...item,
+          // Validate date field
+          date: validateAndFormatDateField(item.date),
+          // Include breakdowns by measurement type if available
+          quantityTotal: item.measurementBreakdown?.quantity?.total || 0,
+          weightTotal: item.measurementBreakdown?.weight?.total || 0,
+          lengthTotal: item.measurementBreakdown?.length?.total || 0,
+          areaTotal: item.measurementBreakdown?.area?.total || 0,
+          volumeTotal: item.measurementBreakdown?.volume?.total || 0
+        }));
 
         setData(processedData);
       } catch (err) {
+        console.error("Error fetching purchase trend data:", err);
         setError(
           err instanceof Error
             ? err
             : new Error("Failed to fetch purchase trends data")
         );
+        setData([]);
       } finally {
         setIsLoading(false);
       }
