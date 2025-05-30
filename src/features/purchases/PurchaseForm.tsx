@@ -146,12 +146,7 @@ export default function PurchaseForm() {
 
   // Form state
   const [purchase, setPurchase] = useState<RelationshipPurchase>({
-    supplier: {
-      name: "",
-      contactName: "",
-      email: "",
-      phone: ""
-    },
+    supplier: "",
     invoiceNumber: "",
     purchaseDate: new Date().toISOString(),
     subtotal: 0,
@@ -396,21 +391,10 @@ export default function PurchaseForm() {
   }, [newItemUnitCost]);
 
   const handleTextChange = (field: string, value: string | number) => {
-    if (field.startsWith("supplier.")) {
-      const supplierField = field.split(".")[1];
-      setPurchase({
-        ...purchase,
-        supplier: {
-          ...(purchase.supplier || {}),
-          [supplierField]: value
-        }
-      });
-    } else {
-      setPurchase({
-        ...purchase,
-        [field]: value
-      });
-    }
+    setPurchase({
+      ...purchase,
+      [field]: value
+    });
   };
 
   const handleSelectChange = (e: SelectChangeEvent<string>) => {
@@ -713,9 +697,45 @@ export default function PurchaseForm() {
     }
   };
 
-  // Updated validation function to check for relationshipItems
+  /**
+   * Initialize the form data with default values or existing purchase data
+   */
+  const initializeFormData = (): PurchaseFormData => {
+    if (isEditMode && purchase) {
+      // Convert any date strings to Date objects
+      return {
+        ...purchase,
+        supplier: purchase.supplier || "",
+        supplierId: purchase.supplierId || "",
+        purchaseDate: purchase.purchaseDate
+          ? new Date(purchase.purchaseDate)
+          : new Date(),
+        // Initialize other fields with existing data
+      };
+    }
+
+    // Default values for new purchase
+    return {
+      supplier: "",
+      supplierId: "",
+      invoiceNumber: "",
+      purchaseDate: new Date(),
+      subtotal: 0,
+      discountAmount: 0,
+      taxRate: 0,
+      taxAmount: 0,
+      shippingCost: 0,
+      total: 0,
+      paymentMethod: "debit",
+      status: "received",
+      notes: "",
+      relationshipItems: []
+    };
+  }
+
+  // Updated validation function to check for supplier as a string
   const validateForm = (): string | null => {
-    if (!purchase.supplier?.name || purchase.supplier.name.trim() === "")
+    if (!purchase.supplier || purchase.supplier.trim() === "")
       return "Supplier name is required";
     if (!purchase.relationshipItems || purchase.relationshipItems.length === 0)
       return "At least one item is required";
@@ -738,14 +758,9 @@ export default function PurchaseForm() {
     // Sanitize data before submission - trim all string fields
     const sanitizedPurchase = {
       ...purchase,
-      supplier: {
-        ...purchase.supplier,
-        name: purchase.supplier.name?.trim() || '',
-        contactName: purchase.supplier.contactName?.trim(),
-        email: purchase.supplier.email?.trim(),
-        phone: purchase.supplier.phone?.trim()
-      },
-      notes: purchase.notes?.trim()
+      supplier: purchase.supplier?.trim() || "",
+      supplierId: purchase.supplierId?.trim() || "",
+      notes: purchase.notes?.trim() || ""
     };
 
     try {
@@ -756,9 +771,9 @@ export default function PurchaseForm() {
       }
       navigate('/purchases');
     } catch (error: any) {
-      console.error('Failed to save purchase:', error);
+      console.error("Failed to save purchase:", error);
       // Extract and display the specific error message from the server if available
-      const serverErrorMessage = error.response?.data?.message || 'Failed to save purchase. Please try again.';
+      const serverErrorMessage = error.response?.data?.message || "Failed to save purchase. Please try again.";
       setError(serverErrorMessage);
     }
   };
@@ -979,42 +994,21 @@ export default function PurchaseForm() {
             <TextField
               fullWidth
               label="Supplier Name"
-              value={purchase.supplier?.name || ''}
-              onChange={(e) => handleTextChange('supplier.name', e.target.value)}
+              value={purchase.supplier || ""}
+              onChange={(e) => handleTextChange("supplier", e.target.value)}
               margin="normal"
               required
-              error={error?.includes('Supplier name')}
-              helperText={error?.includes('Supplier name') ? 'Supplier name is required' : ''}
+              error={error?.includes("Supplier")}
+              helperText={error?.includes("Supplier") ? "Supplier name is required" : ""}
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
-              label="Contact Name"
-              value={purchase.supplier?.contactName || ''}
-              onChange={(e) => handleTextChange('supplier.contactName', e.target.value)}
-              margin="normal"
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Email"
-              type="email"
-              value={purchase.supplier?.email || ''}
-              onChange={(e) => handleTextChange('supplier.email', e.target.value)}
-              margin="normal"
-              disabled={createPurchase.isPending || updatePurchase.isPending}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Phone"
-              value={purchase.supplier?.phone || ''}
-              onChange={(e) => handleTextChange('supplier.phone', e.target.value)}
+              label="Supplier ID (Optional)"
+              value={purchase.supplierId || ""}
+              onChange={(e) => handleTextChange("supplierId", e.target.value)}
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
@@ -1023,8 +1017,8 @@ export default function PurchaseForm() {
             <TextField
               fullWidth
               label="Invoice Number"
-              value={purchase.invoiceNumber || ''}
-              onChange={(e) => handleTextChange('invoiceNumber', e.target.value)}
+              value={purchase.invoiceNumber || ""}
+              onChange={(e) => handleTextChange("invoiceNumber", e.target.value)}
               margin="normal"
               disabled={createPurchase.isPending || updatePurchase.isPending}
             />
@@ -1034,8 +1028,8 @@ export default function PurchaseForm() {
               fullWidth
               label="Purchase Date"
               type="date"
-              value={purchase.purchaseDate ? new Date(purchase.purchaseDate).toISOString().split('T')[0] : ''}
-              onChange={(e) => handleTextChange('purchaseDate', e.target.value)}
+              value={purchase.purchaseDate ? new Date(purchase.purchaseDate).toISOString().split("T")[0] : ""}
+              onChange={(e) => handleTextChange("purchaseDate", e.target.value)}
               margin="normal"
               InputLabelProps={{ shrink: true }}
               disabled={createPurchase.isPending || updatePurchase.isPending}

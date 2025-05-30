@@ -305,8 +305,14 @@ export interface PurchaseItem {
   };
 }
 
+/**
+ * Interface for Purchase entity in the application.
+ * Represents a purchase transaction with its related data.
+ */
 export interface Purchase extends BaseEntity {
-  supplier: Supplier;
+  // Supplier information - changed to match backend model (string instead of object)
+  supplier: string;
+  supplierId?: string;
   items: PurchaseItem[];
   invoiceNumber?: string;
   purchaseDate?: Date;

@@ -55,8 +55,17 @@ import LoadingScreen from "@components/ui/LoadingScreen";
 import ErrorFallback from "@components/ui/ErrorFallback";
 import { useSettings } from "@hooks/useSettings";
 import StatusChip from "@components/ui/StatusChip";
+import { useItems } from "@hooks/useItems";
+import { Item, Relationship } from "@custTypes/models";
+import useRelationships from "@hooks/useRelationships";
+import { ENTITY_TYPES, RELATIONSHIP_TYPES } from "@utils/apiClient";
 
-// Function to format purchase items for display from relationships
+/**
+ * Function to format purchase items for display from relationships
+ * 
+ * @param {RelationshipPurchase} purchase - The purchase with relationship items
+ * @returns {string} Formatted display text showing item count and quantities
+ */
 const getPurchaseItemsDisplayText = (purchase: RelationshipPurchase) => {
   if (!purchase?.relationshipItems || purchase.relationshipItems.length === 0) {
     return "No items";
@@ -75,13 +84,13 @@ const getPurchaseItemsDisplayText = (purchase: RelationshipPurchase) => {
       if (attributes.purchasedBy === "quantity") {
         itemQty = measurements.quantity || 0;
       } else if (attributes.purchasedBy === "weight") {
-        itemQty = 1; // Count each weight item as 1 for display simplicity
+        itemQty = measurements.weight || 0;
       } else if (attributes.purchasedBy === "length") {
-        itemQty = 1; // Count each length item as 1
+        itemQty = measurements.length || 0;
       } else if (attributes.purchasedBy === "area") {
-        itemQty = 1; // Count each area item as 1
+        itemQty = measurements.area || 0;
       } else if (attributes.purchasedBy === "volume") {
-        itemQty = 1; // Count each volume item as 1
+        itemQty = measurements.volume || 0;
       } else {
         itemQty = measurements.quantity || 0; // Default to quantity
       }
@@ -91,12 +100,47 @@ const getPurchaseItemsDisplayText = (purchase: RelationshipPurchase) => {
     0
   );
 
-  return `${totalItems} ${totalItems === 1 ? "item" : "items"} (${totalQuantity} units total)`;
+  // Format based on the most common tracking type
+  let measurementTypeText = "units";
+  
+  // Try to determine the dominant measurement type
+  const trackingTypes = purchase.relationshipItems.map(r => 
+    r.purchaseItemAttributes?.purchasedBy || "quantity"
+  );
+  
+  const typeCounts: Record<string, number> = {};
+  trackingTypes.forEach(type => {
+    typeCounts[type] = (typeCounts[type] || 0) + 1;
+  });
+  
+  const dominantType = Object.entries(typeCounts)
+    .sort(([, a], [, b]) => b - a)[0][0];
+    
+  switch (dominantType) {
+    case "weight":
+      measurementTypeText = "weight units";
+      break;
+    case "length":
+      measurementTypeText = "length units";
+      break;
+    case "area":
+      measurementTypeText = "area units";
+      break;
+    case "volume":
+      measurementTypeText = "volume units";
+      break;
+    default:
+      measurementTypeText = "units";
+  }
+
+  return `${totalItems} ${totalItems === 1 ? "item" : "items"} (${totalQuantity.toFixed(1)} ${measurementTypeText})`;
 };
 
 export default function PurchasesList() {
   const [searchQuery, setSearchQuery] = useState("");
   const { data: purchases = [], isLoading, error } = usePurchases();
+  const { data: itemsData = [] } = useItems();
+  const { getRelationshipsByPrimary } = useRelationships();
   const deletePurchase = useDeletePurchase();
   const { settings } = useSettings();
 
@@ -129,6 +173,13 @@ export default function PurchasesList() {
     null
   );
 
+  // Create a lookup for items by ID for faster access
+  const itemsLookup = useMemo(() => {
+    return Object.fromEntries(
+      itemsData.map(item => [item.id, item])
+    );
+  }, [itemsData]);
+
   // Debug logs
   useEffect(() => {
     console.log("Purchases data:", purchases);
@@ -145,8 +196,8 @@ export default function PurchasesList() {
     let filtered = searchQuery
       ? purchases.filter(
           (purchase) =>
-            (purchase.supplier?.name &&
-              purchase.supplier.name
+            (purchase.supplier &&
+              purchase.supplier
                 .toLowerCase()
                 .includes(searchQuery.toLowerCase())) ||
             (purchase.invoiceNumber &&
@@ -300,7 +351,7 @@ export default function PurchasesList() {
       csvContent += `${
         purchase.purchaseDate ? formatDate(purchase.purchaseDate) : ""
       }${delimiter}`;
-      csvContent += `${(purchase.supplier?.name || "Unknown Supplier").replace(
+      csvContent += `${(purchase.supplier || "Unknown Supplier").replace(
         /,/g,
         " "
       )}${delimiter}`;
@@ -653,7 +704,7 @@ export default function PurchasesList() {
                             color: "#0a7ea4"
                           }}
                         >
-                          {purchase.supplier?.name || "Unknown Supplier"}
+                          {purchase.supplier || "Unknown Supplier"}
                         </RouterLink>
                       </TableCell>
                       <TableCell>{purchase.invoiceNumber || "-"}</TableCell>
@@ -719,8 +770,7 @@ export default function PurchasesList() {
               const itemsDisplay = getPurchaseItemsDisplayText(purchase);
 
               return (
-                <Grid
-                  xs={12} sm={6} md={4} lg={3}
+                <Grid size={{xs:12, sm:6, md:4, lg:3}}
                   key={purchase.id || `purchase-${index}`}
                 >
                   <Card
@@ -745,7 +795,7 @@ export default function PurchasesList() {
                         }}
                       >
                         <Typography variant="h6" component="h2" noWrap>
-                          {purchase.supplier?.name || "Unknown Supplier"}
+                          {purchase.supplier || "Unknown Supplier"}
                         </Typography>
                         <StatusChip status={purchase.status} />
                       </Box>

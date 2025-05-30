@@ -623,6 +623,7 @@ export default function InventoryDetail() {
                             label="Track by Quantity"
                             size="small"
                             variant="outlined"
+                            component="span"
                           />
                         );
                       case 'weight':
@@ -632,6 +633,7 @@ export default function InventoryDetail() {
                             label="Track by Weight"
                             size="small"
                             variant="outlined"
+                            component="span"
                           />
                         );
                       case 'length':
@@ -641,6 +643,7 @@ export default function InventoryDetail() {
                             label="Track by Length"
                             size="small"
                             variant="outlined"
+                            component="span"
                           />
                         );
                       case 'area':
@@ -650,6 +653,7 @@ export default function InventoryDetail() {
                             label="Track by Area"
                             size="small"
                             variant="outlined"
+                            component="span"
                           />
                         );
                       case 'volume':
@@ -659,6 +663,7 @@ export default function InventoryDetail() {
                             label="Track by Volume"
                             size="small"
                             variant="outlined"
+                            component="span"
                           />
                         );
                       default:
@@ -668,6 +673,7 @@ export default function InventoryDetail() {
                             label="Track by Quantity"
                             size="small"
                             variant="outlined"
+                            component="span"
                           />
                         );
                     }
@@ -688,6 +694,7 @@ export default function InventoryDetail() {
                           label="Price per Item/Package"
                           size="small"
                           variant="outlined"
+                          component="span"
                         />;
                       case 'per_weight_unit':
                         return <Chip
@@ -695,6 +702,7 @@ export default function InventoryDetail() {
                           label={`Price per ${data?.weightUnit}`}
                           size="small"
                           variant="outlined"
+                          component="span"
                         />;
                       case 'per_length_unit':
                         return <Chip
@@ -702,6 +710,7 @@ export default function InventoryDetail() {
                           label={`Price per ${data?.lengthUnit}`}
                           size="small"
                           variant="outlined"
+                          component="span"
                         />;
                       case 'per_area_unit':
                         return <Chip
@@ -709,6 +718,7 @@ export default function InventoryDetail() {
                           label={`Price per ${data?.areaUnit}`}
                           size="small"
                           variant="outlined"
+                          component="span"
                         />;
                       case 'per_volume_unit':
                         return <Chip
@@ -716,6 +726,7 @@ export default function InventoryDetail() {
                           label={`Price per ${data?.volumeUnit}`}
                           size="small"
                           variant="outlined"
+                          component="span"
                         />;
                       default:
                         return <Chip
@@ -723,6 +734,7 @@ export default function InventoryDetail() {
                           label="Price per Item"
                           size="small"
                           variant="outlined"
+                          component="span"
                         />;
                     }
                   })()}
@@ -740,6 +752,7 @@ export default function InventoryDetail() {
                       label="Raw Material"
                       size="small"
                       variant="outlined"
+                      component="span"
                     />
                   ) : data?.itemType === 'product' ? (
                     <Chip
@@ -747,6 +760,7 @@ export default function InventoryDetail() {
                       label="Finished Product"
                       size="small"
                       variant="outlined"
+                      component="span"
                     />
                   ) : (
                     <Chip
@@ -754,6 +768,7 @@ export default function InventoryDetail() {
                       label="Material & Product"
                       size="small"
                       variant="outlined"
+                      component="span"
                     />
                   )}
                 </Typography>
@@ -1330,12 +1345,9 @@ export default function InventoryDetail() {
                     <Typography variant="subtitle1" color="primary.main">
                       {formatCurrency(
                         relatedPurchases.reduce((sum, purchase) => {
-                          // Find the specific item in this purchase
-                          const purchaseItem = purchase.items.find(i =>
-                            (typeof i.item === 'object' && i.item?.id === id) ||
-                            (typeof i.item === 'string' && i.item === id)
-                          );
-                          return sum + (purchaseItem?.totalCost || 0);
+                          // Get purchase attributes from the relationship
+                          const purchaseAttributes = purchase.purchaseItemAttributes || {};
+                          return sum + (purchaseAttributes.totalCost || 0);
                         }, 0)
                       )}
                     </Typography>
@@ -1360,12 +1372,9 @@ export default function InventoryDetail() {
                     <Typography variant="subtitle1" color="secondary.main">
                       {formatCurrency(
                         relatedSales.reduce((sum, sale) => {
-                          // Find the specific item in this sale
-                          const saleItem = sale.items.find(i =>
-                            (typeof i.item === 'object' && i.item?.id === id) ||
-                            (typeof i.item === 'string' && i.item === id)
-                          );
-                          return sum + (saleItem ? saleItem.quantity * saleItem.priceAtSale : 0);
+                          // Get sale attributes from the relationship
+                          const saleAttributes = sale.saleItemAttributes || {};
+                          return sum + (saleAttributes.totalPrice || 0);
                         }, 0)
                       )}
                     </Typography>

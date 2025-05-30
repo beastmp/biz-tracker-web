@@ -27,12 +27,8 @@ const RELATIONSHIPS_KEY = "relationships";
  */
 export interface RelationshipPurchase {
   id?: string;
-  supplier: {
-    name: string;
-    contactName?: string;
-    email?: string;
-    phone?: string;
-  };
+  supplier: string;
+  supplierId?: string;
   invoiceNumber?: string;
   purchaseDate?: Date | string;
   subtotal: number;
@@ -116,10 +112,11 @@ export const usePurchases = () => {
             // Extract relationships from the API response
             const items = purchase.relationships?.items || [];
 
-            // Create a clean RelationshipPurchase object
+            // Create a clean RelationshipPurchase object with supplier as a string
             return {
               id: purchaseId,
-              supplier: purchaseData.supplier || {},
+              supplier: purchaseData.supplier || "",
+              supplierId: purchaseData.supplierId,
               invoiceNumber: purchaseData.invoiceNumber,
               // Validate and format date fields
               purchaseDate: validateAndFormatDateField(purchaseData.purchaseDate),
